@@ -1,8 +1,27 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
-// Load .env file
+// Standart .env yüklemesi
 dotenv.config();
+
+// honto.env veya farklı isimlendirilmiş env dosyalarını otomatik tara ve yükle
+const possibleEnvFiles = [
+  'honto.env',
+  '.env',
+  path.join(process.cwd(), 'honto.env'),
+  path.join(process.cwd(), '.env'),
+  '/home/container/honto.env',
+  '/home/container/.env',
+];
+
+for (const envPath of possibleEnvFiles) {
+  try {
+    if (fs.existsSync(envPath)) {
+      dotenv.config({ path: envPath });
+    }
+  } catch (e) {}
+}
 
 export interface BotConfig {
   discordToken: string;

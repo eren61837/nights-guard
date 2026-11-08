@@ -6,8 +6,27 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.config = void 0;
 exports.validateConfig = validateConfig;
 const dotenv_1 = __importDefault(require("dotenv"));
-// Load .env file
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
+// Standart .env yüklemesi
 dotenv_1.default.config();
+// honto.env veya farklı isimlendirilmiş env dosyalarını otomatik tara ve yükle
+const possibleEnvFiles = [
+    'honto.env',
+    '.env',
+    path_1.default.join(process.cwd(), 'honto.env'),
+    path_1.default.join(process.cwd(), '.env'),
+    '/home/container/honto.env',
+    '/home/container/.env',
+];
+for (const envPath of possibleEnvFiles) {
+    try {
+        if (fs_1.default.existsSync(envPath)) {
+            dotenv_1.default.config({ path: envPath });
+        }
+    }
+    catch (e) { }
+}
 exports.config = {
     discordToken: process.env.DISCORD_TOKEN || '',
     discordClientId: process.env.DISCORD_CLIENT_ID || undefined,

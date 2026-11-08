@@ -12,6 +12,72 @@ const fs_1 = __importDefault(require("fs"));
 const yts = require('yt-search');
 class MusicPlayer {
     static queues = new Map();
+    static async ensureLinuxBinaries() {
+        if (process.platform !== 'linux')
+            return;
+        const https = require('https');
+        const zlib = require('zlib');
+        const downloadGz = (url, dest) => {
+            return new Promise((resolve, reject) => {
+                https.get(url, { headers: { 'User-Agent': 'node' } }, (res) => {
+                    if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                        return downloadGz(res.headers.location, dest).then(resolve).catch(reject);
+                    }
+                    if (res.statusCode !== 200)
+                        return reject(new Error('HTTP ' + res.statusCode));
+                    const gunzip = zlib.createGunzip();
+                    const file = fs_1.default.createWriteStream(dest);
+                    res.pipe(gunzip).pipe(file);
+                    file.on('finish', () => file.close(() => resolve()));
+                    file.on('error', reject);
+                }).on('error', reject);
+            });
+        };
+        const downloadRaw = (url, dest) => {
+            return new Promise((resolve, reject) => {
+                https.get(url, { headers: { 'User-Agent': 'node' } }, (res) => {
+                    if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                        return downloadRaw(res.headers.location, dest).then(resolve).catch(reject);
+                    }
+                    if (res.statusCode !== 200)
+                        return reject(new Error('HTTP ' + res.statusCode));
+                    const file = fs_1.default.createWriteStream(dest);
+                    res.pipe(file);
+                    file.on('finish', () => file.close(() => resolve()));
+                    file.on('error', reject);
+                }).on('error', reject);
+            });
+        };
+        try {
+            if (!fs_1.default.existsSync('ffmpeg')) {
+                console.log('[MusicPlayer] 🐧 Linux ortamı tespit edildi, ffmpeg indiriliyor...');
+                await downloadGz('https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-linux-x64.gz', 'ffmpeg');
+                fs_1.default.chmodSync('ffmpeg', 0o755);
+                console.log('[MusicPlayer] ✅ Linux ffmpeg hazır!');
+            }
+            else {
+                try {
+                    fs_1.default.chmodSync('ffmpeg', 0o755);
+                }
+                catch (e) { }
+            }
+            if (!fs_1.default.existsSync('yt-dlp')) {
+                console.log('[MusicPlayer] 🐧 Linux ortamı tespit edildi, yt-dlp indiriliyor...');
+                await downloadRaw('https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp', 'yt-dlp');
+                fs_1.default.chmodSync('yt-dlp', 0o755);
+                console.log('[MusicPlayer] ✅ Linux yt-dlp hazır!');
+            }
+            else {
+                try {
+                    fs_1.default.chmodSync('yt-dlp', 0o755);
+                }
+                catch (e) { }
+            }
+        }
+        catch (err) {
+            console.warn('[MusicPlayer] Linux binary indirme uyarısı:', err.message);
+        }
+    }
     static getBinaries() {
         const isWin = process.platform === 'win32';
         let ytdlp = isWin ? path_1.default.resolve('yt-dlp.exe') : path_1.default.resolve('yt-dlp');

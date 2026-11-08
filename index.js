@@ -37,7 +37,25 @@ var import_discord39 = require("discord.js");
 
 // src/config.ts
 var import_dotenv = __toESM(require("dotenv"));
+var import_path = __toESM(require("path"));
+var import_fs = __toESM(require("fs"));
 import_dotenv.default.config();
+var possibleEnvFiles = [
+  "honto.env",
+  ".env",
+  import_path.default.join(process.cwd(), "honto.env"),
+  import_path.default.join(process.cwd(), ".env"),
+  "/home/container/honto.env",
+  "/home/container/.env"
+];
+for (const envPath of possibleEnvFiles) {
+  try {
+    if (import_fs.default.existsSync(envPath)) {
+      import_dotenv.default.config({ path: envPath });
+    }
+  } catch (e) {
+  }
+}
 var config = {
   discordToken: process.env.DISCORD_TOKEN || "",
   discordClientId: process.env.DISCORD_CLIENT_ID || void 0,
@@ -3340,8 +3358,8 @@ var import_discord19 = require("discord.js");
 
 // src/services/features/levelManager.ts
 var import_discord18 = require("discord.js");
-var import_fs = __toESM(require("fs"));
-var import_path = __toESM(require("path"));
+var import_fs2 = __toESM(require("fs"));
+var import_path2 = __toESM(require("path"));
 var LEVEL_REWARD_ROLES = [
   { level: 5, name: "\u{1F949}\u30FBLevel 5 | \xC7aylak", roleId: "1568680202807156888", color: "#CD7F32" },
   { level: 10, name: "\u{1F948}\u30FBLevel 10 | Aktif \xDCye", roleId: "1568680215872278680", color: "#C0C0C0" },
@@ -3349,15 +3367,15 @@ var LEVEL_REWARD_ROLES = [
   { level: 30, name: "\u{1F48E}\u30FBLevel 30 | Elmas", roleId: "1568680222495084746", color: "#00E5FF" },
   { level: 50, name: "\u{1F451}\u30FBLevel 50 | Efsane", roleId: "1568680226324484167", color: "#E056FD" }
 ];
-var DATA_FILE = import_path.default.resolve("assets/levelData.json");
+var DATA_FILE = import_path2.default.resolve("assets/levelData.json");
 var LevelManager = class {
   static userLevels = /* @__PURE__ */ new Map();
   static loaded = false;
   static load() {
     if (this.loaded) return;
     try {
-      if (import_fs.default.existsSync(DATA_FILE)) {
-        const raw = import_fs.default.readFileSync(DATA_FILE, "utf-8");
+      if (import_fs2.default.existsSync(DATA_FILE)) {
+        const raw = import_fs2.default.readFileSync(DATA_FILE, "utf-8");
         const parsed = JSON.parse(raw);
         for (const [k, v] of Object.entries(parsed)) {
           this.userLevels.set(k, v);
@@ -3369,13 +3387,13 @@ var LevelManager = class {
   }
   static save() {
     try {
-      const dir = import_path.default.dirname(DATA_FILE);
-      if (!import_fs.default.existsSync(dir)) import_fs.default.mkdirSync(dir, { recursive: true });
+      const dir = import_path2.default.dirname(DATA_FILE);
+      if (!import_fs2.default.existsSync(dir)) import_fs2.default.mkdirSync(dir, { recursive: true });
       const obj = {};
       for (const [k, v] of this.userLevels.entries()) {
         obj[k] = v;
       }
-      import_fs.default.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2), "utf-8");
+      import_fs2.default.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2), "utf-8");
     } catch (e) {
     }
   }
@@ -3918,17 +3936,17 @@ async function execute16(interaction) {
 var import_discord26 = require("discord.js");
 
 // src/services/features/economyManager.ts
-var import_fs2 = __toESM(require("fs"));
-var import_path2 = __toESM(require("path"));
-var DATA_FILE2 = import_path2.default.resolve("assets/economyData.json");
+var import_fs3 = __toESM(require("fs"));
+var import_path3 = __toESM(require("path"));
+var DATA_FILE2 = import_path3.default.resolve("assets/economyData.json");
 var EconomyManager = class {
   static userEconomy = /* @__PURE__ */ new Map();
   static loaded = false;
   static load() {
     if (this.loaded) return;
     try {
-      if (import_fs2.default.existsSync(DATA_FILE2)) {
-        const raw = import_fs2.default.readFileSync(DATA_FILE2, "utf-8");
+      if (import_fs3.default.existsSync(DATA_FILE2)) {
+        const raw = import_fs3.default.readFileSync(DATA_FILE2, "utf-8");
         const parsed = JSON.parse(raw);
         for (const [k, v] of Object.entries(parsed)) {
           this.userEconomy.set(k, v);
@@ -3940,13 +3958,13 @@ var EconomyManager = class {
   }
   static save() {
     try {
-      const dir = import_path2.default.dirname(DATA_FILE2);
-      if (!import_fs2.default.existsSync(dir)) import_fs2.default.mkdirSync(dir, { recursive: true });
+      const dir = import_path3.default.dirname(DATA_FILE2);
+      if (!import_fs3.default.existsSync(dir)) import_fs3.default.mkdirSync(dir, { recursive: true });
       const obj = {};
       for (const [k, v] of this.userEconomy.entries()) {
         obj[k] = v;
       }
-      import_fs2.default.writeFileSync(DATA_FILE2, JSON.stringify(obj, null, 2), "utf-8");
+      import_fs3.default.writeFileSync(DATA_FILE2, JSON.stringify(obj, null, 2), "utf-8");
     } catch (e) {
     }
   }
@@ -4165,8 +4183,8 @@ var import_discord30 = require("discord.js");
 
 // src/services/features/confessionManager.ts
 var import_discord29 = require("discord.js");
-var import_fs3 = __toESM(require("fs"));
-var import_path3 = __toESM(require("path"));
+var import_fs4 = __toESM(require("fs"));
+var import_path4 = __toESM(require("path"));
 
 // src/services/features/autoSecurityGuard.ts
 var import_discord28 = require("discord.js");
@@ -4387,7 +4405,7 @@ Mesaj\u0131n\u0131zda **${reason}** tespit edildi!
 
 // src/services/features/confessionManager.ts
 var ConfessionManager = class {
-  static filePath = import_path3.default.resolve("assets/confessions.json");
+  static filePath = import_path4.default.resolve("assets/confessions.json");
   static store = {
     counter: 0,
     confessions: {}
@@ -4396,8 +4414,8 @@ var ConfessionManager = class {
   static load() {
     if (this.loaded) return;
     try {
-      if (import_fs3.default.existsSync(this.filePath)) {
-        const raw = import_fs3.default.readFileSync(this.filePath, "utf-8");
+      if (import_fs4.default.existsSync(this.filePath)) {
+        const raw = import_fs4.default.readFileSync(this.filePath, "utf-8");
         this.store = JSON.parse(raw);
       }
     } catch {
@@ -4407,9 +4425,9 @@ var ConfessionManager = class {
   }
   static save() {
     try {
-      const dir = import_path3.default.dirname(this.filePath);
-      if (!import_fs3.default.existsSync(dir)) import_fs3.default.mkdirSync(dir, { recursive: true });
-      import_fs3.default.writeFileSync(this.filePath, JSON.stringify(this.store, null, 2), "utf-8");
+      const dir = import_path4.default.dirname(this.filePath);
+      if (!import_fs4.default.existsSync(dir)) import_fs4.default.mkdirSync(dir, { recursive: true });
+      import_fs4.default.writeFileSync(this.filePath, JSON.stringify(this.store, null, 2), "utf-8");
     } catch (e) {
       console.warn("[ConfessionManager] Kaydetme hatas\u0131:", e.message);
     }
@@ -4579,8 +4597,8 @@ var import_discord32 = require("discord.js");
 var import_voice = require("@discordjs/voice");
 var import_discord31 = require("discord.js");
 var import_child_process = require("child_process");
-var import_path4 = __toESM(require("path"));
-var import_fs4 = __toESM(require("fs"));
+var import_path5 = __toESM(require("path"));
+var import_fs5 = __toESM(require("fs"));
 var yts = require("yt-search");
 var MusicPlayer = class {
   static queues = /* @__PURE__ */ new Map();
@@ -4596,7 +4614,7 @@ var MusicPlayer = class {
           }
           if (res.statusCode !== 200) return reject(new Error("HTTP " + res.statusCode));
           const gunzip = zlib2.createGunzip();
-          const file = import_fs4.default.createWriteStream(dest);
+          const file = import_fs5.default.createWriteStream(dest);
           res.pipe(gunzip).pipe(file);
           file.on("finish", () => file.close(() => resolve()));
           file.on("error", reject);
@@ -4610,7 +4628,7 @@ var MusicPlayer = class {
             return downloadRaw(res.headers.location, dest).then(resolve).catch(reject);
           }
           if (res.statusCode !== 200) return reject(new Error("HTTP " + res.statusCode));
-          const file = import_fs4.default.createWriteStream(dest);
+          const file = import_fs5.default.createWriteStream(dest);
           res.pipe(file);
           file.on("finish", () => file.close(() => resolve()));
           file.on("error", reject);
@@ -4618,25 +4636,25 @@ var MusicPlayer = class {
       });
     };
     try {
-      if (!import_fs4.default.existsSync("ffmpeg")) {
+      if (!import_fs5.default.existsSync("ffmpeg")) {
         console.log("[MusicPlayer] \u{1F427} Linux ortam\u0131 tespit edildi, ffmpeg indiriliyor...");
         await downloadGz("https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-linux-x64.gz", "ffmpeg");
-        import_fs4.default.chmodSync("ffmpeg", 493);
+        import_fs5.default.chmodSync("ffmpeg", 493);
         console.log("[MusicPlayer] \u2705 Linux ffmpeg haz\u0131r!");
       } else {
         try {
-          import_fs4.default.chmodSync("ffmpeg", 493);
+          import_fs5.default.chmodSync("ffmpeg", 493);
         } catch (e) {
         }
       }
-      if (!import_fs4.default.existsSync("yt-dlp")) {
+      if (!import_fs5.default.existsSync("yt-dlp")) {
         console.log("[MusicPlayer] \u{1F427} Linux ortam\u0131 tespit edildi, yt-dlp indiriliyor...");
         await downloadRaw("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp", "yt-dlp");
-        import_fs4.default.chmodSync("yt-dlp", 493);
+        import_fs5.default.chmodSync("yt-dlp", 493);
         console.log("[MusicPlayer] \u2705 Linux yt-dlp haz\u0131r!");
       } else {
         try {
-          import_fs4.default.chmodSync("yt-dlp", 493);
+          import_fs5.default.chmodSync("yt-dlp", 493);
         } catch (e) {
         }
       }
@@ -4646,17 +4664,17 @@ var MusicPlayer = class {
   }
   static getBinaries() {
     const isWin = process.platform === "win32";
-    let ytdlp = isWin ? import_path4.default.resolve("yt-dlp.exe") : import_path4.default.resolve("yt-dlp");
-    let ffmpeg = isWin ? import_path4.default.resolve("ffmpeg.exe") : import_path4.default.resolve("ffmpeg");
-    if (!import_fs4.default.existsSync(ytdlp)) ytdlp = isWin ? "yt-dlp.exe" : "yt-dlp";
-    if (!import_fs4.default.existsSync(ffmpeg)) ffmpeg = isWin ? "ffmpeg.exe" : "ffmpeg";
+    let ytdlp = isWin ? import_path5.default.resolve("yt-dlp.exe") : import_path5.default.resolve("yt-dlp");
+    let ffmpeg = isWin ? import_path5.default.resolve("ffmpeg.exe") : import_path5.default.resolve("ffmpeg");
+    if (!import_fs5.default.existsSync(ytdlp)) ytdlp = isWin ? "yt-dlp.exe" : "yt-dlp";
+    if (!import_fs5.default.existsSync(ffmpeg)) ffmpeg = isWin ? "ffmpeg.exe" : "ffmpeg";
     if (!isWin) {
       try {
-        import_fs4.default.chmodSync(ytdlp, 493);
+        import_fs5.default.chmodSync(ytdlp, 493);
       } catch (e) {
       }
       try {
-        import_fs4.default.chmodSync(ffmpeg, 493);
+        import_fs5.default.chmodSync(ffmpeg, 493);
       } catch (e) {
       }
     }
@@ -5231,16 +5249,16 @@ async function executeSes(interaction) {
 
 // src/services/features/socialManager.ts
 var import_discord33 = require("discord.js");
-var import_fs5 = __toESM(require("fs"));
-var import_path5 = __toESM(require("path"));
+var import_fs6 = __toESM(require("fs"));
+var import_path6 = __toESM(require("path"));
 var SocialManager = class {
-  static filePath = import_path5.default.join(__dirname, "../../../assets/marriages.json");
+  static filePath = import_path6.default.join(__dirname, "../../../assets/marriages.json");
   static marriages = [];
   static pendingProposals = /* @__PURE__ */ new Map();
   static load() {
     try {
-      if (import_fs5.default.existsSync(this.filePath)) {
-        const raw = import_fs5.default.readFileSync(this.filePath, "utf-8");
+      if (import_fs6.default.existsSync(this.filePath)) {
+        const raw = import_fs6.default.readFileSync(this.filePath, "utf-8");
         this.marriages = JSON.parse(raw);
       } else {
         this.marriages = [];
@@ -5252,9 +5270,9 @@ var SocialManager = class {
   }
   static save() {
     try {
-      const dir = import_path5.default.dirname(this.filePath);
-      if (!import_fs5.default.existsSync(dir)) import_fs5.default.mkdirSync(dir, { recursive: true });
-      import_fs5.default.writeFileSync(this.filePath, JSON.stringify(this.marriages, null, 2), "utf-8");
+      const dir = import_path6.default.dirname(this.filePath);
+      if (!import_fs6.default.existsSync(dir)) import_fs6.default.mkdirSync(dir, { recursive: true });
+      import_fs6.default.writeFileSync(this.filePath, JSON.stringify(this.marriages, null, 2), "utf-8");
     } catch (e) {
       console.warn("[SocialManager] Kay\u0131t hatas\u0131:", e.message);
     }
