@@ -102,7 +102,12 @@ async function main() {
     ];
     if (client.application) {
         await client.application.commands.set(commands);
-        console.log(`✅ ${commands.length} adet Slash komutu Discord API'ye başarıyla kaydedildi (Müzik komutları tamamen temizlendi)!`);
+        console.log(`✅ ${commands.length} adet Slash komutu Discord genel API'ye kaydedildi!`);
+    }
+    const guild = await client.guilds.fetch('1568618183223414934').catch(() => null);
+    if (guild) {
+        await guild.commands.set(commands);
+        console.log(`⚡ ${commands.length} adet Slash komutu ${guild.name} sunucusuna ANINDA (0sn) yüklendi!`);
     }
     client.destroy();
 }

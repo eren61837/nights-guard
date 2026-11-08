@@ -125,7 +125,7 @@ class MusicPlayer {
         }
         catch (e) { }
     }
-    static getAudioStream(query) {
+    static getAudioStream(query, songTitle) {
         const { ytdlp, ffmpeg } = this.getBinaries();
         const tryExtract = (targetQuery) => {
             return new Promise((resolve, reject) => {
@@ -160,10 +160,15 @@ class MusicPlayer {
                 directUrl = await tryExtract(query);
             }
             catch (ytErr) {
-                console.warn(`[MusicPlayer] YouTube uyarısı, SoundCloud yedeğine geçiliyor: ${ytErr.message.slice(0, 80)}`);
-                const cleanQuery = query.replace(/https?:\/\/[^\s]+/g, '').trim() || query;
+                const cleanTitle = (songTitle || query)
+                    .replace(/https?:\/\/[^\s]+/g, '')
+                    .replace(/www\.[^\s]+/g, '')
+                    .replace(/[\/\?\#].*/g, '')
+                    .trim();
+                console.warn(`[MusicPlayer] ⚠️ YouTube IP kısıtlaması, SoundCloud yedeğinde "${cleanTitle}" aranıyor...`);
                 try {
-                    directUrl = await tryExtract(`scsearch:${cleanQuery}`);
+                    directUrl = await tryExtract(`scsearch:${cleanTitle || 'music'}`);
+                    console.log(`[MusicPlayer] ✅ SoundCloud üzerinden parça başarıyla bulundu!`);
                 }
                 catch (scErr) {
                     return reject(new Error(`Müzik kaynağına ulaşılamadı: ${ytErr.message || scErr.message}`));
@@ -224,7 +229,7 @@ class MusicPlayer {
             queue.timeout = null;
         }
         try {
-            const { stream, process: ffProcess } = await this.getAudioStream(song.url || song.title);
+            const { stream, process: ffProcess } = await this.getAudioStream(song.url || song.title, song.title);
             queue.streamProcess = ffProcess;
             const resource = (0, voice_1.createAudioResource)(stream, {
                 inputType: voice_1.StreamType.Raw,
@@ -283,25 +288,45 @@ class MusicPlayer {
         }
         let songInfo = null;
         try {
-            const search = await yts(query);
-            if (search && search.videos && search.videos.length > 0) {
-                const v = search.videos[0];
-                songInfo = {
-                    title: v.title,
-                    url: v.url,
-                    duration: v.timestamp,
-                    thumbnail: v.thumbnail,
-                    requesterId: member.id,
-                };
+            if (query.includes('youtube.com') || query.includes('youtu.be')) {
+                const idMatch = query.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+                if (idMatch && idMatch[1]) {
+                    try {
+                        const v = await yts({ videoId: idMatch[1] });
+                        if (v && v.title) {
+                            songInfo = {
+                                title: v.title,
+                                url: v.url,
+                                duration: v.timestamp || 'Bilinmiyor',
+                                thumbnail: v.thumbnail,
+                                requesterId: member.id,
+                            };
+                        }
+                    }
+                    catch (e) { }
+                }
             }
-            else if (query.startsWith('http://') || query.startsWith('https://')) {
-                songInfo = {
-                    title: query,
-                    url: query,
-                    duration: 'Canlı / Bilinmiyor',
-                    thumbnail: null,
-                    requesterId: member.id,
-                };
+            if (!songInfo) {
+                const search = await yts(query);
+                if (search && search.videos && search.videos.length > 0) {
+                    const v = search.videos[0];
+                    songInfo = {
+                        title: v.title,
+                        url: v.url,
+                        duration: v.timestamp,
+                        thumbnail: v.thumbnail,
+                        requesterId: member.id,
+                    };
+                }
+                else if (query.startsWith('http://') || query.startsWith('https://')) {
+                    songInfo = {
+                        title: query,
+                        url: query,
+                        duration: 'Canlı / Bilinmiyor',
+                        thumbnail: null,
+                        requesterId: member.id,
+                    };
+                }
             }
             if (!songInfo) {
                 const msg = '❌ Aradığınız şarkı bulunamadı. Lütfen şarkı adı veya linkini kontrol edin.';

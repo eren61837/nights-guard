@@ -54,6 +54,7 @@ const istatistikCmd = __importStar(require("../commands/istatistik"));
 const kullaniciCmd = __importStar(require("../commands/kullanici"));
 const gonderCmd = __importStar(require("../commands/gonder"));
 const itirafCmd = __importStar(require("../commands/itiraf"));
+const muzikCmd = __importStar(require("../commands/muzik"));
 const seviye_1 = require("../commands/seviye");
 const levelManager_1 = require("../services/features/levelManager");
 async function onReady(client) {
@@ -97,6 +98,14 @@ async function onReady(client) {
             kullaniciCmd.data,
             gonderCmd.data,
             itirafCmd.data,
+            // Müzik Komutları (Tüm Üyelere Açık)
+            muzikCmd.calData,
+            muzikCmd.durdurData,
+            muzikCmd.devamData,
+            muzikCmd.gecData,
+            muzikCmd.kuyrukData,
+            muzikCmd.ayrilData,
+            muzikCmd.sesData,
             // Moderasyon Komutu
             silCmd.data,
             // Seviye ve Sıralama Komutları (Tüm Üyelere Açık)
@@ -118,7 +127,17 @@ async function onReady(client) {
         ];
         if (client.application) {
             await client.application.commands.set(commands);
-            console.log(`[Slash Commands] ${commands.length} adet Slash komutu başarıyla kaydedildi!`);
+            console.log(`[Slash Commands] ${commands.length} adet Slash komutu genel olarak kaydedildi!`);
+        }
+        // Sunucularda anında (0 saniye gecikmeyle) görünmesi için bağlı tüm sunuculara doğrudan kaydet
+        for (const guild of client.guilds.cache.values()) {
+            try {
+                await guild.commands.set(commands);
+                console.log(`[Slash Commands] ⚡ ${guild.name} sunucusuna ${commands.length} adet komut anında yüklendi!`);
+            }
+            catch (gErr) {
+                console.warn(`[Slash Commands] ${guild.name} için sunucu içi kayıt atlandı:`, gErr.message);
+            }
         }
     }
     catch (err) {

@@ -4708,7 +4708,7 @@ var MusicPlayer = class {
     } catch (e) {
     }
   }
-  static getAudioStream(query) {
+  static getAudioStream(query, songTitle) {
     const { ytdlp, ffmpeg } = this.getBinaries();
     const tryExtract = (targetQuery) => {
       return new Promise((resolve, reject) => {
@@ -4744,10 +4744,11 @@ var MusicPlayer = class {
       try {
         directUrl = await tryExtract(query);
       } catch (ytErr) {
-        console.warn(`[MusicPlayer] YouTube uyar\u0131s\u0131, SoundCloud yede\u011Fine ge\xE7iliyor: ${ytErr.message.slice(0, 80)}`);
-        const cleanQuery = query.replace(/https?:\/\/[^\s]+/g, "").trim() || query;
+        const cleanTitle = (songTitle || query).replace(/https?:\/\/[^\s]+/g, "").replace(/www\.[^\s]+/g, "").replace(/[\/\?\#].*/g, "").trim();
+        console.warn(`[MusicPlayer] \u26A0\uFE0F YouTube IP k\u0131s\u0131tlamas\u0131, SoundCloud yede\u011Finde "${cleanTitle}" aran\u0131yor...`);
         try {
-          directUrl = await tryExtract(`scsearch:${cleanQuery}`);
+          directUrl = await tryExtract(`scsearch:${cleanTitle || "music"}`);
+          console.log(`[MusicPlayer] \u2705 SoundCloud \xFCzerinden par\xE7a ba\u015Far\u0131yla bulundu!`);
         } catch (scErr) {
           return reject(new Error(`M\xFCzik kayna\u011F\u0131na ula\u015F\u0131lamad\u0131: ${ytErr.message || scErr.message}`));
         }
@@ -4813,7 +4814,7 @@ var MusicPlayer = class {
       queue.timeout = null;
     }
     try {
-      const { stream, process: ffProcess } = await this.getAudioStream(song.url || song.title);
+      const { stream, process: ffProcess } = await this.getAudioStream(song.url || song.title, song.title);
       queue.streamProcess = ffProcess;
       const resource = (0, import_voice.createAudioResource)(stream, {
         inputType: import_voice.StreamType.Raw,
@@ -4869,24 +4870,44 @@ var MusicPlayer = class {
     }
     let songInfo = null;
     try {
-      const search = await yts(query);
-      if (search && search.videos && search.videos.length > 0) {
-        const v = search.videos[0];
-        songInfo = {
-          title: v.title,
-          url: v.url,
-          duration: v.timestamp,
-          thumbnail: v.thumbnail,
-          requesterId: member.id
-        };
-      } else if (query.startsWith("http://") || query.startsWith("https://")) {
-        songInfo = {
-          title: query,
-          url: query,
-          duration: "Canl\u0131 / Bilinmiyor",
-          thumbnail: null,
-          requesterId: member.id
-        };
+      if (query.includes("youtube.com") || query.includes("youtu.be")) {
+        const idMatch = query.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+        if (idMatch && idMatch[1]) {
+          try {
+            const v = await yts({ videoId: idMatch[1] });
+            if (v && v.title) {
+              songInfo = {
+                title: v.title,
+                url: v.url,
+                duration: v.timestamp || "Bilinmiyor",
+                thumbnail: v.thumbnail,
+                requesterId: member.id
+              };
+            }
+          } catch (e) {
+          }
+        }
+      }
+      if (!songInfo) {
+        const search = await yts(query);
+        if (search && search.videos && search.videos.length > 0) {
+          const v = search.videos[0];
+          songInfo = {
+            title: v.title,
+            url: v.url,
+            duration: v.timestamp,
+            thumbnail: v.thumbnail,
+            requesterId: member.id
+          };
+        } else if (query.startsWith("http://") || query.startsWith("https://")) {
+          songInfo = {
+            title: query,
+            url: query,
+            duration: "Canl\u0131 / Bilinmiyor",
+            thumbnail: null,
+            requesterId: member.id
+          };
+        }
       }
       if (!songInfo) {
         const msg = "\u274C Arad\u0131\u011F\u0131n\u0131z \u015Fark\u0131 bulunamad\u0131. L\xFCtfen \u015Fark\u0131 ad\u0131 veya linkini kontrol edin.";
@@ -6034,6 +6055,13 @@ async function onReady(client) {
       data17,
       data18,
       data19,
+      calData,
+      durdurData,
+      devamData,
+      gecData,
+      kuyrukData,
+      ayrilData,
+      sesData,
       data12,
       // Seviye ve Sıralama Komutları (Tüm Üyelere Açık)
       rankData,
@@ -6054,7 +6082,15 @@ async function onReady(client) {
     ];
     if (client.application) {
       await client.application.commands.set(commands);
-      console.log(`[Slash Commands] ${commands.length} adet Slash komutu ba\u015Far\u0131yla kaydedildi!`);
+      console.log(`[Slash Commands] ${commands.length} adet Slash komutu genel olarak kaydedildi!`);
+    }
+    for (const guild of client.guilds.cache.values()) {
+      try {
+        await guild.commands.set(commands);
+        console.log(`[Slash Commands] \u26A1 ${guild.name} sunucusuna ${commands.length} adet komut an\u0131nda y\xFCklendi!`);
+      } catch (gErr) {
+        console.warn(`[Slash Commands] ${guild.name} i\xE7in sunucu i\xE7i kay\u0131t atland\u0131:`, gErr.message);
+      }
     }
   } catch (err) {
     console.error("[Slash Commands] Komutlar kaydedilirken hata olu\u015Ftu:", err);

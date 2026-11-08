@@ -18,6 +18,7 @@ import * as istatistikCmd from '../commands/istatistik';
 import * as kullaniciCmd from '../commands/kullanici';
 import * as gonderCmd from '../commands/gonder';
 import * as itirafCmd from '../commands/itiraf';
+import * as muzikCmd from '../commands/muzik';
 import { rankData, topData, seviyeAyarlaData } from '../commands/seviye';
 import { LevelManager } from '../services/features/levelManager';
 
@@ -68,6 +69,15 @@ export async function onReady(client: Client): Promise<void> {
       gonderCmd.data,
       itirafCmd.data,
 
+      // Müzik Komutları (Tüm Üyelere Açık)
+      muzikCmd.calData,
+      muzikCmd.durdurData,
+      muzikCmd.devamData,
+      muzikCmd.gecData,
+      muzikCmd.kuyrukData,
+      muzikCmd.ayrilData,
+      muzikCmd.sesData,
+
       // Moderasyon Komutu
       silCmd.data,
 
@@ -92,7 +102,17 @@ export async function onReady(client: Client): Promise<void> {
 
     if (client.application) {
       await client.application.commands.set(commands);
-      console.log(`[Slash Commands] ${commands.length} adet Slash komutu başarıyla kaydedildi!`);
+      console.log(`[Slash Commands] ${commands.length} adet Slash komutu genel olarak kaydedildi!`);
+    }
+
+    // Sunucularda anında (0 saniye gecikmeyle) görünmesi için bağlı tüm sunuculara doğrudan kaydet
+    for (const guild of client.guilds.cache.values()) {
+      try {
+        await guild.commands.set(commands);
+        console.log(`[Slash Commands] ⚡ ${guild.name} sunucusuna ${commands.length} adet komut anında yüklendi!`);
+      } catch (gErr: any) {
+        console.warn(`[Slash Commands] ${guild.name} için sunucu içi kayıt atlandı:`, gErr.message);
+      }
     }
   } catch (err) {
     console.error('[Slash Commands] Komutlar kaydedilirken hata oluştu:', err);
