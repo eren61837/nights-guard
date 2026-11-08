@@ -127,14 +127,14 @@ class MusicPlayer {
     }
     static getAudioStream(query, songTitle) {
         const { ytdlp, ffmpeg } = this.getBinaries();
-        const tryExtract = (targetQuery) => {
+        const tryExtract = (targetQuery, customClient = 'android') => {
             return new Promise((resolve, reject) => {
                 const args = [
-                    '-f', 'ba/b/bestaudio',
+                    '-f', 'ba/b[height<=360]/b/18/bestaudio',
                     '-g',
                     '--no-playlist',
                     '--default-search', 'ytsearch',
-                    '--extractor-args', 'youtube:player_client=android,ios,web',
+                    '--extractor-args', `youtube:player_client=${customClient}`,
                     targetQuery,
                 ];
                 const proc = (0, child_process_1.spawn)(ytdlp, args);
@@ -143,8 +143,8 @@ class MusicPlayer {
                 proc.stdout.on('data', (d) => (out += d.toString()));
                 proc.stderr.on('data', (d) => (err += d.toString()));
                 proc.on('close', (code) => {
-                    const directUrl = out.trim().split('\n')[0];
-                    if (code === 0 && directUrl && directUrl.startsWith('http')) {
+                    const directUrl = out.trim().split('\n').filter(l => l.startsWith('http'))[0];
+                    if (code === 0 && directUrl) {
                         resolve(directUrl);
                     }
                     else {
@@ -157,7 +157,7 @@ class MusicPlayer {
         return new Promise(async (resolve, reject) => {
             let directUrl = '';
             try {
-                directUrl = await tryExtract(query);
+                directUrl = await tryExtract(query, 'android');
             }
             catch (ytErr) {
                 const cleanTitle = (songTitle || query)
@@ -165,13 +165,32 @@ class MusicPlayer {
                     .replace(/www\.[^\s]+/g, '')
                     .replace(/[\/\?\#].*/g, '')
                     .trim();
-                console.warn(`[MusicPlayer] ⚠️ YouTube IP kısıtlaması, SoundCloud yedeğinde "${cleanTitle}" aranıyor...`);
+                console.warn(`[MusicPlayer] ⚠️ YouTube Android kısıtlaması, SoundCloud yedeğinde "${cleanTitle}" aranıyor...`);
                 try {
                     directUrl = await tryExtract(`scsearch:${cleanTitle || 'music'}`);
                     console.log(`[MusicPlayer] ✅ SoundCloud üzerinden parça başarıyla bulundu!`);
                 }
                 catch (scErr) {
-                    return reject(new Error(`Müzik kaynağına ulaşılamadı: ${ytErr.message || scErr.message}`));
+                    try {
+                        // Son çare: TV veya mweb istemcisi ile direkt format 18
+                        const fallbackArgs = ['-f', '18/ba/b', '-g', '--no-playlist', '--default-search', 'ytsearch', cleanTitle];
+                        directUrl = await new Promise((res, rej) => {
+                            const p = (0, child_process_1.spawn)(ytdlp, fallbackArgs);
+                            let o = '', e = '';
+                            p.stdout.on('data', d => o += d);
+                            p.stderr.on('data', d => e += d);
+                            p.on('close', c => {
+                                const u = o.trim().split('\n').filter(l => l.startsWith('http'))[0];
+                                if (c === 0 && u)
+                                    res(u);
+                                else
+                                    rej(new Error(e || 'Tüm kaynaklar tükendi'));
+                            });
+                        });
+                    }
+                    catch (lastErr) {
+                        return reject(new Error(`Müzik kaynağına ulaşılamadı: ${ytErr.message || scErr.message}`));
+                    }
                 }
             }
             const ff = (0, child_process_1.spawn)(ffmpeg, [
