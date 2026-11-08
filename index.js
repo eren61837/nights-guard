@@ -40,18 +40,22 @@ var import_dotenv = __toESM(require("dotenv"));
 var import_path = __toESM(require("path"));
 var import_fs = __toESM(require("fs"));
 import_dotenv.default.config();
-var possibleEnvFiles = [
-  "honto.env",
-  ".env",
-  import_path.default.join(process.cwd(), "honto.env"),
-  import_path.default.join(process.cwd(), ".env"),
-  "/home/container/honto.env",
-  "/home/container/.env"
-];
-for (const envPath of possibleEnvFiles) {
+var searchDirs = [".", process.cwd(), "/home/container"];
+for (const dir of searchDirs) {
   try {
-    if (import_fs.default.existsSync(envPath)) {
-      import_dotenv.default.config({ path: envPath });
+    if (import_fs.default.existsSync(dir)) {
+      const files = import_fs.default.readdirSync(dir);
+      for (const file of files) {
+        if (file === ".env" || file.endsWith(".env") || file.includes("env") && !file.endsWith(".js") && !file.endsWith(".ts") && !file.endsWith(".json") && !file.endsWith(".md")) {
+          const fullPath = import_path.default.join(dir, file);
+          try {
+            if (import_fs.default.statSync(fullPath).isFile()) {
+              import_dotenv.default.config({ path: fullPath });
+            }
+          } catch (e) {
+          }
+        }
+      }
     }
   } catch (e) {
   }

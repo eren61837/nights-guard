@@ -10,19 +10,23 @@ const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 // Standart .env yüklemesi
 dotenv_1.default.config();
-// honto.env veya farklı isimlendirilmiş env dosyalarını otomatik tara ve yükle
-const possibleEnvFiles = [
-    'honto.env',
-    '.env',
-    path_1.default.join(process.cwd(), 'honto.env'),
-    path_1.default.join(process.cwd(), '.env'),
-    '/home/container/honto.env',
-    '/home/container/.env',
-];
-for (const envPath of possibleEnvFiles) {
+// Otomatik env tarayıcı: '1.env', 'honto.env', '.env' veya içinde .env geçen TÜM dosyaları bulup yükle
+const searchDirs = ['.', process.cwd(), '/home/container'];
+for (const dir of searchDirs) {
     try {
-        if (fs_1.default.existsSync(envPath)) {
-            dotenv_1.default.config({ path: envPath });
+        if (fs_1.default.existsSync(dir)) {
+            const files = fs_1.default.readdirSync(dir);
+            for (const file of files) {
+                if (file === '.env' || file.endsWith('.env') || (file.includes('env') && !file.endsWith('.js') && !file.endsWith('.ts') && !file.endsWith('.json') && !file.endsWith('.md'))) {
+                    const fullPath = path_1.default.join(dir, file);
+                    try {
+                        if (fs_1.default.statSync(fullPath).isFile()) {
+                            dotenv_1.default.config({ path: fullPath });
+                        }
+                    }
+                    catch (e) { }
+                }
+            }
         }
     }
     catch (e) { }

@@ -5,20 +5,22 @@ import fs from 'fs';
 // Standart .env yüklemesi
 dotenv.config();
 
-// honto.env veya farklı isimlendirilmiş env dosyalarını otomatik tara ve yükle
-const possibleEnvFiles = [
-  'honto.env',
-  '.env',
-  path.join(process.cwd(), 'honto.env'),
-  path.join(process.cwd(), '.env'),
-  '/home/container/honto.env',
-  '/home/container/.env',
-];
-
-for (const envPath of possibleEnvFiles) {
+// Otomatik env tarayıcı: '1.env', 'honto.env', '.env' veya içinde .env geçen TÜM dosyaları bulup yükle
+const searchDirs = ['.', process.cwd(), '/home/container'];
+for (const dir of searchDirs) {
   try {
-    if (fs.existsSync(envPath)) {
-      dotenv.config({ path: envPath });
+    if (fs.existsSync(dir)) {
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        if (file === '.env' || file.endsWith('.env') || (file.includes('env') && !file.endsWith('.js') && !file.endsWith('.ts') && !file.endsWith('.json') && !file.endsWith('.md'))) {
+          const fullPath = path.join(dir, file);
+          try {
+            if (fs.statSync(fullPath).isFile()) {
+              dotenv.config({ path: fullPath });
+            }
+          } catch (e) {}
+        }
+      }
     }
   } catch (e) {}
 }
