@@ -4604,7 +4604,7 @@ var import_child_process = require("child_process");
 var import_path5 = __toESM(require("path"));
 var import_fs5 = __toESM(require("fs"));
 var yts = require("yt-search");
-var MusicPlayer = class {
+var MusicPlayer = class _MusicPlayer {
   static queues = /* @__PURE__ */ new Map();
   static async ensureLinuxBinaries() {
     if (process.platform !== "linux") return;
@@ -4708,11 +4708,77 @@ var MusicPlayer = class {
     } catch (e) {
     }
   }
+  static cleanSongTitle(title) {
+    return title.replace(/https?:\/\/[^\s]+/g, "").replace(/www\.[^\s]+/g, "").replace(/\/\/.*/g, "").replace(/\[.*?\]/g, "").replace(/\(.*?\)/g, "").replace(/official\s+(video|audio|music\s+video|lyric\s+video)/gi, "").replace(/sözleri|lyric|lyrics|video|klip|audio/gi, "").replace(/[|#@_\*\^~]/g, " ").replace(/\s+/g, " ").trim();
+  }
+  static async fetchYoutubeOEmbed(url) {
+    try {
+      const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+      const res = await fetch(oembedUrl);
+      if (res.ok) {
+        const data20 = await res.json();
+        return {
+          title: data20.title || "",
+          author: data20.author_name || "",
+          thumbnail: data20.thumbnail_url || ""
+        };
+      }
+    } catch (e) {
+    }
+    return null;
+  }
+  static searchSoundCloud(query) {
+    const { ytdlp } = this.getBinaries();
+    return new Promise((resolve) => {
+      const args = [
+        "--dump-single-json",
+        "--no-playlist",
+        `scsearch1:${query}`
+      ];
+      const p = (0, import_child_process.spawn)(ytdlp, args);
+      let out = "";
+      p.stdout.on("data", (d) => out += d.toString());
+      p.on("close", (code) => {
+        if (code === 0 && out.trim()) {
+          try {
+            const data20 = JSON.parse(out.trim());
+            const entry = data20.entries && data20.entries.length > 0 ? data20.entries[0] : data20;
+            if (entry && (entry.title || entry.webpage_url)) {
+              let duration = "Bilinmiyor";
+              if (entry.duration) {
+                const mins = Math.floor(entry.duration / 60);
+                const secs = Math.floor(entry.duration % 60);
+                duration = `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+              }
+              const thumb = entry.thumbnail || (entry.thumbnails && entry.thumbnails.length > 0 ? entry.thumbnails[entry.thumbnails.length - 1].url : null);
+              return resolve({
+                title: entry.title || query,
+                url: entry.webpage_url || entry.url || `https://soundcloud.com/search?q=${encodeURIComponent(query)}`,
+                duration,
+                thumbnail: thumb,
+                requesterId: ""
+              });
+            }
+          } catch (e) {
+          }
+        }
+        resolve(null);
+      });
+      p.on("error", () => resolve(null));
+      setTimeout(() => {
+        try {
+          p.kill();
+        } catch (e) {
+        }
+        resolve(null);
+      }, 7e3);
+    });
+  }
   static getAudioStream(query, songTitle) {
     const { ytdlp, ffmpeg } = this.getBinaries();
-    const tryExtract = (targetQuery, customClient = "android") => {
+    const extractStream = (target, isSoundCloud = false) => {
       return new Promise((resolve, reject) => {
-        const args = [
+        const args = isSoundCloud ? ["-f", "bestaudio/b/best", "-g", "--no-playlist", target] : [
           "-f",
           "ba/b[height<=360]/b/18/bestaudio",
           "-g",
@@ -4720,8 +4786,8 @@ var MusicPlayer = class {
           "--default-search",
           "ytsearch",
           "--extractor-args",
-          `youtube:player_client=${customClient}`,
-          targetQuery
+          "youtube:player_client=android",
+          target
         ];
         const proc = (0, import_child_process.spawn)(ytdlp, args);
         let out = "";
@@ -4733,38 +4799,43 @@ var MusicPlayer = class {
           if (code === 0 && directUrl) {
             resolve(directUrl);
           } else {
-            reject(new Error(err || "Ses linki al\u0131namad\u0131"));
+            reject(new Error(err || "Ses ba\u011Flant\u0131s\u0131 al\u0131namad\u0131"));
           }
         });
         proc.on("error", reject);
+        setTimeout(() => {
+          try {
+            proc.kill();
+          } catch (e) {
+          }
+          reject(new Error("Ses kayna\u011F\u0131 zaman a\u015F\u0131m\u0131na u\u011Frad\u0131"));
+        }, 12e3);
       });
     };
     return new Promise(async (resolve, reject) => {
       let directUrl = "";
-      try {
-        directUrl = await tryExtract(query, "android");
-      } catch (ytErr) {
-        const cleanTitle = (songTitle || query).replace(/https?:\/\/[^\s]+/g, "").replace(/www\.[^\s]+/g, "").replace(/[\/\?\#].*/g, "").trim();
-        console.warn(`[MusicPlayer] \u26A0\uFE0F YouTube Android k\u0131s\u0131tlamas\u0131, SoundCloud yede\u011Finde "${cleanTitle}" aran\u0131yor...`);
+      const isSC = query.includes("soundcloud.com") || query.startsWith("scsearch");
+      if (isSC) {
         try {
-          directUrl = await tryExtract(`scsearch:${cleanTitle || "music"}`);
-          console.log(`[MusicPlayer] \u2705 SoundCloud \xFCzerinden par\xE7a ba\u015Far\u0131yla bulundu!`);
+          directUrl = await extractStream(query, true);
         } catch (scErr) {
+          return reject(new Error(`SoundCloud hatas\u0131: ${scErr.message}`));
+        }
+      } else {
+        try {
+          directUrl = await extractStream(query, false);
+        } catch (ytErr) {
+          console.warn(`[MusicPlayer] \u26A0\uFE0F YouTube k\u0131s\u0131tlamas\u0131 alg\u0131land\u0131, SoundCloud yede\u011Fine ge\xE7iliyor...`);
+          const rawTitle = songTitle || query;
+          const cleanQuery = _MusicPlayer.cleanSongTitle(rawTitle) || rawTitle.replace(/https?:\/\/[^\s]+/g, "").trim();
+          const targetSearch = `scsearch1:${cleanQuery || "pop music"}`;
+          console.log(`[MusicPlayer] \u{1F50D} SoundCloud \xFCzerinde par\xE7a aran\u0131yor: "${cleanQuery}"`);
           try {
-            const fallbackArgs = ["-f", "18/ba/b", "-g", "--no-playlist", "--default-search", "ytsearch", cleanTitle];
-            directUrl = await new Promise((res, rej) => {
-              const p = (0, import_child_process.spawn)(ytdlp, fallbackArgs);
-              let o = "", e = "";
-              p.stdout.on("data", (d) => o += d);
-              p.stderr.on("data", (d) => e += d);
-              p.on("close", (c) => {
-                const u = o.trim().split("\n").filter((l) => l.startsWith("http"))[0];
-                if (c === 0 && u) res(u);
-                else rej(new Error(e || "T\xFCm kaynaklar t\xFCkendi"));
-              });
-            });
-          } catch (lastErr) {
-            return reject(new Error(`M\xFCzik kayna\u011F\u0131na ula\u015F\u0131lamad\u0131: ${ytErr.message || scErr.message}`));
+            directUrl = await extractStream(targetSearch, true);
+            console.log(`[MusicPlayer] \u2705 SoundCloud \xFCzerinden par\xE7a ba\u015Far\u0131yla ba\u011Fland\u0131!`);
+          } catch (scErr) {
+            console.error(`[MusicPlayer] SoundCloud aramas\u0131 da yan\u0131t vermedi:`, scErr.message);
+            return reject(new Error(`M\xFCzik kayna\u011F\u0131na ula\u015F\u0131lamad\u0131. L\xFCtfen \u015Fark\u0131 ad\u0131n\u0131 veya direkt SoundCloud linkini deneyin.`));
           }
         }
       }
@@ -4870,64 +4941,104 @@ var MusicPlayer = class {
     const guild = target.interaction?.guild || target.message?.guild;
     const channel = target.interaction?.channel || target.message?.channel;
     if (!member || !guild || !channel) return;
+    if (isInteraction && !target.interaction.deferred && !target.interaction.replied) {
+      await target.interaction.deferReply().catch(() => {
+      });
+    }
     const voiceChannel = member.voice?.channel;
     if (!voiceChannel) {
       const msg = "\u274C M\xFCzik \xE7alabilmek i\xE7in bir ses kanal\u0131nda olmal\u0131s\u0131n\u0131z!";
       if (isInteraction) {
-        await target.interaction.reply({ content: msg, ephemeral: true });
+        if (target.interaction.deferred) {
+          await target.interaction.editReply({ content: msg }).catch(() => {
+          });
+        } else {
+          await target.interaction.reply({ content: msg, flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+          });
+        }
       } else if (target.message) {
-        await target.message.reply(msg);
+        await target.message.reply(msg).catch(() => {
+        });
       }
       return;
     }
-    if (isInteraction) {
-      await target.interaction.deferReply();
-    }
     let songInfo = null;
     try {
-      if (query.includes("youtube.com") || query.includes("youtu.be")) {
-        const idMatch = query.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
-        if (idMatch && idMatch[1]) {
-          try {
-            const v = await yts({ videoId: idMatch[1] });
-            if (v && v.title) {
-              songInfo = {
-                title: v.title,
-                url: v.url,
-                duration: v.timestamp || "Bilinmiyor",
-                thumbnail: v.thumbnail,
-                requesterId: member.id
-              };
+      const isYtUrl = query.includes("youtube.com") || query.includes("youtu.be");
+      const isScUrl = query.includes("soundcloud.com");
+      if (isYtUrl) {
+        const oembed = await this.fetchYoutubeOEmbed(query);
+        if (oembed && oembed.title) {
+          songInfo = {
+            title: oembed.title,
+            url: query,
+            duration: "YouTube Par\xE7as\u0131",
+            thumbnail: oembed.thumbnail,
+            requesterId: member.id
+          };
+        } else {
+          const idMatch = query.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+          if (idMatch && idMatch[1]) {
+            try {
+              const v = await yts({ videoId: idMatch[1] });
+              if (v && v.title) {
+                songInfo = {
+                  title: v.title,
+                  url: v.url,
+                  duration: v.timestamp || "Bilinmiyor",
+                  thumbnail: v.thumbnail,
+                  requesterId: member.id
+                };
+              }
+            } catch (e) {
             }
-          } catch (e) {
           }
+        }
+      } else if (isScUrl) {
+        songInfo = await this.searchSoundCloud(query);
+        if (songInfo) songInfo.requesterId = member.id;
+      }
+      if (!songInfo) {
+        try {
+          const search = await yts(query);
+          if (search && search.videos && search.videos.length > 0) {
+            const v = search.videos[0];
+            songInfo = {
+              title: v.title,
+              url: v.url,
+              duration: v.timestamp,
+              thumbnail: v.thumbnail,
+              requesterId: member.id
+            };
+          }
+        } catch (e) {
         }
       }
       if (!songInfo) {
-        const search = await yts(query);
-        if (search && search.videos && search.videos.length > 0) {
-          const v = search.videos[0];
-          songInfo = {
-            title: v.title,
-            url: v.url,
-            duration: v.timestamp,
-            thumbnail: v.thumbnail,
-            requesterId: member.id
-          };
-        } else if (query.startsWith("http://") || query.startsWith("https://")) {
-          songInfo = {
-            title: query,
-            url: query,
-            duration: "Canl\u0131 / Bilinmiyor",
-            thumbnail: null,
-            requesterId: member.id
-          };
-        }
+        console.log(`[MusicPlayer] YouTube aramas\u0131nda bulunamad\u0131, SoundCloud aran\u0131yor: "${query}"`);
+        songInfo = await this.searchSoundCloud(query);
+        if (songInfo) songInfo.requesterId = member.id;
+      }
+      if (!songInfo && (query.startsWith("http://") || query.startsWith("https://"))) {
+        songInfo = {
+          title: query,
+          url: query,
+          duration: "Canl\u0131 / Ak\u0131\u015F",
+          thumbnail: null,
+          requesterId: member.id
+        };
       }
       if (!songInfo) {
         const msg = "\u274C Arad\u0131\u011F\u0131n\u0131z \u015Fark\u0131 bulunamad\u0131. L\xFCtfen \u015Fark\u0131 ad\u0131 veya linkini kontrol edin.";
-        if (isInteraction) await target.interaction.editReply(msg);
-        else if (target.message) await target.message.reply(msg);
+        if (isInteraction) {
+          if (target.interaction.deferred) await target.interaction.editReply(msg).catch(() => {
+          });
+          else await target.interaction.reply({ content: msg, flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+          });
+        } else if (target.message) {
+          await target.message.reply(msg).catch(() => {
+          });
+        }
         return;
       }
       let queue = this.queues.get(guild.id);
@@ -4998,8 +5109,15 @@ var MusicPlayer = class {
         });
         queue.songs.push(songInfo);
         const startMsg = `\u{1F3B6} **${songInfo.title}** a\xE7\u0131l\u0131yor...`;
-        if (isInteraction) await target.interaction.editReply(startMsg);
-        else if (target.message) await target.message.reply(startMsg);
+        if (isInteraction) {
+          if (target.interaction.deferred) await target.interaction.editReply(startMsg).catch(() => {
+          });
+          else await target.interaction.reply({ content: startMsg }).catch(() => {
+          });
+        } else if (target.message) {
+          await target.message.reply(startMsg).catch(() => {
+          });
+        }
         this.playSong(guild.id, queue.songs[0], client);
       } else {
         queue.songs.push(songInfo);
@@ -5009,8 +5127,15 @@ var MusicPlayer = class {
           { name: "\u{1F464} \u0130steyen", value: `<@${songInfo.requesterId}>`, inline: true }
         );
         if (songInfo.thumbnail) queueEmbed.setThumbnail(songInfo.thumbnail);
-        if (isInteraction) await target.interaction.editReply({ embeds: [queueEmbed] });
-        else if (target.message) await target.message.reply({ embeds: [queueEmbed] });
+        if (isInteraction) {
+          if (target.interaction.deferred) await target.interaction.editReply({ embeds: [queueEmbed] }).catch(() => {
+          });
+          else await target.interaction.reply({ embeds: [queueEmbed] }).catch(() => {
+          });
+        } else if (target.message) {
+          await target.message.reply({ embeds: [queueEmbed] }).catch(() => {
+          });
+        }
         if (!queue.playing && queue.songs.length === 1) {
           this.playSong(guild.id, queue.songs[0], client);
         }
@@ -5116,55 +5241,66 @@ var MusicPlayer = class {
     const q = this.queues.get(guildId);
     const member = interaction.member;
     if (!member?.voice?.channel) {
-      await interaction.reply({ content: "\u274C M\xFCzik kontrollerini kullanabilmek i\xE7in bir ses kanal\u0131nda olmal\u0131s\u0131n\u0131z!", ephemeral: true });
+      await interaction.reply({ content: "\u274C M\xFCzik kontrollerini kullanabilmek i\xE7in bir ses kanal\u0131nda olmal\u0131s\u0131n\u0131z!", flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+      });
       return;
     }
     const id = interaction.customId;
     if (id === "btn_music_play_pause") {
       if (!q) {
-        await interaction.reply({ content: "\u26A0\uFE0F \u015Eu anda \xE7alan bir \u015Fark\u0131 bulunmuyor.", ephemeral: true });
+        await interaction.reply({ content: "\u26A0\uFE0F \u015Eu anda \xE7alan bir \u015Fark\u0131 bulunmuyor.", flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+        });
         return;
       }
       if (q.playing) {
         this.pause(guildId);
-        await interaction.reply({ content: "\u23F8\uFE0F M\xFCzik duraklat\u0131ld\u0131.", ephemeral: true });
+        await interaction.reply({ content: "\u23F8\uFE0F M\xFCzik duraklat\u0131ld\u0131.", flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+        });
       } else {
         this.resume(guildId);
-        await interaction.reply({ content: "\u25B6\uFE0F M\xFCzik devam ettiriliyor.", ephemeral: true });
+        await interaction.reply({ content: "\u25B6\uFE0F M\xFCzik devam ettiriliyor.", flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+        });
       }
       return;
     }
     if (id === "btn_music_skip") {
       if (!q || q.songs.length === 0) {
-        await interaction.reply({ content: "\u26A0\uFE0F S\u0131rada ge\xE7ilecek \u015Fark\u0131 bulunmuyor.", ephemeral: true });
+        await interaction.reply({ content: "\u26A0\uFE0F S\u0131rada ge\xE7ilecek \u015Fark\u0131 bulunmuyor.", flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+        });
         return;
       }
       this.skip(guildId, client);
-      await interaction.reply({ content: "\u23ED\uFE0F S\u0131radaki \u015Fark\u0131ya ge\xE7ildi.", ephemeral: true });
+      await interaction.reply({ content: "\u23ED\uFE0F S\u0131radaki \u015Fark\u0131ya ge\xE7ildi.", flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+      });
       return;
     }
     if (id === "btn_music_stop") {
       if (!q) {
-        await interaction.reply({ content: "\u26A0\uFE0F Bot zaten herhangi bir ses kanal\u0131nda \xE7alm\u0131yor.", ephemeral: true });
+        await interaction.reply({ content: "\u26A0\uFE0F Bot zaten herhangi bir ses kanal\u0131nda \xE7alm\u0131yor.", flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+        });
         return;
       }
       this.stop(guildId, client);
-      await interaction.reply({ content: "\u23F9\uFE0F M\xFCzik durduruldu ve \xE7alma listesi s\u0131f\u0131rland\u0131.", ephemeral: true });
+      await interaction.reply({ content: "\u23F9\uFE0F M\xFCzik durduruldu ve \xE7alma listesi s\u0131f\u0131rland\u0131.", flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+      });
       return;
     }
     if (id === "btn_music_loop") {
       if (!q) {
-        await interaction.reply({ content: "\u26A0\uFE0F \u015Eu anda \xE7alan bir \u015Fark\u0131 bulunmuyor.", ephemeral: true });
+        await interaction.reply({ content: "\u26A0\uFE0F \u015Eu anda \xE7alan bir \u015Fark\u0131 bulunmuyor.", flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+        });
         return;
       }
       const mode = this.toggleLoop(guildId);
       const modeStr = mode === "track" ? "\u{1F502} Tek \u015Eark\u0131 D\xF6ng\xFCs\xFC" : mode === "queue" ? "\u{1F501} Liste D\xF6ng\xFCs\xFC" : "\u27A1\uFE0F D\xF6ng\xFC Kapal\u0131";
-      await interaction.reply({ content: `D\xF6ng\xFC modu: **${modeStr}**`, ephemeral: true });
+      await interaction.reply({ content: `D\xF6ng\xFC modu: **${modeStr}**`, flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+      });
       return;
     }
     if (id === "btn_music_queue") {
       if (!q || q.songs.length === 0) {
-        await interaction.reply({ content: "\u{1F4ED} \xC7alma listesinde bekleyen \u015Fark\u0131 yok.", ephemeral: true });
+        await interaction.reply({ content: "\u{1F4ED} \xC7alma listesinde bekleyen \u015Fark\u0131 yok.", flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+        });
         return;
       }
       let desc = "";
@@ -5174,25 +5310,30 @@ var MusicPlayer = class {
       });
       if (q.songs.length > 10) desc += `*...ve ${q.songs.length - 10} par\xE7a daha.*`;
       const embed = new import_discord31.EmbedBuilder().setTitle(`\u{1F4DC} \xC7alma Listesi (${q.songs.length} Par\xE7a)`).setDescription(desc).setColor("#5865F2").setFooter({ text: `Ses: %${q.volume} \u2022 D\xF6ng\xFC: ${q.loopMode}` });
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.reply({ embeds: [embed], flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+      });
       return;
     }
     if (id === "btn_music_vol_up") {
       if (!q) {
-        await interaction.reply({ content: "\u26A0\uFE0F \u015Eu anda \xE7alan bir \u015Fark\u0131 bulunmuyor.", ephemeral: true });
+        await interaction.reply({ content: "\u26A0\uFE0F \u015Eu anda \xE7alan bir \u015Fark\u0131 bulunmuyor.", flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+        });
         return;
       }
       this.setVolume(guildId, q.volume + 10);
-      await interaction.reply({ content: `\u{1F50A} Ses seviyesi art\u0131r\u0131ld\u0131: **%${q.volume}**`, ephemeral: true });
+      await interaction.reply({ content: `\u{1F50A} Ses seviyesi art\u0131r\u0131ld\u0131: **%${q.volume}**`, flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+      });
       return;
     }
     if (id === "btn_music_vol_down") {
       if (!q) {
-        await interaction.reply({ content: "\u26A0\uFE0F \u015Eu anda \xE7alan bir \u015Fark\u0131 bulunmuyor.", ephemeral: true });
+        await interaction.reply({ content: "\u26A0\uFE0F \u015Eu anda \xE7alan bir \u015Fark\u0131 bulunmuyor.", flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+        });
         return;
       }
       this.setVolume(guildId, q.volume - 10);
-      await interaction.reply({ content: `\u{1F509} Ses seviyesi d\xFC\u015F\xFCr\xFCld\xFC: **%${q.volume}**`, ephemeral: true });
+      await interaction.reply({ content: `\u{1F509} Ses seviyesi d\xFC\u015F\xFCr\xFCld\xFC: **%${q.volume}**`, flags: import_discord31.MessageFlags.Ephemeral }).catch(() => {
+      });
       return;
     }
   }
@@ -5211,6 +5352,10 @@ var sesData = new import_discord32.SlashCommandBuilder().setName("ses").setDescr
   (option) => option.setName("seviye").setDescription("Ses seviyesi (1 - 150)").setRequired(true).setMinValue(1).setMaxValue(150)
 );
 async function executeCal(interaction) {
+  if (!interaction.deferred && !interaction.replied) {
+    await interaction.deferReply().catch(() => {
+    });
+  }
   const query = interaction.options.getString("sarki", true);
   await MusicPlayer.handlePlay({ interaction }, query, interaction.client);
 }
@@ -5220,7 +5365,8 @@ async function executeDurdur(interaction) {
   const ok = MusicPlayer.pause(guildId);
   await interaction.reply({
     content: ok ? "\u23F8\uFE0F M\xFCzik duraklat\u0131ld\u0131. Devam ettirmek i\xE7in `/devam` kullanabilirsiniz." : "\u26A0\uFE0F \u015Eu anda \xE7alan aktif bir m\xFCzik yok.",
-    ephemeral: true
+    flags: import_discord32.MessageFlags.Ephemeral
+  }).catch(() => {
   });
 }
 async function executeDevam(interaction) {
@@ -5229,7 +5375,8 @@ async function executeDevam(interaction) {
   const ok = MusicPlayer.resume(guildId);
   await interaction.reply({
     content: ok ? "\u25B6\uFE0F M\xFCzik devam ettiriliyor." : "\u26A0\uFE0F Duraklat\u0131lm\u0131\u015F bir m\xFCzik bulunmuyor.",
-    ephemeral: true
+    flags: import_discord32.MessageFlags.Ephemeral
+  }).catch(() => {
   });
 }
 async function executeGec(interaction) {
@@ -5238,7 +5385,8 @@ async function executeGec(interaction) {
   const ok = MusicPlayer.skip(guildId, interaction.client);
   await interaction.reply({
     content: ok ? "\u23ED\uFE0F S\u0131radaki \u015Fark\u0131ya ge\xE7ildi." : "\u26A0\uFE0F S\u0131rada ge\xE7ilecek \u015Fark\u0131 yok.",
-    ephemeral: true
+    flags: import_discord32.MessageFlags.Ephemeral
+  }).catch(() => {
   });
 }
 async function executeKuyruk(interaction) {
@@ -5246,7 +5394,8 @@ async function executeKuyruk(interaction) {
   if (!guildId) return;
   const q = MusicPlayer.queues.get(guildId);
   if (!q || q.songs.length === 0) {
-    await interaction.reply({ content: "\u{1F4ED} \xC7alma listesinde \u015Fark\u0131 bulunmuyor.", ephemeral: true });
+    await interaction.reply({ content: "\u{1F4ED} \xC7alma listesinde \u015Fark\u0131 bulunmuyor.", flags: import_discord32.MessageFlags.Ephemeral }).catch(() => {
+    });
     return;
   }
   let desc = "";
@@ -5264,7 +5413,8 @@ async function executeKuyruk(interaction) {
         footer: { text: `Ses: %${q.volume} \u2022 D\xF6ng\xFC: ${q.loopMode}` }
       }
     ],
-    ephemeral: true
+    flags: import_discord32.MessageFlags.Ephemeral
+  }).catch(() => {
   });
 }
 async function executeAyril(interaction) {
@@ -5273,7 +5423,8 @@ async function executeAyril(interaction) {
   const ok = MusicPlayer.stop(guildId, interaction.client);
   await interaction.reply({
     content: ok ? "\u23F9\uFE0F M\xFCzik durduruldu ve kanaldan ayr\u0131l\u0131narak liste s\u0131f\u0131rland\u0131." : "\u26A0\uFE0F Bot ses kanal\u0131nda bulunmuyor.",
-    ephemeral: true
+    flags: import_discord32.MessageFlags.Ephemeral
+  }).catch(() => {
   });
 }
 async function executeSes(interaction) {
@@ -5283,7 +5434,8 @@ async function executeSes(interaction) {
   const ok = MusicPlayer.setVolume(guildId, level);
   await interaction.reply({
     content: ok ? `\u{1F50A} Ses seviyesi **%${level}** olarak ayarland\u0131.` : "\u26A0\uFE0F \xC7alan bir m\xFCzik bulunmuyor.",
-    ephemeral: true
+    flags: import_discord32.MessageFlags.Ephemeral
+  }).catch(() => {
   });
 }
 
@@ -5542,11 +5694,22 @@ var InteractionHandler = class {
       }
     } catch (err) {
       console.error("[InteractionHandler] Genel hata:", err);
-      if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-        await interaction.reply({
-          content: `\u274C Bir hata olu\u015Ftu: ${err.message}`,
-          ephemeral: true
-        });
+      try {
+        if (interaction.isRepliable()) {
+          if (interaction.deferred) {
+            await interaction.editReply({
+              content: `\u274C Bir hata olu\u015Ftu: ${err.message}`
+            }).catch(() => {
+            });
+          } else if (!interaction.replied) {
+            await interaction.reply({
+              content: `\u274C Bir hata olu\u015Ftu: ${err.message}`,
+              flags: import_discord34.MessageFlags.Ephemeral
+            }).catch(() => {
+            });
+          }
+        }
+      } catch (e) {
       }
     }
   }
@@ -7139,15 +7302,15 @@ async function bootstrap() {
     }
   });
   process.on("unhandledRejection", (reason, promise) => {
-    if (reason && (reason.message?.includes("Cannot perform IP discovery") || reason.message?.includes("socket closed"))) {
-      console.warn("[VoiceSocket] Ge\xE7ici UDP ba\u011Flant\u0131 ge\xE7i\u015Fi (otomatik toparlan\u0131yor).");
+    if (reason && (reason.message?.includes("Cannot perform IP discovery") || reason.message?.includes("socket closed") || reason.code === 10062 || reason.code === 40060 || reason.message?.includes("Unknown interaction") || reason.message?.includes("already been acknowledged"))) {
+      console.warn("[Process] A\u011F / Discord etkile\u015Fim uyar\u0131s\u0131 otomatik kar\u015F\u0131land\u0131.");
       return;
     }
     console.error("Unhandled Rejection at:", promise, "reason:", reason);
   });
   process.on("uncaughtException", (err) => {
-    if (err && (err.message?.includes("Cannot perform IP discovery") || err.message?.includes("socket closed"))) {
-      console.warn("[VoiceSocket] Ge\xE7ici UDP soket uyar\u0131s\u0131.");
+    if (err && (err.message?.includes("Cannot perform IP discovery") || err.message?.includes("socket closed") || err.code === 10062 || err.code === 40060 || err.message?.includes("Unknown interaction") || err.message?.includes("already been acknowledged"))) {
+      console.warn("[Process] \xD6nemsiz Discord etkile\u015Fim istisnas\u0131 toparland\u0131.");
       return;
     }
     console.error("Uncaught Exception:", err);

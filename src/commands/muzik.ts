@@ -1,6 +1,7 @@
 import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
+  MessageFlags,
 } from 'discord.js';
 import { MusicPlayer } from '../services/features/musicPlayer';
 
@@ -39,6 +40,10 @@ export const sesData = new SlashCommandBuilder()
   );
 
 export async function executeCal(interaction: ChatInputCommandInteraction) {
+  // Anında Defer Et (Discord 3000ms zaman aşımı ve 10062 hatasını garantili engelle)
+  if (!interaction.deferred && !interaction.replied) {
+    await interaction.deferReply().catch(() => {});
+  }
   const query = interaction.options.getString('sarki', true);
   await MusicPlayer.handlePlay({ interaction }, query, interaction.client);
 }
@@ -49,8 +54,8 @@ export async function executeDurdur(interaction: ChatInputCommandInteraction) {
   const ok = MusicPlayer.pause(guildId);
   await interaction.reply({
     content: ok ? '⏸️ Müzik duraklatıldı. Devam ettirmek için `/devam` kullanabilirsiniz.' : '⚠️ Şu anda çalan aktif bir müzik yok.',
-    ephemeral: true,
-  });
+    flags: MessageFlags.Ephemeral,
+  }).catch(() => {});
 }
 
 export async function executeDevam(interaction: ChatInputCommandInteraction) {
@@ -59,8 +64,8 @@ export async function executeDevam(interaction: ChatInputCommandInteraction) {
   const ok = MusicPlayer.resume(guildId);
   await interaction.reply({
     content: ok ? '▶️ Müzik devam ettiriliyor.' : '⚠️ Duraklatılmış bir müzik bulunmuyor.',
-    ephemeral: true,
-  });
+    flags: MessageFlags.Ephemeral,
+  }).catch(() => {});
 }
 
 export async function executeGec(interaction: ChatInputCommandInteraction) {
@@ -69,8 +74,8 @@ export async function executeGec(interaction: ChatInputCommandInteraction) {
   const ok = MusicPlayer.skip(guildId, interaction.client);
   await interaction.reply({
     content: ok ? '⏭️ Sıradaki şarkıya geçildi.' : '⚠️ Sırada geçilecek şarkı yok.',
-    ephemeral: true,
-  });
+    flags: MessageFlags.Ephemeral,
+  }).catch(() => {});
 }
 
 export async function executeKuyruk(interaction: ChatInputCommandInteraction) {
@@ -78,7 +83,7 @@ export async function executeKuyruk(interaction: ChatInputCommandInteraction) {
   if (!guildId) return;
   const q = MusicPlayer.queues.get(guildId);
   if (!q || q.songs.length === 0) {
-    await interaction.reply({ content: '📭 Çalma listesinde şarkı bulunmuyor.', ephemeral: true });
+    await interaction.reply({ content: '📭 Çalma listesinde şarkı bulunmuyor.', flags: MessageFlags.Ephemeral }).catch(() => {});
     return;
   }
   let desc = '';
@@ -96,8 +101,8 @@ export async function executeKuyruk(interaction: ChatInputCommandInteraction) {
         footer: { text: `Ses: %${q.volume} • Döngü: ${q.loopMode}` },
       },
     ],
-    ephemeral: true,
-  });
+    flags: MessageFlags.Ephemeral,
+  }).catch(() => {});
 }
 
 export async function executeAyril(interaction: ChatInputCommandInteraction) {
@@ -106,8 +111,8 @@ export async function executeAyril(interaction: ChatInputCommandInteraction) {
   const ok = MusicPlayer.stop(guildId, interaction.client);
   await interaction.reply({
     content: ok ? '⏹️ Müzik durduruldu ve kanaldan ayrılınarak liste sıfırlandı.' : '⚠️ Bot ses kanalında bulunmuyor.',
-    ephemeral: true,
-  });
+    flags: MessageFlags.Ephemeral,
+  }).catch(() => {});
 }
 
 export async function executeSes(interaction: ChatInputCommandInteraction) {
@@ -117,6 +122,6 @@ export async function executeSes(interaction: ChatInputCommandInteraction) {
   const ok = MusicPlayer.setVolume(guildId, level);
   await interaction.reply({
     content: ok ? `🔊 Ses seviyesi **%${level}** olarak ayarlandı.` : '⚠️ Çalan bir müzik bulunmuyor.',
-    ephemeral: true,
-  });
+    flags: MessageFlags.Ephemeral,
+  }).catch(() => {});
 }

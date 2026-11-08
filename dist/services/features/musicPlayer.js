@@ -125,71 +125,153 @@ class MusicPlayer {
         }
         catch (e) { }
     }
+    static cleanSongTitle(title) {
+        return title
+            .replace(/https?:\/\/[^\s]+/g, '')
+            .replace(/www\.[^\s]+/g, '')
+            .replace(/\/\/.*/g, '')
+            .replace(/\[.*?\]/g, '')
+            .replace(/\(.*?\)/g, '')
+            .replace(/official\s+(video|audio|music\s+video|lyric\s+video)/gi, '')
+            .replace(/sözleri|lyric|lyrics|video|klip|audio/gi, '')
+            .replace(/[|#@_\*\^~]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+    static async fetchYoutubeOEmbed(url) {
+        try {
+            const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+            const res = await fetch(oembedUrl);
+            if (res.ok) {
+                const data = (await res.json());
+                return {
+                    title: data.title || '',
+                    author: data.author_name || '',
+                    thumbnail: data.thumbnail_url || '',
+                };
+            }
+        }
+        catch (e) { }
+        return null;
+    }
+    static searchSoundCloud(query) {
+        const { ytdlp } = this.getBinaries();
+        return new Promise((resolve) => {
+            const args = [
+                '--dump-single-json',
+                '--no-playlist',
+                `scsearch1:${query}`,
+            ];
+            const p = (0, child_process_1.spawn)(ytdlp, args);
+            let out = '';
+            p.stdout.on('data', (d) => (out += d.toString()));
+            p.on('close', (code) => {
+                if (code === 0 && out.trim()) {
+                    try {
+                        const data = JSON.parse(out.trim());
+                        const entry = data.entries && data.entries.length > 0 ? data.entries[0] : data;
+                        if (entry && (entry.title || entry.webpage_url)) {
+                            let duration = 'Bilinmiyor';
+                            if (entry.duration) {
+                                const mins = Math.floor(entry.duration / 60);
+                                const secs = Math.floor(entry.duration % 60);
+                                duration = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                            }
+                            const thumb = entry.thumbnail ||
+                                (entry.thumbnails && entry.thumbnails.length > 0
+                                    ? entry.thumbnails[entry.thumbnails.length - 1].url
+                                    : null);
+                            return resolve({
+                                title: entry.title || query,
+                                url: entry.webpage_url || entry.url || `https://soundcloud.com/search?q=${encodeURIComponent(query)}`,
+                                duration,
+                                thumbnail: thumb,
+                                requesterId: '',
+                            });
+                        }
+                    }
+                    catch (e) { }
+                }
+                resolve(null);
+            });
+            p.on('error', () => resolve(null));
+            setTimeout(() => {
+                try {
+                    p.kill();
+                }
+                catch (e) { }
+                resolve(null);
+            }, 7000);
+        });
+    }
     static getAudioStream(query, songTitle) {
         const { ytdlp, ffmpeg } = this.getBinaries();
-        const tryExtract = (targetQuery, customClient = 'android') => {
+        const extractStream = (target, isSoundCloud = false) => {
             return new Promise((resolve, reject) => {
-                const args = [
-                    '-f', 'ba/b[height<=360]/b/18/bestaudio',
-                    '-g',
-                    '--no-playlist',
-                    '--default-search', 'ytsearch',
-                    '--extractor-args', `youtube:player_client=${customClient}`,
-                    targetQuery,
-                ];
+                const args = isSoundCloud
+                    ? ['-f', 'bestaudio/b/best', '-g', '--no-playlist', target]
+                    : [
+                        '-f', 'ba/b[height<=360]/b/18/bestaudio',
+                        '-g',
+                        '--no-playlist',
+                        '--default-search', 'ytsearch',
+                        '--extractor-args', 'youtube:player_client=android',
+                        target,
+                    ];
                 const proc = (0, child_process_1.spawn)(ytdlp, args);
                 let out = '';
                 let err = '';
                 proc.stdout.on('data', (d) => (out += d.toString()));
                 proc.stderr.on('data', (d) => (err += d.toString()));
                 proc.on('close', (code) => {
-                    const directUrl = out.trim().split('\n').filter(l => l.startsWith('http'))[0];
+                    const directUrl = out.trim().split('\n').filter((l) => l.startsWith('http'))[0];
                     if (code === 0 && directUrl) {
                         resolve(directUrl);
                     }
                     else {
-                        reject(new Error(err || 'Ses linki alınamadı'));
+                        reject(new Error(err || 'Ses bağlantısı alınamadı'));
                     }
                 });
                 proc.on('error', reject);
+                setTimeout(() => {
+                    try {
+                        proc.kill();
+                    }
+                    catch (e) { }
+                    reject(new Error('Ses kaynağı zaman aşımına uğradı'));
+                }, 12000);
             });
         };
         return new Promise(async (resolve, reject) => {
             let directUrl = '';
-            try {
-                directUrl = await tryExtract(query, 'android');
-            }
-            catch (ytErr) {
-                const cleanTitle = (songTitle || query)
-                    .replace(/https?:\/\/[^\s]+/g, '')
-                    .replace(/www\.[^\s]+/g, '')
-                    .replace(/[\/\?\#].*/g, '')
-                    .trim();
-                console.warn(`[MusicPlayer] ⚠️ YouTube Android kısıtlaması, SoundCloud yedeğinde "${cleanTitle}" aranıyor...`);
+            const isSC = query.includes('soundcloud.com') || query.startsWith('scsearch');
+            if (isSC) {
                 try {
-                    directUrl = await tryExtract(`scsearch:${cleanTitle || 'music'}`);
-                    console.log(`[MusicPlayer] ✅ SoundCloud üzerinden parça başarıyla bulundu!`);
+                    directUrl = await extractStream(query, true);
                 }
                 catch (scErr) {
+                    return reject(new Error(`SoundCloud hatası: ${scErr.message}`));
+                }
+            }
+            else {
+                // 1. YouTube Android istemcisini dene
+                try {
+                    directUrl = await extractStream(query, false);
+                }
+                catch (ytErr) {
+                    // YouTube bot engeli (Datacenter IP kısıtlaması) tespit edildi!
+                    console.warn(`[MusicPlayer] ⚠️ YouTube kısıtlaması algılandı, SoundCloud yedeğine geçiliyor...`);
+                    const rawTitle = songTitle || query;
+                    const cleanQuery = MusicPlayer.cleanSongTitle(rawTitle) || rawTitle.replace(/https?:\/\/[^\s]+/g, '').trim();
+                    const targetSearch = `scsearch1:${cleanQuery || 'pop music'}`;
+                    console.log(`[MusicPlayer] 🔍 SoundCloud üzerinde parça aranıyor: "${cleanQuery}"`);
                     try {
-                        // Son çare: TV veya mweb istemcisi ile direkt format 18
-                        const fallbackArgs = ['-f', '18/ba/b', '-g', '--no-playlist', '--default-search', 'ytsearch', cleanTitle];
-                        directUrl = await new Promise((res, rej) => {
-                            const p = (0, child_process_1.spawn)(ytdlp, fallbackArgs);
-                            let o = '', e = '';
-                            p.stdout.on('data', d => o += d);
-                            p.stderr.on('data', d => e += d);
-                            p.on('close', c => {
-                                const u = o.trim().split('\n').filter(l => l.startsWith('http'))[0];
-                                if (c === 0 && u)
-                                    res(u);
-                                else
-                                    rej(new Error(e || 'Tüm kaynaklar tükendi'));
-                            });
-                        });
+                        directUrl = await extractStream(targetSearch, true);
+                        console.log(`[MusicPlayer] ✅ SoundCloud üzerinden parça başarıyla bağlandı!`);
                     }
-                    catch (lastErr) {
-                        return reject(new Error(`Müzik kaynağına ulaşılamadı: ${ytErr.message || scErr.message}`));
+                    catch (scErr) {
+                        console.error(`[MusicPlayer] SoundCloud araması da yanıt vermedi:`, scErr.message);
+                        return reject(new Error(`Müzik kaynağına ulaşılamadı. Lütfen şarkı adını veya direkt SoundCloud linkini deneyin.`));
                     }
                 }
             }
@@ -291,68 +373,111 @@ class MusicPlayer {
         const channel = (target.interaction?.channel || target.message?.channel);
         if (!member || !guild || !channel)
             return;
+        if (isInteraction && !target.interaction.deferred && !target.interaction.replied) {
+            await target.interaction.deferReply().catch(() => { });
+        }
         const voiceChannel = member.voice?.channel;
         if (!voiceChannel) {
             const msg = '❌ Müzik çalabilmek için bir ses kanalında olmalısınız!';
             if (isInteraction) {
-                await target.interaction.reply({ content: msg, ephemeral: true });
+                if (target.interaction.deferred) {
+                    await target.interaction.editReply({ content: msg }).catch(() => { });
+                }
+                else {
+                    await target.interaction.reply({ content: msg, flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
+                }
             }
             else if (target.message) {
-                await target.message.reply(msg);
+                await target.message.reply(msg).catch(() => { });
             }
             return;
         }
-        if (isInteraction) {
-            await target.interaction.deferReply();
-        }
         let songInfo = null;
         try {
-            if (query.includes('youtube.com') || query.includes('youtu.be')) {
-                const idMatch = query.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
-                if (idMatch && idMatch[1]) {
-                    try {
-                        const v = await yts({ videoId: idMatch[1] });
-                        if (v && v.title) {
-                            songInfo = {
-                                title: v.title,
-                                url: v.url,
-                                duration: v.timestamp || 'Bilinmiyor',
-                                thumbnail: v.thumbnail,
-                                requesterId: member.id,
-                            };
+            const isYtUrl = query.includes('youtube.com') || query.includes('youtu.be');
+            const isScUrl = query.includes('soundcloud.com');
+            if (isYtUrl) {
+                // YouTube OEmbed ile kesin başlık ve kapak al (IP ban yemeyen resmi API)
+                const oembed = await this.fetchYoutubeOEmbed(query);
+                if (oembed && oembed.title) {
+                    songInfo = {
+                        title: oembed.title,
+                        url: query,
+                        duration: 'YouTube Parçası',
+                        thumbnail: oembed.thumbnail,
+                        requesterId: member.id,
+                    };
+                }
+                else {
+                    // OEmbed yanıt vermezse yts videoId dene
+                    const idMatch = query.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+                    if (idMatch && idMatch[1]) {
+                        try {
+                            const v = await yts({ videoId: idMatch[1] });
+                            if (v && v.title) {
+                                songInfo = {
+                                    title: v.title,
+                                    url: v.url,
+                                    duration: v.timestamp || 'Bilinmiyor',
+                                    thumbnail: v.thumbnail,
+                                    requesterId: member.id,
+                                };
+                            }
                         }
+                        catch (e) { }
                     }
-                    catch (e) { }
                 }
             }
+            else if (isScUrl) {
+                songInfo = await this.searchSoundCloud(query);
+                if (songInfo)
+                    songInfo.requesterId = member.id;
+            }
+            // YouTube arama motorunu dene
             if (!songInfo) {
-                const search = await yts(query);
-                if (search && search.videos && search.videos.length > 0) {
-                    const v = search.videos[0];
-                    songInfo = {
-                        title: v.title,
-                        url: v.url,
-                        duration: v.timestamp,
-                        thumbnail: v.thumbnail,
-                        requesterId: member.id,
-                    };
+                try {
+                    const search = await yts(query);
+                    if (search && search.videos && search.videos.length > 0) {
+                        const v = search.videos[0];
+                        songInfo = {
+                            title: v.title,
+                            url: v.url,
+                            duration: v.timestamp,
+                            thumbnail: v.thumbnail,
+                            requesterId: member.id,
+                        };
+                    }
                 }
-                else if (query.startsWith('http://') || query.startsWith('https://')) {
-                    songInfo = {
-                        title: query,
-                        url: query,
-                        duration: 'Canlı / Bilinmiyor',
-                        thumbnail: null,
-                        requesterId: member.id,
-                    };
-                }
+                catch (e) { }
+            }
+            // SoundCloud araması dene (YouTube scraping IP ban yediğinde garantili yedek)
+            if (!songInfo) {
+                console.log(`[MusicPlayer] YouTube aramasında bulunamadı, SoundCloud aranıyor: "${query}"`);
+                songInfo = await this.searchSoundCloud(query);
+                if (songInfo)
+                    songInfo.requesterId = member.id;
+            }
+            // Son çare (ham URL verilmişse)
+            if (!songInfo && (query.startsWith('http://') || query.startsWith('https://'))) {
+                songInfo = {
+                    title: query,
+                    url: query,
+                    duration: 'Canlı / Akış',
+                    thumbnail: null,
+                    requesterId: member.id,
+                };
             }
             if (!songInfo) {
                 const msg = '❌ Aradığınız şarkı bulunamadı. Lütfen şarkı adı veya linkini kontrol edin.';
-                if (isInteraction)
-                    await target.interaction.editReply(msg);
-                else if (target.message)
-                    await target.message.reply(msg);
+                if (isInteraction) {
+                    if (target.interaction.deferred)
+                        await target.interaction.editReply(msg).catch(() => { });
+                    else
+                        await target.interaction.reply({ content: msg, flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
+                }
+                else if (target.message) {
+                    await target.message.reply(msg).catch(() => { });
+                }
                 return;
             }
             let queue = this.queues.get(guild.id);
@@ -427,10 +552,15 @@ class MusicPlayer {
                 });
                 queue.songs.push(songInfo);
                 const startMsg = `🎶 **${songInfo.title}** açılıyor...`;
-                if (isInteraction)
-                    await target.interaction.editReply(startMsg);
-                else if (target.message)
-                    await target.message.reply(startMsg);
+                if (isInteraction) {
+                    if (target.interaction.deferred)
+                        await target.interaction.editReply(startMsg).catch(() => { });
+                    else
+                        await target.interaction.reply({ content: startMsg }).catch(() => { });
+                }
+                else if (target.message) {
+                    await target.message.reply(startMsg).catch(() => { });
+                }
                 this.playSong(guild.id, queue.songs[0], client);
             }
             else {
@@ -442,10 +572,15 @@ class MusicPlayer {
                     .addFields({ name: '⏱️ Süre', value: songInfo.duration || 'Bilinmiyor', inline: true }, { name: '📍 Sıra', value: `${queue.songs.length}. sıra`, inline: true }, { name: '👤 İsteyen', value: `<@${songInfo.requesterId}>`, inline: true });
                 if (songInfo.thumbnail)
                     queueEmbed.setThumbnail(songInfo.thumbnail);
-                if (isInteraction)
-                    await target.interaction.editReply({ embeds: [queueEmbed] });
-                else if (target.message)
-                    await target.message.reply({ embeds: [queueEmbed] });
+                if (isInteraction) {
+                    if (target.interaction.deferred)
+                        await target.interaction.editReply({ embeds: [queueEmbed] }).catch(() => { });
+                    else
+                        await target.interaction.reply({ embeds: [queueEmbed] }).catch(() => { });
+                }
+                else if (target.message) {
+                    await target.message.reply({ embeds: [queueEmbed] }).catch(() => { });
+                }
                 if (!queue.playing && queue.songs.length === 1) {
                     this.playSong(guild.id, queue.songs[0], client);
                 }
@@ -562,56 +697,56 @@ class MusicPlayer {
         const q = this.queues.get(guildId);
         const member = interaction.member;
         if (!member?.voice?.channel) {
-            await interaction.reply({ content: '❌ Müzik kontrollerini kullanabilmek için bir ses kanalında olmalısınız!', ephemeral: true });
+            await interaction.reply({ content: '❌ Müzik kontrollerini kullanabilmek için bir ses kanalında olmalısınız!', flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
             return;
         }
         const id = interaction.customId;
         if (id === 'btn_music_play_pause') {
             if (!q) {
-                await interaction.reply({ content: '⚠️ Şu anda çalan bir şarkı bulunmuyor.', ephemeral: true });
+                await interaction.reply({ content: '⚠️ Şu anda çalan bir şarkı bulunmuyor.', flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
                 return;
             }
             if (q.playing) {
                 this.pause(guildId);
-                await interaction.reply({ content: '⏸️ Müzik duraklatıldı.', ephemeral: true });
+                await interaction.reply({ content: '⏸️ Müzik duraklatıldı.', flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
             }
             else {
                 this.resume(guildId);
-                await interaction.reply({ content: '▶️ Müzik devam ettiriliyor.', ephemeral: true });
+                await interaction.reply({ content: '▶️ Müzik devam ettiriliyor.', flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
             }
             return;
         }
         if (id === 'btn_music_skip') {
             if (!q || q.songs.length === 0) {
-                await interaction.reply({ content: '⚠️ Sırada geçilecek şarkı bulunmuyor.', ephemeral: true });
+                await interaction.reply({ content: '⚠️ Sırada geçilecek şarkı bulunmuyor.', flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
                 return;
             }
             this.skip(guildId, client);
-            await interaction.reply({ content: '⏭️ Sıradaki şarkıya geçildi.', ephemeral: true });
+            await interaction.reply({ content: '⏭️ Sıradaki şarkıya geçildi.', flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
             return;
         }
         if (id === 'btn_music_stop') {
             if (!q) {
-                await interaction.reply({ content: '⚠️ Bot zaten herhangi bir ses kanalında çalmıyor.', ephemeral: true });
+                await interaction.reply({ content: '⚠️ Bot zaten herhangi bir ses kanalında çalmıyor.', flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
                 return;
             }
             this.stop(guildId, client);
-            await interaction.reply({ content: '⏹️ Müzik durduruldu ve çalma listesi sıfırlandı.', ephemeral: true });
+            await interaction.reply({ content: '⏹️ Müzik durduruldu ve çalma listesi sıfırlandı.', flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
             return;
         }
         if (id === 'btn_music_loop') {
             if (!q) {
-                await interaction.reply({ content: '⚠️ Şu anda çalan bir şarkı bulunmuyor.', ephemeral: true });
+                await interaction.reply({ content: '⚠️ Şu anda çalan bir şarkı bulunmuyor.', flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
                 return;
             }
             const mode = this.toggleLoop(guildId);
             const modeStr = mode === 'track' ? '🔂 Tek Şarkı Döngüsü' : mode === 'queue' ? '🔁 Liste Döngüsü' : '➡️ Döngü Kapalı';
-            await interaction.reply({ content: `Döngü modu: **${modeStr}**`, ephemeral: true });
+            await interaction.reply({ content: `Döngü modu: **${modeStr}**`, flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
             return;
         }
         if (id === 'btn_music_queue') {
             if (!q || q.songs.length === 0) {
-                await interaction.reply({ content: '📭 Çalma listesinde bekleyen şarkı yok.', ephemeral: true });
+                await interaction.reply({ content: '📭 Çalma listesinde bekleyen şarkı yok.', flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
                 return;
             }
             let desc = '';
@@ -625,25 +760,25 @@ class MusicPlayer {
                 .setDescription(desc)
                 .setColor('#5865F2')
                 .setFooter({ text: `Ses: %${q.volume} • Döngü: ${q.loopMode}` });
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            await interaction.reply({ embeds: [embed], flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
             return;
         }
         if (id === 'btn_music_vol_up') {
             if (!q) {
-                await interaction.reply({ content: '⚠️ Şu anda çalan bir şarkı bulunmuyor.', ephemeral: true });
+                await interaction.reply({ content: '⚠️ Şu anda çalan bir şarkı bulunmuyor.', flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
                 return;
             }
             this.setVolume(guildId, q.volume + 10);
-            await interaction.reply({ content: `🔊 Ses seviyesi artırıldı: **%${q.volume}**`, ephemeral: true });
+            await interaction.reply({ content: `🔊 Ses seviyesi artırıldı: **%${q.volume}**`, flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
             return;
         }
         if (id === 'btn_music_vol_down') {
             if (!q) {
-                await interaction.reply({ content: '⚠️ Şu anda çalan bir şarkı bulunmuyor.', ephemeral: true });
+                await interaction.reply({ content: '⚠️ Şu anda çalan bir şarkı bulunmuyor.', flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
                 return;
             }
             this.setVolume(guildId, q.volume - 10);
-            await interaction.reply({ content: `🔉 Ses seviyesi düşürüldü: **%${q.volume}**`, ephemeral: true });
+            await interaction.reply({ content: `🔉 Ses seviyesi düşürüldü: **%${q.volume}**`, flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
             return;
         }
     }

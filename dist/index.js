@@ -534,15 +534,25 @@ async function bootstrap() {
     });
     // Process error handlers
     process.on('unhandledRejection', (reason, promise) => {
-        if (reason && (reason.message?.includes('Cannot perform IP discovery') || reason.message?.includes('socket closed'))) {
-            console.warn('[VoiceSocket] Geçici UDP bağlantı geçişi (otomatik toparlanıyor).');
+        if (reason && (reason.message?.includes('Cannot perform IP discovery') ||
+            reason.message?.includes('socket closed') ||
+            reason.code === 10062 ||
+            reason.code === 40060 ||
+            reason.message?.includes('Unknown interaction') ||
+            reason.message?.includes('already been acknowledged'))) {
+            console.warn('[Process] Ağ / Discord etkileşim uyarısı otomatik karşılandı.');
             return;
         }
         console.error('Unhandled Rejection at:', promise, 'reason:', reason);
     });
     process.on('uncaughtException', (err) => {
-        if (err && (err.message?.includes('Cannot perform IP discovery') || err.message?.includes('socket closed'))) {
-            console.warn('[VoiceSocket] Geçici UDP soket uyarısı.');
+        if (err && (err.message?.includes('Cannot perform IP discovery') ||
+            err.message?.includes('socket closed') ||
+            err.code === 10062 ||
+            err.code === 40060 ||
+            err.message?.includes('Unknown interaction') ||
+            err.message?.includes('already been acknowledged'))) {
+            console.warn('[Process] Önemsiz Discord etkileşim istisnası toparlandı.');
             return;
         }
         console.error('Uncaught Exception:', err);

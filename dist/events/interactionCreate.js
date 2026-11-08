@@ -123,12 +123,22 @@ class InteractionHandler {
         }
         catch (err) {
             console.error('[InteractionHandler] Genel hata:', err);
-            if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-                await interaction.reply({
-                    content: `❌ Bir hata oluştu: ${err.message}`,
-                    ephemeral: true,
-                });
+            try {
+                if (interaction.isRepliable()) {
+                    if (interaction.deferred) {
+                        await interaction.editReply({
+                            content: `❌ Bir hata oluştu: ${err.message}`,
+                        }).catch(() => { });
+                    }
+                    else if (!interaction.replied) {
+                        await interaction.reply({
+                            content: `❌ Bir hata oluştu: ${err.message}`,
+                            flags: discord_js_1.MessageFlags.Ephemeral,
+                        }).catch(() => { });
+                    }
+                }
             }
+            catch (e) { }
         }
     }
     async handleChatInput(interaction) {

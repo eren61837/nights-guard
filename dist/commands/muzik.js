@@ -34,6 +34,10 @@ exports.sesData = new discord_js_1.SlashCommandBuilder()
     .setDescription('Müzik ses seviyesini ayarlar (1-150).')
     .addIntegerOption((option) => option.setName('seviye').setDescription('Ses seviyesi (1 - 150)').setRequired(true).setMinValue(1).setMaxValue(150));
 async function executeCal(interaction) {
+    // Anında Defer Et (Discord 3000ms zaman aşımı ve 10062 hatasını garantili engelle)
+    if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply().catch(() => { });
+    }
     const query = interaction.options.getString('sarki', true);
     await musicPlayer_1.MusicPlayer.handlePlay({ interaction }, query, interaction.client);
 }
@@ -44,8 +48,8 @@ async function executeDurdur(interaction) {
     const ok = musicPlayer_1.MusicPlayer.pause(guildId);
     await interaction.reply({
         content: ok ? '⏸️ Müzik duraklatıldı. Devam ettirmek için `/devam` kullanabilirsiniz.' : '⚠️ Şu anda çalan aktif bir müzik yok.',
-        ephemeral: true,
-    });
+        flags: discord_js_1.MessageFlags.Ephemeral,
+    }).catch(() => { });
 }
 async function executeDevam(interaction) {
     const guildId = interaction.guildId;
@@ -54,8 +58,8 @@ async function executeDevam(interaction) {
     const ok = musicPlayer_1.MusicPlayer.resume(guildId);
     await interaction.reply({
         content: ok ? '▶️ Müzik devam ettiriliyor.' : '⚠️ Duraklatılmış bir müzik bulunmuyor.',
-        ephemeral: true,
-    });
+        flags: discord_js_1.MessageFlags.Ephemeral,
+    }).catch(() => { });
 }
 async function executeGec(interaction) {
     const guildId = interaction.guildId;
@@ -64,8 +68,8 @@ async function executeGec(interaction) {
     const ok = musicPlayer_1.MusicPlayer.skip(guildId, interaction.client);
     await interaction.reply({
         content: ok ? '⏭️ Sıradaki şarkıya geçildi.' : '⚠️ Sırada geçilecek şarkı yok.',
-        ephemeral: true,
-    });
+        flags: discord_js_1.MessageFlags.Ephemeral,
+    }).catch(() => { });
 }
 async function executeKuyruk(interaction) {
     const guildId = interaction.guildId;
@@ -73,7 +77,7 @@ async function executeKuyruk(interaction) {
         return;
     const q = musicPlayer_1.MusicPlayer.queues.get(guildId);
     if (!q || q.songs.length === 0) {
-        await interaction.reply({ content: '📭 Çalma listesinde şarkı bulunmuyor.', ephemeral: true });
+        await interaction.reply({ content: '📭 Çalma listesinde şarkı bulunmuyor.', flags: discord_js_1.MessageFlags.Ephemeral }).catch(() => { });
         return;
     }
     let desc = '';
@@ -91,8 +95,8 @@ async function executeKuyruk(interaction) {
                 footer: { text: `Ses: %${q.volume} • Döngü: ${q.loopMode}` },
             },
         ],
-        ephemeral: true,
-    });
+        flags: discord_js_1.MessageFlags.Ephemeral,
+    }).catch(() => { });
 }
 async function executeAyril(interaction) {
     const guildId = interaction.guildId;
@@ -101,8 +105,8 @@ async function executeAyril(interaction) {
     const ok = musicPlayer_1.MusicPlayer.stop(guildId, interaction.client);
     await interaction.reply({
         content: ok ? '⏹️ Müzik durduruldu ve kanaldan ayrılınarak liste sıfırlandı.' : '⚠️ Bot ses kanalında bulunmuyor.',
-        ephemeral: true,
-    });
+        flags: discord_js_1.MessageFlags.Ephemeral,
+    }).catch(() => { });
 }
 async function executeSes(interaction) {
     const guildId = interaction.guildId;
@@ -112,6 +116,6 @@ async function executeSes(interaction) {
     const ok = musicPlayer_1.MusicPlayer.setVolume(guildId, level);
     await interaction.reply({
         content: ok ? `🔊 Ses seviyesi **%${level}** olarak ayarlandı.` : '⚠️ Çalan bir müzik bulunmuyor.',
-        ephemeral: true,
-    });
+        flags: discord_js_1.MessageFlags.Ephemeral,
+    }).catch(() => { });
 }

@@ -11,6 +11,7 @@ import {
   GuildMember,
   TextChannel,
   ModalSubmitInteraction,
+  MessageFlags,
 } from 'discord.js';
 import { AIManager } from '../services/ai/aiManager';
 import { BlueprintCache } from '../services/engine/blueprintCache';
@@ -108,12 +109,20 @@ export class InteractionHandler {
       }
     } catch (err: any) {
       console.error('[InteractionHandler] Genel hata:', err);
-      if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-        await interaction.reply({
-          content: `❌ Bir hata oluştu: ${err.message}`,
-          ephemeral: true,
-        });
-      }
+      try {
+        if (interaction.isRepliable()) {
+          if (interaction.deferred) {
+            await interaction.editReply({
+              content: `❌ Bir hata oluştu: ${err.message}`,
+            }).catch(() => {});
+          } else if (!interaction.replied) {
+            await interaction.reply({
+              content: `❌ Bir hata oluştu: ${err.message}`,
+              flags: MessageFlags.Ephemeral,
+            }).catch(() => {});
+          }
+        }
+      } catch (e) {}
     }
   }
 
