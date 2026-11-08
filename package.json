@@ -1,0 +1,40 @@
+{
+  "name": "nights-guard",
+  "version": "1.0.0",
+  "description": "Nights Guard - Advanced Community, Security, AI & Economy Discord Bot",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo Pre-built ready",
+    "compile": "tsc",
+    "start": "node index.js",
+    "dev": "node index.js",
+    "setup": "tsc && node dist/setup.js",
+    "demo": "tsc && node dist/demo.js",
+    "test": "tsc -p tsconfig.test.json && node dist-test/test/runTests.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "ai",
+    "nights-guard",
+    "community"
+  ],
+  "author": "erencix",
+  "license": "MIT",
+  "dependencies": {
+    "@discordjs/voice": "^0.18.0",
+    "@google/generative-ai": "^0.24.0",
+    "axios": "^1.7.9",
+    "discord.js": "^14.17.3",
+    "dotenv": "^16.4.7",
+    "openai": "^4.85.0",
+    "opusscript": "^0.1.1",
+    "tweetnacl": "^1.0.3",
+    "yt-search": "^2.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

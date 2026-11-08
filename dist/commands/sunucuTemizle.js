@@ -1,0 +1,40 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.data = void 0;
+exports.execute = execute;
+const discord_js_1 = require("discord.js");
+exports.data = new discord_js_1.SlashCommandBuilder()
+    .setName('sunucu-temizle')
+    .setDescription('Sunucudaki tüm kanalları ve bot harici rolleri güvenle siler (Temiz Başlangıç).')
+    .setDefaultMemberPermissions(discord_js_1.PermissionFlagsBits.Administrator);
+async function execute(interaction) {
+    if (!interaction.guild) {
+        await interaction.reply({ content: 'Bu komut sadece sunucularda çalışır.', ephemeral: true });
+        return;
+    }
+    if (!interaction.memberPermissions?.has(discord_js_1.PermissionFlagsBits.Administrator)) {
+        await interaction.reply({
+            content: '❌ Bu işlemi gerçekleştirmek için `Yönetici` yetkisine sahip olmalısınız.',
+            ephemeral: true,
+        });
+        return;
+    }
+    const embed = new discord_js_1.EmbedBuilder()
+        .setTitle('⚠️ TEHLİKELİ İŞLEM: Sunucu Sıfırlama')
+        .setDescription(`**DİKKAT:** Bu komut sunucudaki **TÜM KANALLARI** ve botun silebildiği tüm rolleri geri alınamaz şekilde silecektir!\n\nEğer yeni bir AI sunucu kuracaksanız ve tertemiz bir sayfa açmak istiyorsanız aşağıdaki butondan onaylayınız.`)
+        .setColor('#ED4245')
+        .setFooter({ text: 'Nights Guard • Made by erencix • Yalnızca yöneticiler onaylayabilir' });
+    const row = new discord_js_1.ActionRowBuilder().addComponents(new discord_js_1.ButtonBuilder()
+        .setCustomId(`wipe_confirm:${interaction.user.id}`)
+        .setLabel('Evet, Sunucuyu Tamamen Sıfırla')
+        .setEmoji('💣')
+        .setStyle(discord_js_1.ButtonStyle.Danger), new discord_js_1.ButtonBuilder()
+        .setCustomId('wipe_cancel')
+        .setLabel('Vazgeç / İptal')
+        .setEmoji('🛡️')
+        .setStyle(discord_js_1.ButtonStyle.Secondary));
+    await interaction.reply({
+        embeds: [embed],
+        components: [row],
+    });
+}
