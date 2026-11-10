@@ -90,13 +90,21 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         inline: false,
       },
       {
-        name: '🔒 7/24 Yerleşik Güvenlik Kalkanı & Denetim Logu',
+        name: '💾 Tam Sunucu Yedekleme & Geri Yükleme (Yalnızca erencix)',
         value:
-          '• **Akıllı Ailevi & Şahsi Hakaret Koruması:** Ailevi/şahsi ağır saldırıları anında siler ve susturur; genel argo serbesttir.\n' +
-          '• **7/24 Denetim Logu:** Silinen/düzenlenen mesajlar, sesten çıkan/girenler `#denetim-kaydı` kanalına anlık loglanır.\n' +
-          '• **Kelime Türetmece Güvenliği:** Oyun odasındaki küfürlü kelimeleri anında engeller.\n' +
-          '• **Fotoğraf Kanalı Koruması:** Medya paylaşımları yalnızca yetkili medya odalarında yapılabilir.\n' +
-          '• **Otomatik Kayıt & Bot Onayı:** Kayıt olanlara `☊ ` simgesi, botlara ise anında Bot ve Onaylı rolleri verilir.',
+          '• `/yedek-al` veya `!yedek-al` — Sunucunun tüm rollerini, kanallarını, yetkilerini ve üyelerin sahip olduğu rolleri A\'dan Z\'ye eksiksiz yedekler.\n' +
+          '• `/yedekgetir` veya `!yedekgetir` — Alınan son tam yedeği geri yükleyerek sunucuyu eski haline getirir.\n' +
+          '• 🔐 **Özel Yetkilendirme:** Bu komutlar kritik olduğundan yalnızca erencix (`1138498666785677492`) tarafından çalıştırılabilir.',
+        inline: false,
+      },
+      {
+        name: '🔒 7/24 Gelişmiş Güvenlik Kalkanı & Anti-Mass Guard',
+        value:
+          '• **Anti-Mass Ban & Kick Koruması:** Bir yönetici 10 dakika içinde 2\'den fazla kişiyi banlar veya atarsa, 3. işlemde tüm yetkileri derhal geri alınır ve son işlem iptal edilir ("3. de atılırsınız erencix den izin alın").\n' +
+          '• **Akıllı Küfür & Hakaret Koruması:** Ailevi/dini/şahsi ağır saldırıları anında siler ve susturur.\n' +
+          '• **Anti-Spam & Anti-Raid Shield:** Hızlı mesaj spamı veya ani toplu bot girişlerinde sunucuyu otomatik kalkan altına alır.\n' +
+          '• **Link & Reklam Engeli:** Yetkisiz Discord davet ve harici bağlantıları engeller.\n' +
+          '• **7/24 Denetim Logu:** Silinen/düzenlenen mesajlar ve ses hareketleri `#mod-log` kanalına anlık raporlanır.',
         inline: false,
       }
     )

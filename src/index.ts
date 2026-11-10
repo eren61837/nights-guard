@@ -23,6 +23,7 @@ import { SocialManager } from './services/features/socialManager';
 import { InviteTracker } from './services/features/inviteTracker';
 import { MusicPlayer } from './services/features/musicPlayer';
 import { BoostManager } from './services/features/boostManager';
+import { ServerBackupManager } from './services/features/serverBackupManager';
 import { PersistentStore } from './services/storage/persistentStore';
 import { EmbedBuilder, TextChannel } from 'discord.js';
 
@@ -108,6 +109,11 @@ async function bootstrap() {
 
   client.on(Events.GuildMemberRemove, async (member) => {
     await AuditLogManager.logMemberLeave(member);
+    await AutoSecurityGuard.handleKickSecurity(member.guild, member);
+  });
+
+  client.on(Events.GuildBanAdd, async (ban) => {
+    await AutoSecurityGuard.handleBanSecurity(ban.guild, ban.user);
   });
 
   client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
@@ -261,6 +267,71 @@ async function bootstrap() {
       if (message.guild) {
         const count = await LevelManager.syncAllMembers(message.guild);
         await message.reply(`✅ Seviye senkronizasyonu tamamlandı. **${count}** üyenin seviye rolleri güncellendi.`).catch(() => {});
+      }
+      return;
+    }
+
+    // !yedek-al / !yedekal (Yalnızca erencix veya Sunucu Kurucusu)
+    if (cmd === '!yedek-al' || cmd === '!yedekal') {
+      if (!ServerBackupManager.isAuthorized(message.author.id, message.guild)) {
+        await message.reply('⛔ **Erişim Engellendi:** Sunucu yedeği alma yetkisi yalnızca <@1138498666785677492> (erencix) ve sunucu kurucusuna aittir!').catch(() => {});
+        return;
+      }
+      const progressMsg = await message.reply('⏳ **Sunucunun A\'dan Z\'ye tam yedeği alınıyor...** Lütfen bekleyin.').catch(() => null);
+      const res = await ServerBackupManager.createBackup(message.guild, message.author);
+      if (res.success && res.data) {
+        const d = res.data;
+        const embed = new EmbedBuilder()
+          .setTitle('💾 NIGHTS GUARD • TAM SUNUCU YEDEĞİ ALINDI!')
+          .setDescription(
+            `Sunucunun anlık tüm verileri, rolleri, kategori ve kanalları, özel izinleri ve üye rol dağılımları başarıyla diske kaydedildi!\n\n` +
+            `Geri yüklemek için istediğiniz zaman \`!yedekgetir\` veya \`/yedekgetir\` komutunu kullanabilirsiniz.`
+          )
+          .setColor('#2ECC71')
+          .addFields(
+            { name: '🆔 Yedek Kodu', value: `\`${d.backupId}\``, inline: true },
+            { name: '🎭 Roller', value: `**${d.stats.rolesCount}** adet`, inline: true },
+            { name: '📁 Kategoriler', value: `**${d.stats.categoriesCount}** adet`, inline: true },
+            { name: '🎙️ Kanallar', value: `**${d.stats.channelsCount}** adet`, inline: true },
+            { name: '👥 Üye Rol Kaydı', value: `**${d.stats.membersSavedCount}** kişi`, inline: true }
+          )
+          .setFooter({ text: 'Nights Automated Backup System • Made by erencix' })
+          .setTimestamp();
+        if (progressMsg) await progressMsg.edit({ content: '', embeds: [embed] }).catch(() => {});
+      } else {
+        if (progressMsg) await progressMsg.edit(`❌ **Yedek Alma Hatası:** ${res.error}`).catch(() => {});
+      }
+      return;
+    }
+
+    // !yedekgetir / !yedek-kur / !yedekkur (Yalnızca erencix veya Sunucu Kurucusu)
+    if (cmd === '!yedekgetir' || cmd === '!yedek-kur' || cmd === '!yedekkur') {
+      if (!ServerBackupManager.isAuthorized(message.author.id, message.guild)) {
+        await message.reply('⛔ **Erişim Engellendi:** Sunucu yedeği geri yükleme işlemi son derece kritik bir işlemdir! Yalnızca <@1138498666785677492> (erencix) tarafından çalıştırılabilir!').catch(() => {});
+        return;
+      }
+      const progressMsg = await message.reply('⏳ **SUNUCU YEDEĞİ GERİ YÜKLENİYOR...**\n> ⚙️ Başlatılıyor, lütfen bekleyin...').catch(() => null);
+      const res = await ServerBackupManager.restoreBackup(message.guild, message.author, async (st) => {
+        if (progressMsg) await progressMsg.edit(`⏳ **SUNUCU YEDEĞİ GERİ YÜKLENİYOR...**\n> ${st}`).catch(() => {});
+      });
+      if (res.success && res.restoredStats) {
+        const s = res.restoredStats;
+        const embed = new EmbedBuilder()
+          .setTitle('✨ NIGHTS GUARD • SUNUCU YEDEĞİ BAŞARIYLA GERİ YÜKLENDİ!')
+          .setDescription(`Sunucu başarıyla eski haline döndürüldü! Odalar, roller ve yetkiler onarıldı. 🛡️`)
+          .setColor('#8B5CF6')
+          .addFields(
+            { name: '🆔 Kullanılan Yedek', value: `\`${s.backupId}\``, inline: true },
+            { name: '🎭 Roller', value: `**${s.roles}** adet`, inline: true },
+            { name: '📁 Kategoriler', value: `**${s.categories}** adet`, inline: true },
+            { name: '🎙️ Kanallar', value: `**${s.channels}** adet`, inline: true },
+            { name: '👥 İade Edilen Roller', value: `**${s.rolesGiven}** adet`, inline: true }
+          )
+          .setFooter({ text: 'Nights System Restore Engine • Made by erencix' })
+          .setTimestamp();
+        if (progressMsg) await progressMsg.edit({ content: '', embeds: [embed] }).catch(() => {});
+      } else {
+        if (progressMsg) await progressMsg.edit(`❌ **Geri Yükleme Hatası:** ${res.error}`).catch(() => {});
       }
       return;
     }

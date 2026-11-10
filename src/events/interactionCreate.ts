@@ -45,6 +45,7 @@ import * as kullaniciCmd from '../commands/kullanici';
 import * as gonderCmd from '../commands/gonder';
 import * as itirafCmd from '../commands/itiraf';
 import * as muzikCmd from '../commands/muzik';
+import * as yedekCmd from '../commands/yedek';
 import { SocialManager } from '../services/features/socialManager';
 import { ConfessionManager } from '../services/features/confessionManager';
 import { MusicPlayer } from '../services/features/musicPlayer';
@@ -222,6 +223,15 @@ export class InteractionHandler {
         break;
       case 'ses':
         await muzikCmd.executeSes(interaction);
+        break;
+      case 'yedek-al':
+      case 'yedekal':
+        await yedekCmd.executeYedekAl(interaction);
+        break;
+      case 'yedekgetir':
+      case 'yedek-kur':
+      case 'yedekkur':
+        await yedekCmd.executeYedekGetir(interaction);
         break;
       default:
         await interaction.reply({ content: 'Bilinmeyen komut.', flags: MessageFlags.Ephemeral });

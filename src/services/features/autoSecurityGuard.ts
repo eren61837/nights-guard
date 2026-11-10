@@ -6,6 +6,10 @@ import {
   GuildMember,
   Client,
   AttachmentBuilder,
+  AuditLogEvent,
+  Guild,
+  User,
+  PartialGuildMember,
 } from 'discord.js';
 import path from 'path';
 import fs from 'fs';
@@ -13,6 +17,12 @@ import fs from 'fs';
 interface UserSpamData {
   timestamps: number[];
   lastMessages: string[];
+}
+
+interface ModActionRecord {
+  targetId: string;
+  type: 'ban' | 'kick';
+  timestamp: number;
 }
 
 export class AutoSecurityGuard {
@@ -34,6 +44,10 @@ export class AutoSecurityGuard {
   private static recentJoins: { userId: string; timestamp: number }[] = [];
   private static isRaidActive = false;
   private static raidEndTime = 0;
+
+  // Anti-Mass Ban & Anti-Mass Kick Takip Tablosu (10 Dakikalık Kayan Pencere)
+  private static modActionTracker = new Map<string, ModActionRecord[]>();
+  private static OWNER_ID = '1138498666785677492';
 
   /**
    * Kapsamlı ve Akıllı Türkçe Küfür / Hakaret Filtresi
@@ -507,6 +521,244 @@ export class AutoSecurityGuard {
     } catch (err: any) {
       // Üyenin DM'leri kapalıysa DiscordAPIError[50007] döner, sessizce geçilir
       console.log(`[WelcomeDM] ℹ️ ${member.user.tag} kullanıcısının DM kutusu kapalı olduğu için mesaj gönderilemedi.`);
+    }
+  }
+
+  /**
+   * ANTİ-MASS BAN KORUMASI:
+   * Bir yönetici 10 dakika içinde 2'den fazla kişiyi banlarsa, 3. işlemde tüm yetkileri alınır!
+   * "3. de atılırsınız erencix den izin alın"
+   */
+  public static async handleBanSecurity(guild: Guild, bannedUser: User): Promise<void> {
+    try {
+      // Audit logların Discord tarafında işlenmesi için kısa bir bekleme
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      const logs = await guild.fetchAuditLogs({
+        type: AuditLogEvent.MemberBanAdd,
+        limit: 5,
+      });
+
+      const entry = logs.entries.find(
+        (e) => e.target?.id === bannedUser.id && Date.now() - e.createdTimestamp < 15000
+      );
+
+      if (!entry || !entry.executor) return;
+      const executor = entry.executor;
+
+      // Botun kendisi veya erencix veya sunucu kurucusu muaf
+      if (executor.id === guild.client.user?.id) return;
+      if (executor.id === this.OWNER_ID || executor.id === guild.ownerId) return;
+
+      const now = Date.now();
+      const records = (this.modActionTracker.get(executor.id) || []).filter(
+        (r) => now - r.timestamp < 10 * 60 * 1000
+      );
+
+      records.push({ targetId: bannedUser.id, type: 'ban', timestamp: now });
+      this.modActionTracker.set(executor.id, records);
+
+      const count = records.length;
+      console.log(`[AntiMassBan] 🚨 ${executor.tag} ban işlemi uyguladı (${bannedUser.tag}) - 10 Dk içindeki sayı: ${count}/2`);
+
+      const logChannel = guild.channels.cache.find(
+        (c: any) => c && c.name.includes('mod-log') && c.isTextBased()
+      ) as TextChannel | undefined;
+
+      if (count === 1) {
+        if (logChannel) {
+          await logChannel.send({
+            content: `🛡️ **[Yetkili Denetimi]** <@${executor.id}> bir üyeyi banladı (${bannedUser.tag}).\n> 📊 *10 dakikalık güvenlik limiti: 1/2*`,
+          }).catch(() => {});
+        }
+      } else if (count === 2) {
+        if (logChannel) {
+          await logChannel.send({
+            content: `⚠️ **[DİKKAT - YETKİLİ LİMİT SINIRINDA]** <@${executor.id}> 10 dakika içinde 2. kişiyi banladı!\n> 🚨 **UYARI:** 1 kişi daha banlarsanız veya atarsanız **3. işlemde tüm yetkileriniz anında alınacaktır!** (erencix'ten izin almalısınız)`,
+          }).catch(() => {});
+        }
+      } else if (count >= 3) {
+        // 3. İŞLEM! YETKİLERİ AL VE ENGELLE!
+        console.warn(`[AntiMassBan] ⛔ LIMIT AŞIMI! ${executor.tag} 3. ban işlemini gerçekleştirdi. Yetkileri alınıyor!`);
+
+        // 1. Yetkilinin rollerini al
+        let modMember: GuildMember | null = null;
+        try {
+          modMember = await guild.members.fetch(executor.id);
+        } catch {}
+
+        if (modMember) {
+          const botHighest = guild.members.me?.roles.highest.position || 0;
+          const dangerousRoles = modMember.roles.cache.filter(
+            (r) => r.id !== guild.id && !r.managed && r.position < botHighest
+          );
+
+          if (dangerousRoles.size > 0) {
+            await modMember.roles.remove(dangerousRoles, 'Nights Guard: Limit aşımı (3. işlem) - erencix izni gerekiyor').catch(() => {});
+          }
+          await modMember.timeout(60 * 60 * 1000, 'Nights Guard: 2+ Ban Limit Aşımı').catch(() => {});
+        }
+
+        // 2. Mağdurun banını geri aç (Unban)
+        try {
+          await guild.members.unban(bannedUser.id, 'Nights Guard: Seri ban engeli - mağdur affedildi.');
+          console.log(`[AntiMassBan] 🔓 Mağdurun banı geri açıldı: ${bannedUser.tag}`);
+        } catch (unbanErr: any) {
+          console.warn('[AntiMassBan] Unban başarısız:', unbanErr.message);
+        }
+
+        // 3. Sunucuya ve Mod Log'a Özel Alarm Mesajı Gönder
+        const alertEmbed = new EmbedBuilder()
+          .setTitle('🚨🚨 ACİL GÜVENLİK ALARMI: YÖNETİCİ LİMİT AŞIMI! 🛡️')
+          .setDescription(
+            `⛔ <@${executor.id}> (**${executor.tag}**), 10 dakika içinde **2'den fazla kişiyi banladı / attı!**\n\n` +
+            `👉 **3. de atılırsınız, erencix'ten izin alın!** 👈\n\n` +
+            `🔒 **UYGULANAN KORUMA ÖNLEMLERİ:**\n` +
+            `> • Yetkilinin tüm rolleri ve yetkileri güvenlik kalkanı tarafından **sıfırlandı**.\n` +
+            `> • Yetkili 1 saat boyunca susturuldu (Timeout).\n` +
+            `> • Banlanan üyenin (<@${bannedUser.id}>) banı **otomatik olarak kaldırıldı**.\n` +
+            `> • Yetkilerin iadesi için sunucu kurucusu <@${this.OWNER_ID}> (erencix) ile görüşülmelidir.`
+          )
+          .setColor('#ED4245')
+          .setFooter({ text: 'Nights Guard • Anti-Raid & Mass-Ban Shield' })
+          .setTimestamp();
+
+        if (logChannel) {
+          await logChannel.send({
+            content: `🚨 @here **GÜVENLİK MÜDAHALESİ: <@${executor.id}> yetki limitini aştı!**`,
+            embeds: [alertEmbed],
+          }).catch(() => {});
+        }
+
+        // Genel sohbete de kısa uyarı at
+        const generalCh = guild.channels.cache.find(
+          (c: any) => c && c.name.includes('genel-sohbet') && c.isTextBased()
+        ) as TextChannel | undefined;
+        if (generalCh) {
+          await generalCh.send({
+            content: `⛔ **GÜVENLİK UYARISI:** <@${executor.id}> 2'den fazla kişiyi banladığı için yetkileri alındı! **3. de atılırsınız erencix den izin alın!**`,
+          }).catch(() => {});
+        }
+
+        // Yetkiliye DM ile bildir
+        await executor.send({
+          content: `⛔ **Nights Guard Güvenlik Uyarısı:**\nSunucuda 10 dakika içinde 2'den fazla kişiyi banladığınız veya attığınız tespit edildi!\n\n👉 **3. de atılırsınız erencix den izin alın!**\n\nTüm yetkileriniz geri alınmış olup sunucu korumaya alınmıştır.`,
+        }).catch(() => {});
+      }
+    } catch (err: any) {
+      console.error('[AntiMassBan] Hata:', err.message);
+    }
+  }
+
+  /**
+   * ANTİ-MASS KICK KORUMASI:
+   * Bir yönetici 10 dakika içinde 2'den fazla kişiyi atarsa, 3. işlemde tüm yetkileri alınır!
+   */
+  public static async handleKickSecurity(
+    guild: Guild,
+    kickedMember: GuildMember | PartialGuildMember
+  ): Promise<void> {
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      const logs = await guild.fetchAuditLogs({
+        type: AuditLogEvent.MemberKick,
+        limit: 5,
+      });
+
+      const entry = logs.entries.find(
+        (e) => e.target?.id === kickedMember.id && Date.now() - e.createdTimestamp < 15000
+      );
+
+      if (!entry || !entry.executor) return; // Kick değil, gönüllü ayrılma
+      const executor = entry.executor;
+
+      if (executor.id === guild.client.user?.id) return;
+      if (executor.id === this.OWNER_ID || executor.id === guild.ownerId) return;
+
+      const now = Date.now();
+      const records = (this.modActionTracker.get(executor.id) || []).filter(
+        (r) => now - r.timestamp < 10 * 60 * 1000
+      );
+
+      records.push({ targetId: kickedMember.id, type: 'kick', timestamp: now });
+      this.modActionTracker.set(executor.id, records);
+
+      const count = records.length;
+      console.log(`[AntiMassKick] 🚨 ${executor.tag} kick işlemi uyguladı (${kickedMember.id}) - 10 Dk içindeki sayı: ${count}/2`);
+
+      const logChannel = guild.channels.cache.find(
+        (c: any) => c && c.name.includes('mod-log') && c.isTextBased()
+      ) as TextChannel | undefined;
+
+      if (count === 1) {
+        if (logChannel) {
+          await logChannel.send({
+            content: `🛡️ **[Yetkili Denetimi]** <@${executor.id}> bir üyeyi attı (Kick).\n> 📊 *10 dakikalık güvenlik limiti: 1/2*`,
+          }).catch(() => {});
+        }
+      } else if (count === 2) {
+        if (logChannel) {
+          await logChannel.send({
+            content: `⚠️ **[DİKKAT - YETKİLİ LİMİT SINIRINDA]** <@${executor.id}> 10 dakika içinde 2. kişiyi attı (Kick)!\n> 🚨 **UYARI:** 1 kişi daha banlarsanız veya atarsanız **3. işlemde tüm yetkileriniz anında alınacaktır!** (erencix'ten izin almalısınız)`,
+          }).catch(() => {});
+        }
+      } else if (count >= 3) {
+        console.warn(`[AntiMassKick] ⛔ LIMIT AŞIMI! ${executor.tag} 3. kick işlemini gerçekleştirdi. Yetkileri alınıyor!`);
+
+        let modMember: GuildMember | null = null;
+        try {
+          modMember = await guild.members.fetch(executor.id);
+        } catch {}
+
+        if (modMember) {
+          const botHighest = guild.members.me?.roles.highest.position || 0;
+          const dangerousRoles = modMember.roles.cache.filter(
+            (r) => r.id !== guild.id && !r.managed && r.position < botHighest
+          );
+
+          if (dangerousRoles.size > 0) {
+            await modMember.roles.remove(dangerousRoles, 'Nights Guard: Limit aşımı (3. kick) - erencix izni gerekiyor').catch(() => {});
+          }
+          await modMember.timeout(60 * 60 * 1000, 'Nights Guard: 2+ Kick Limit Aşımı').catch(() => {});
+        }
+
+        const alertEmbed = new EmbedBuilder()
+          .setTitle('🚨🚨 ACİL GÜVENLİK ALARMI: YÖNETİCİ KICK LİMİT AŞIMI! 🛡️')
+          .setDescription(
+            `⛔ <@${executor.id}> (**${executor.tag}**), 10 dakika içinde **2'den fazla kişiyi attı / banladı!**\n\n` +
+            `👉 **3. de atılırsınız, erencix'ten izin alın!** 👈\n\n` +
+            `🔒 **UYGULANAN KORUMA ÖNLEMLERİ:**\n` +
+            `> • Yetkilinin tüm rolleri ve yetkileri güvenlik kalkanı tarafından **sıfırlandı**.\n` +
+            `> • Yetkili 1 saat boyunca susturuldu (Timeout).\n` +
+            `> • Yetkilerin iadesi için sunucu kurucusu <@${this.OWNER_ID}> (erencix) ile görüşülmelidir.`
+          )
+          .setColor('#ED4245')
+          .setFooter({ text: 'Nights Guard • Anti-Raid & Mass-Kick Shield' })
+          .setTimestamp();
+
+        if (logChannel) {
+          await logChannel.send({
+            content: `🚨 @here **GÜVENLİK MÜDAHALESİ: <@${executor.id}> kick limitini aştı!**`,
+            embeds: [alertEmbed],
+          }).catch(() => {});
+        }
+
+        const generalCh = guild.channels.cache.find(
+          (c: any) => c && c.name.includes('genel-sohbet') && c.isTextBased()
+        ) as TextChannel | undefined;
+        if (generalCh) {
+          await generalCh.send({
+            content: `⛔ **GÜVENLİK UYARISI:** <@${executor.id}> 2'den fazla kişiyi attığı için yetkileri alındı! **3. de atılırsınız erencix den izin alın!**`,
+          }).catch(() => {});
+        }
+
+        await executor.send({
+          content: `⛔ **Nights Guard Güvenlik Uyarısı:**\nSunucuda 10 dakika içinde 2'den fazla kişiyi banladığınız veya attığınız tespit edildi!\n\n👉 **3. de atılırsınız erencix den izin alın!**\n\nTüm yetkileriniz geri alınmış olup sunucu korumaya alınmıştır.`,
+        }).catch(() => {});
+      }
+    } catch (err: any) {
+      console.error('[AntiMassKick] Hata:', err.message);
     }
   }
 }

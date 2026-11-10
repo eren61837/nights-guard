@@ -33,7 +33,7 @@ __export(index_exports, {
   bootstrap: () => bootstrap
 });
 module.exports = __toCommonJS(index_exports);
-var import_discord42 = require("discord.js");
+var import_discord44 = require("discord.js");
 
 // src/config.ts
 var import_dotenv = __toESM(require("dotenv"));
@@ -763,7 +763,7 @@ var AIManager = class {
 };
 
 // src/events/interactionCreate.ts
-var import_discord35 = require("discord.js");
+var import_discord37 = require("discord.js");
 
 // src/services/engine/blueprintCache.ts
 var BlueprintCache = class {
@@ -2728,8 +2728,13 @@ async function execute5(interaction) {
       inline: false
     },
     {
-      name: "\u{1F512} 7/24 Yerle\u015Fik G\xFCvenlik Kalkan\u0131 & Denetim Logu",
-      value: "\u2022 **Ak\u0131ll\u0131 Ailevi & \u015Eahsi Hakaret Korumas\u0131:** Ailevi/\u015Fahsi a\u011F\u0131r sald\u0131r\u0131lar\u0131 an\u0131nda siler ve susturur; genel argo serbesttir.\n\u2022 **7/24 Denetim Logu:** Silinen/d\xFCzenlenen mesajlar, sesten \xE7\u0131kan/girenler `#denetim-kayd\u0131` kanal\u0131na anl\u0131k loglan\u0131r.\n\u2022 **Kelime T\xFCretmece G\xFCvenli\u011Fi:** Oyun odas\u0131ndaki k\xFCf\xFCrl\xFC kelimeleri an\u0131nda engeller.\n\u2022 **Foto\u011Fraf Kanal\u0131 Korumas\u0131:** Medya payla\u015F\u0131mlar\u0131 yaln\u0131zca yetkili medya odalar\u0131nda yap\u0131labilir.\n\u2022 **Otomatik Kay\u0131t & Bot Onay\u0131:** Kay\u0131t olanlara `\u260A ` simgesi, botlara ise an\u0131nda Bot ve Onayl\u0131 rolleri verilir.",
+      name: "\u{1F4BE} Tam Sunucu Yedekleme & Geri Y\xFCkleme (Yaln\u0131zca erencix)",
+      value: "\u2022 `/yedek-al` veya `!yedek-al` \u2014 Sunucunun t\xFCm rollerini, kanallar\u0131n\u0131, yetkilerini ve \xFCyelerin sahip oldu\u011Fu rolleri A'dan Z'ye eksiksiz yedekler.\n\u2022 `/yedekgetir` veya `!yedekgetir` \u2014 Al\u0131nan son tam yede\u011Fi geri y\xFCkleyerek sunucuyu eski haline getirir.\n\u2022 \u{1F510} **\xD6zel Yetkilendirme:** Bu komutlar kritik oldu\u011Fundan yaln\u0131zca erencix (`1138498666785677492`) taraf\u0131ndan \xE7al\u0131\u015Ft\u0131r\u0131labilir.",
+      inline: false
+    },
+    {
+      name: "\u{1F512} 7/24 Geli\u015Fmi\u015F G\xFCvenlik Kalkan\u0131 & Anti-Mass Guard",
+      value: '\u2022 **Anti-Mass Ban & Kick Korumas\u0131:** Bir y\xF6netici 10 dakika i\xE7inde 2\'den fazla ki\u015Fiyi banlar veya atarsa, 3. i\u015Flemde t\xFCm yetkileri derhal geri al\u0131n\u0131r ve son i\u015Flem iptal edilir ("3. de at\u0131l\u0131rs\u0131n\u0131z erencix den izin al\u0131n").\n\u2022 **Ak\u0131ll\u0131 K\xFCf\xFCr & Hakaret Korumas\u0131:** Ailevi/dini/\u015Fahsi a\u011F\u0131r sald\u0131r\u0131lar\u0131 an\u0131nda siler ve susturur.\n\u2022 **Anti-Spam & Anti-Raid Shield:** H\u0131zl\u0131 mesaj spam\u0131 veya ani toplu bot giri\u015Flerinde sunucuyu otomatik kalkan alt\u0131na al\u0131r.\n\u2022 **Link & Reklam Engeli:** Yetkisiz Discord davet ve harici ba\u011Flant\u0131lar\u0131 engeller.\n\u2022 **7/24 Denetim Logu:** Silinen/d\xFCzenlenen mesajlar ve ses hareketleri `#mod-log` kanal\u0131na anl\u0131k raporlan\u0131r.',
       inline: false
     }
   ).setFooter({ text: "\u{1F6E1}\uFE0F Nights Guard Engine \u2022 Made by erencix" }).setTimestamp();
@@ -4507,6 +4512,9 @@ var AutoSecurityGuard = class {
   static recentJoins = [];
   static isRaidActive = false;
   static raidEndTime = 0;
+  // Anti-Mass Ban & Anti-Mass Kick Takip Tablosu (10 Dakikalık Kayan Pencere)
+  static modActionTracker = /* @__PURE__ */ new Map();
+  static OWNER_ID = "1138498666785677492";
   /**
    * Kapsamlı ve Akıllı Türkçe Küfür / Hakaret Filtresi
    * Harf uzatmaları, araya nokta/boşluk koyma ve leetspeak varyasyonlarını yakalar.
@@ -4869,6 +4877,222 @@ Nights; kaliteli sohbetlerin, gece muhabbetlerinin, anime izleme gecelerinin ve 
       console.log(`[WelcomeDM] \u{1F4E8} ${member.user.tag} kullan\u0131c\u0131s\u0131na \xF6zel kar\u015F\u0131lama DM'si ba\u015Far\u0131yla iletildi!`);
     } catch (err) {
       console.log(`[WelcomeDM] \u2139\uFE0F ${member.user.tag} kullan\u0131c\u0131s\u0131n\u0131n DM kutusu kapal\u0131 oldu\u011Fu i\xE7in mesaj g\xF6nderilemedi.`);
+    }
+  }
+  /**
+   * ANTİ-MASS BAN KORUMASI:
+   * Bir yönetici 10 dakika içinde 2'den fazla kişiyi banlarsa, 3. işlemde tüm yetkileri alınır!
+   * "3. de atılırsınız erencix den izin alın"
+   */
+  static async handleBanSecurity(guild, bannedUser) {
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      const logs = await guild.fetchAuditLogs({
+        type: import_discord29.AuditLogEvent.MemberBanAdd,
+        limit: 5
+      });
+      const entry = logs.entries.find(
+        (e) => e.target?.id === bannedUser.id && Date.now() - e.createdTimestamp < 15e3
+      );
+      if (!entry || !entry.executor) return;
+      const executor = entry.executor;
+      if (executor.id === guild.client.user?.id) return;
+      if (executor.id === this.OWNER_ID || executor.id === guild.ownerId) return;
+      const now = Date.now();
+      const records = (this.modActionTracker.get(executor.id) || []).filter(
+        (r) => now - r.timestamp < 10 * 60 * 1e3
+      );
+      records.push({ targetId: bannedUser.id, type: "ban", timestamp: now });
+      this.modActionTracker.set(executor.id, records);
+      const count = records.length;
+      console.log(`[AntiMassBan] \u{1F6A8} ${executor.tag} ban i\u015Flemi uygulad\u0131 (${bannedUser.tag}) - 10 Dk i\xE7indeki say\u0131: ${count}/2`);
+      const logChannel = guild.channels.cache.find(
+        (c) => c && c.name.includes("mod-log") && c.isTextBased()
+      );
+      if (count === 1) {
+        if (logChannel) {
+          await logChannel.send({
+            content: `\u{1F6E1}\uFE0F **[Yetkili Denetimi]** <@${executor.id}> bir \xFCyeyi banlad\u0131 (${bannedUser.tag}).
+> \u{1F4CA} *10 dakikal\u0131k g\xFCvenlik limiti: 1/2*`
+          }).catch(() => {
+          });
+        }
+      } else if (count === 2) {
+        if (logChannel) {
+          await logChannel.send({
+            content: `\u26A0\uFE0F **[D\u0130KKAT - YETK\u0130L\u0130 L\u0130M\u0130T SINIRINDA]** <@${executor.id}> 10 dakika i\xE7inde 2. ki\u015Fiyi banlad\u0131!
+> \u{1F6A8} **UYARI:** 1 ki\u015Fi daha banlarsan\u0131z veya atarsan\u0131z **3. i\u015Flemde t\xFCm yetkileriniz an\u0131nda al\u0131nacakt\u0131r!** (erencix'ten izin almal\u0131s\u0131n\u0131z)`
+          }).catch(() => {
+          });
+        }
+      } else if (count >= 3) {
+        console.warn(`[AntiMassBan] \u26D4 LIMIT A\u015EIMI! ${executor.tag} 3. ban i\u015Flemini ger\xE7ekle\u015Ftirdi. Yetkileri al\u0131n\u0131yor!`);
+        let modMember = null;
+        try {
+          modMember = await guild.members.fetch(executor.id);
+        } catch {
+        }
+        if (modMember) {
+          const botHighest = guild.members.me?.roles.highest.position || 0;
+          const dangerousRoles = modMember.roles.cache.filter(
+            (r) => r.id !== guild.id && !r.managed && r.position < botHighest
+          );
+          if (dangerousRoles.size > 0) {
+            await modMember.roles.remove(dangerousRoles, "Nights Guard: Limit a\u015F\u0131m\u0131 (3. i\u015Flem) - erencix izni gerekiyor").catch(() => {
+            });
+          }
+          await modMember.timeout(60 * 60 * 1e3, "Nights Guard: 2+ Ban Limit A\u015F\u0131m\u0131").catch(() => {
+          });
+        }
+        try {
+          await guild.members.unban(bannedUser.id, "Nights Guard: Seri ban engeli - ma\u011Fdur affedildi.");
+          console.log(`[AntiMassBan] \u{1F513} Ma\u011Fdurun ban\u0131 geri a\xE7\u0131ld\u0131: ${bannedUser.tag}`);
+        } catch (unbanErr) {
+          console.warn("[AntiMassBan] Unban ba\u015Far\u0131s\u0131z:", unbanErr.message);
+        }
+        const alertEmbed = new import_discord29.EmbedBuilder().setTitle("\u{1F6A8}\u{1F6A8} AC\u0130L G\xDCVENL\u0130K ALARMI: Y\xD6NET\u0130C\u0130 L\u0130M\u0130T A\u015EIMI! \u{1F6E1}\uFE0F").setDescription(
+          `\u26D4 <@${executor.id}> (**${executor.tag}**), 10 dakika i\xE7inde **2'den fazla ki\u015Fiyi banlad\u0131 / att\u0131!**
+
+\u{1F449} **3. de at\u0131l\u0131rs\u0131n\u0131z, erencix'ten izin al\u0131n!** \u{1F448}
+
+\u{1F512} **UYGULANAN KORUMA \xD6NLEMLER\u0130:**
+> \u2022 Yetkilinin t\xFCm rolleri ve yetkileri g\xFCvenlik kalkan\u0131 taraf\u0131ndan **s\u0131f\u0131rland\u0131**.
+> \u2022 Yetkili 1 saat boyunca susturuldu (Timeout).
+> \u2022 Banlanan \xFCyenin (<@${bannedUser.id}>) ban\u0131 **otomatik olarak kald\u0131r\u0131ld\u0131**.
+> \u2022 Yetkilerin iadesi i\xE7in sunucu kurucusu <@${this.OWNER_ID}> (erencix) ile g\xF6r\xFC\u015F\xFClmelidir.`
+        ).setColor("#ED4245").setFooter({ text: "Nights Guard \u2022 Anti-Raid & Mass-Ban Shield" }).setTimestamp();
+        if (logChannel) {
+          await logChannel.send({
+            content: `\u{1F6A8} @here **G\xDCVENL\u0130K M\xDCDAHALES\u0130: <@${executor.id}> yetki limitini a\u015Ft\u0131!**`,
+            embeds: [alertEmbed]
+          }).catch(() => {
+          });
+        }
+        const generalCh = guild.channels.cache.find(
+          (c) => c && c.name.includes("genel-sohbet") && c.isTextBased()
+        );
+        if (generalCh) {
+          await generalCh.send({
+            content: `\u26D4 **G\xDCVENL\u0130K UYARISI:** <@${executor.id}> 2'den fazla ki\u015Fiyi banlad\u0131\u011F\u0131 i\xE7in yetkileri al\u0131nd\u0131! **3. de at\u0131l\u0131rs\u0131n\u0131z erencix den izin al\u0131n!**`
+          }).catch(() => {
+          });
+        }
+        await executor.send({
+          content: `\u26D4 **Nights Guard G\xFCvenlik Uyar\u0131s\u0131:**
+Sunucuda 10 dakika i\xE7inde 2'den fazla ki\u015Fiyi banlad\u0131\u011F\u0131n\u0131z veya att\u0131\u011F\u0131n\u0131z tespit edildi!
+
+\u{1F449} **3. de at\u0131l\u0131rs\u0131n\u0131z erencix den izin al\u0131n!**
+
+T\xFCm yetkileriniz geri al\u0131nm\u0131\u015F olup sunucu korumaya al\u0131nm\u0131\u015Ft\u0131r.`
+        }).catch(() => {
+        });
+      }
+    } catch (err) {
+      console.error("[AntiMassBan] Hata:", err.message);
+    }
+  }
+  /**
+   * ANTİ-MASS KICK KORUMASI:
+   * Bir yönetici 10 dakika içinde 2'den fazla kişiyi atarsa, 3. işlemde tüm yetkileri alınır!
+   */
+  static async handleKickSecurity(guild, kickedMember) {
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      const logs = await guild.fetchAuditLogs({
+        type: import_discord29.AuditLogEvent.MemberKick,
+        limit: 5
+      });
+      const entry = logs.entries.find(
+        (e) => e.target?.id === kickedMember.id && Date.now() - e.createdTimestamp < 15e3
+      );
+      if (!entry || !entry.executor) return;
+      const executor = entry.executor;
+      if (executor.id === guild.client.user?.id) return;
+      if (executor.id === this.OWNER_ID || executor.id === guild.ownerId) return;
+      const now = Date.now();
+      const records = (this.modActionTracker.get(executor.id) || []).filter(
+        (r) => now - r.timestamp < 10 * 60 * 1e3
+      );
+      records.push({ targetId: kickedMember.id, type: "kick", timestamp: now });
+      this.modActionTracker.set(executor.id, records);
+      const count = records.length;
+      console.log(`[AntiMassKick] \u{1F6A8} ${executor.tag} kick i\u015Flemi uygulad\u0131 (${kickedMember.id}) - 10 Dk i\xE7indeki say\u0131: ${count}/2`);
+      const logChannel = guild.channels.cache.find(
+        (c) => c && c.name.includes("mod-log") && c.isTextBased()
+      );
+      if (count === 1) {
+        if (logChannel) {
+          await logChannel.send({
+            content: `\u{1F6E1}\uFE0F **[Yetkili Denetimi]** <@${executor.id}> bir \xFCyeyi att\u0131 (Kick).
+> \u{1F4CA} *10 dakikal\u0131k g\xFCvenlik limiti: 1/2*`
+          }).catch(() => {
+          });
+        }
+      } else if (count === 2) {
+        if (logChannel) {
+          await logChannel.send({
+            content: `\u26A0\uFE0F **[D\u0130KKAT - YETK\u0130L\u0130 L\u0130M\u0130T SINIRINDA]** <@${executor.id}> 10 dakika i\xE7inde 2. ki\u015Fiyi att\u0131 (Kick)!
+> \u{1F6A8} **UYARI:** 1 ki\u015Fi daha banlarsan\u0131z veya atarsan\u0131z **3. i\u015Flemde t\xFCm yetkileriniz an\u0131nda al\u0131nacakt\u0131r!** (erencix'ten izin almal\u0131s\u0131n\u0131z)`
+          }).catch(() => {
+          });
+        }
+      } else if (count >= 3) {
+        console.warn(`[AntiMassKick] \u26D4 LIMIT A\u015EIMI! ${executor.tag} 3. kick i\u015Flemini ger\xE7ekle\u015Ftirdi. Yetkileri al\u0131n\u0131yor!`);
+        let modMember = null;
+        try {
+          modMember = await guild.members.fetch(executor.id);
+        } catch {
+        }
+        if (modMember) {
+          const botHighest = guild.members.me?.roles.highest.position || 0;
+          const dangerousRoles = modMember.roles.cache.filter(
+            (r) => r.id !== guild.id && !r.managed && r.position < botHighest
+          );
+          if (dangerousRoles.size > 0) {
+            await modMember.roles.remove(dangerousRoles, "Nights Guard: Limit a\u015F\u0131m\u0131 (3. kick) - erencix izni gerekiyor").catch(() => {
+            });
+          }
+          await modMember.timeout(60 * 60 * 1e3, "Nights Guard: 2+ Kick Limit A\u015F\u0131m\u0131").catch(() => {
+          });
+        }
+        const alertEmbed = new import_discord29.EmbedBuilder().setTitle("\u{1F6A8}\u{1F6A8} AC\u0130L G\xDCVENL\u0130K ALARMI: Y\xD6NET\u0130C\u0130 KICK L\u0130M\u0130T A\u015EIMI! \u{1F6E1}\uFE0F").setDescription(
+          `\u26D4 <@${executor.id}> (**${executor.tag}**), 10 dakika i\xE7inde **2'den fazla ki\u015Fiyi att\u0131 / banlad\u0131!**
+
+\u{1F449} **3. de at\u0131l\u0131rs\u0131n\u0131z, erencix'ten izin al\u0131n!** \u{1F448}
+
+\u{1F512} **UYGULANAN KORUMA \xD6NLEMLER\u0130:**
+> \u2022 Yetkilinin t\xFCm rolleri ve yetkileri g\xFCvenlik kalkan\u0131 taraf\u0131ndan **s\u0131f\u0131rland\u0131**.
+> \u2022 Yetkili 1 saat boyunca susturuldu (Timeout).
+> \u2022 Yetkilerin iadesi i\xE7in sunucu kurucusu <@${this.OWNER_ID}> (erencix) ile g\xF6r\xFC\u015F\xFClmelidir.`
+        ).setColor("#ED4245").setFooter({ text: "Nights Guard \u2022 Anti-Raid & Mass-Kick Shield" }).setTimestamp();
+        if (logChannel) {
+          await logChannel.send({
+            content: `\u{1F6A8} @here **G\xDCVENL\u0130K M\xDCDAHALES\u0130: <@${executor.id}> kick limitini a\u015Ft\u0131!**`,
+            embeds: [alertEmbed]
+          }).catch(() => {
+          });
+        }
+        const generalCh = guild.channels.cache.find(
+          (c) => c && c.name.includes("genel-sohbet") && c.isTextBased()
+        );
+        if (generalCh) {
+          await generalCh.send({
+            content: `\u26D4 **G\xDCVENL\u0130K UYARISI:** <@${executor.id}> 2'den fazla ki\u015Fiyi att\u0131\u011F\u0131 i\xE7in yetkileri al\u0131nd\u0131! **3. de at\u0131l\u0131rs\u0131n\u0131z erencix den izin al\u0131n!**`
+          }).catch(() => {
+          });
+        }
+        await executor.send({
+          content: `\u26D4 **Nights Guard G\xFCvenlik Uyar\u0131s\u0131:**
+Sunucuda 10 dakika i\xE7inde 2'den fazla ki\u015Fiyi banlad\u0131\u011F\u0131n\u0131z veya att\u0131\u011F\u0131n\u0131z tespit edildi!
+
+\u{1F449} **3. de at\u0131l\u0131rs\u0131n\u0131z erencix den izin al\u0131n!**
+
+T\xFCm yetkileriniz geri al\u0131nm\u0131\u015F olup sunucu korumaya al\u0131nm\u0131\u015Ft\u0131r.`
+        }).catch(() => {
+        });
+      }
+    } catch (err) {
+      console.error("[AntiMassKick] Hata:", err.message);
     }
   }
 };
@@ -5922,8 +6146,455 @@ async function executeSes(interaction) {
   });
 }
 
-// src/services/features/socialManager.ts
+// src/commands/yedek.ts
+var import_discord35 = require("discord.js");
+
+// src/services/features/serverBackupManager.ts
 var import_discord34 = require("discord.js");
+var import_fs5 = __toESM(require("fs"));
+var import_path5 = __toESM(require("path"));
+var ServerBackupManager = class {
+  static backupsDir = import_path5.default.resolve(process.cwd(), "data/backups");
+  static OWNER_ID = "1138498666785677492";
+  static isAuthorized(userId, guild) {
+    if (userId === this.OWNER_ID) return true;
+    if (guild && guild.ownerId === userId) return true;
+    return false;
+  }
+  static ensureDirs() {
+    if (!import_fs5.default.existsSync(this.backupsDir)) {
+      import_fs5.default.mkdirSync(this.backupsDir, { recursive: true });
+    }
+  }
+  /**
+   * Sunucunun A'dan Z'ye Her Şeyini Yedekler:
+   * Roller (yetkiler, renkler, üyeler), Kategoriler, Kanallar (yetki izinleri), Sunucu Bilgileri
+   */
+  static async createBackup(guild, executor) {
+    if (!this.isAuthorized(executor.id, guild)) {
+      return {
+        success: false,
+        error: `\u26D4 **Eri\u015Fim Engellendi:** Sunucu yede\u011Fi alma yetkisi yaln\u0131zca <@${this.OWNER_ID}> (erencix) ve sunucu kurucusuna aittir!`
+      };
+    }
+    try {
+      this.ensureDirs();
+      console.log(`[ServerBackup] \u{1F4E6} ${guild.name} i\xE7in tam sunucu yede\u011Fi alma i\u015Flemi ba\u015Flat\u0131ld\u0131 (Yetkili: ${executor.tag})...`);
+      await guild.members.fetch();
+      const rolesCollection = await guild.roles.fetch();
+      const channelsCollection = await guild.channels.fetch();
+      const timestamp = Date.now();
+      const backupId = `backup_${timestamp}`;
+      const savedRoles = [];
+      for (const [_, role] of rolesCollection) {
+        if (!role) continue;
+        savedRoles.push({
+          id: role.id,
+          name: role.name,
+          color: role.color,
+          hoist: role.hoist,
+          position: role.position,
+          permissions: role.permissions.bitfield.toString(),
+          mentionable: role.mentionable,
+          managed: role.managed,
+          isEveryone: role.id === guild.id,
+          members: Array.from(role.members.keys())
+        });
+      }
+      savedRoles.sort((a, b) => a.position - b.position);
+      const savedCategories = [];
+      const savedChannels = [];
+      for (const [_, channel] of channelsCollection) {
+        if (!channel) continue;
+        const overwrites = channel.permissionOverwrites.cache.map((ow) => ({
+          id: ow.id,
+          type: ow.type,
+          allow: ow.allow.bitfield.toString(),
+          deny: ow.deny.bitfield.toString()
+        }));
+        if (channel.type === import_discord34.ChannelType.GuildCategory) {
+          savedCategories.push({
+            id: channel.id,
+            name: channel.name,
+            position: channel.position,
+            overwrites
+          });
+        } else {
+          const chAny = channel;
+          savedChannels.push({
+            id: channel.id,
+            name: channel.name,
+            type: channel.type,
+            parentId: channel.parentId,
+            position: channel.position,
+            topic: chAny.topic || null,
+            nsfw: Boolean(chAny.nsfw),
+            rateLimitPerUser: chAny.rateLimitPerUser || 0,
+            bitrate: chAny.bitrate,
+            userLimit: chAny.userLimit,
+            overwrites
+          });
+        }
+      }
+      savedCategories.sort((a, b) => a.position - b.position);
+      savedChannels.sort((a, b) => a.position - b.position);
+      const backupData = {
+        version: 2,
+        backupId,
+        createdAt: timestamp,
+        createdIso: new Date(timestamp).toISOString(),
+        createdBy: {
+          id: executor.id,
+          tag: executor.tag
+        },
+        guild: {
+          id: guild.id,
+          name: guild.name,
+          description: guild.description,
+          iconURL: guild.iconURL({ size: 1024 }),
+          bannerURL: guild.bannerURL({ size: 1024 }),
+          verificationLevel: guild.verificationLevel,
+          afkTimeout: guild.afkTimeout,
+          explicitContentFilter: guild.explicitContentFilter,
+          defaultMessageNotifications: guild.defaultMessageNotifications
+        },
+        stats: {
+          rolesCount: savedRoles.length,
+          categoriesCount: savedCategories.length,
+          channelsCount: savedChannels.length,
+          membersSavedCount: guild.memberCount
+        },
+        roles: savedRoles,
+        categories: savedCategories,
+        channels: savedChannels
+      };
+      PersistentStore.atomicSaveJson("backups/backup_latest.json", backupData);
+      PersistentStore.atomicSaveJson(`backups/${backupId}.json`, backupData);
+      console.log(`[ServerBackup] \u2705 Sunucu yede\u011Fi ba\u015Far\u0131yla tamamland\u0131! Roller: ${savedRoles.length}, Kanallar: ${savedChannels.length}`);
+      return { success: true, data: backupData };
+    } catch (err) {
+      console.error("[ServerBackup] Yedek alma hatas\u0131:", err);
+      return { success: false, error: err.message };
+    }
+  }
+  /**
+   * En Son Alınan veya Belirtilen Yedeği Oku
+   */
+  static getLatestBackup() {
+    this.ensureDirs();
+    const latestPath = import_path5.default.resolve(this.backupsDir, "backup_latest.json");
+    if (!import_fs5.default.existsSync(latestPath)) {
+      try {
+        const files = import_fs5.default.readdirSync(this.backupsDir).filter((f) => f.startsWith("backup_") && f.endsWith(".json"));
+        if (files.length === 0) return null;
+        files.sort().reverse();
+        const newest = import_path5.default.resolve(this.backupsDir, files[0]);
+        const content = import_fs5.default.readFileSync(newest, "utf-8");
+        return JSON.parse(content);
+      } catch {
+        return null;
+      }
+    }
+    try {
+      const content = import_fs5.default.readFileSync(latestPath, "utf-8");
+      return JSON.parse(content);
+    } catch (err) {
+      console.error("[ServerBackup] Yedek okunamad\u0131:", err.message);
+      return null;
+    }
+  }
+  /**
+   * /yedekgetir: Alınan Yedeği Sunucuya Eksiksiz Geri Yükler
+   * Eski hali birebir inşa eder.
+   */
+  static async restoreBackup(guild, executor, onProgress) {
+    if (!this.isAuthorized(executor.id, guild)) {
+      return {
+        success: false,
+        error: `\u26D4 **Eri\u015Fim Engellendi:** Sunucu yede\u011Fi geri y\xFCkleme i\u015Flemi son derece kritik bir i\u015Flemdir! Yaln\u0131zca <@${this.OWNER_ID}> (erencix) taraf\u0131ndan \xE7al\u0131\u015Ft\u0131r\u0131labilir.`
+      };
+    }
+    const backup = this.getLatestBackup();
+    if (!backup) {
+      return {
+        success: false,
+        error: "\u26A0\uFE0F Sunucuya ait kay\u0131tl\u0131 bir yedek bulunamad\u0131! L\xFCtfen \xF6nce `/yedek-al` komutunu kullanarak tam bir yedek olu\u015Fturun."
+      };
+    }
+    console.log(`[ServerBackup] \u{1F504} YEDEK GER\u0130 Y\xDCKLEME BA\u015ELADI: ${guild.name} (${backup.backupId}) - \u0130steyen: ${executor.tag}`);
+    try {
+      if (onProgress) await onProgress("\u2699\uFE0F **Ad\u0131m 1/5:** Sunucu verileri ve mevcut roller taran\u0131yor...");
+      const roleIdMap = /* @__PURE__ */ new Map();
+      const categoryIdMap = /* @__PURE__ */ new Map();
+      roleIdMap.set(backup.guild.id, guild.id);
+      roleIdMap.set(guild.roles.everyone.id, guild.roles.everyone.id);
+      const botMember = guild.members.me || await guild.members.fetch(guild.client.user.id);
+      const botHighestPosition = botMember.roles.highest.position;
+      if (onProgress) await onProgress(`\u{1F3AD} **Ad\u0131m 2/5:** **${backup.roles.length}** adet rol yap\u0131land\u0131r\u0131l\u0131yor ve yetkileri kuruluyor...`);
+      const currentRoles = await guild.roles.fetch();
+      for (const savedRole of backup.roles) {
+        try {
+          if (savedRole.isEveryone) {
+            await guild.roles.everyone.setPermissions(BigInt(savedRole.permissions)).catch(() => {
+            });
+            roleIdMap.set(savedRole.id, guild.roles.everyone.id);
+            continue;
+          }
+          if (savedRole.managed) {
+            const matchManaged = currentRoles.find((r) => r.managed && r.name === savedRole.name);
+            if (matchManaged) {
+              roleIdMap.set(savedRole.id, matchManaged.id);
+            }
+            continue;
+          }
+          let targetRole = currentRoles.find((r) => !r.managed && r.name.toLowerCase() === savedRole.name.toLowerCase());
+          if (targetRole) {
+            if (targetRole.position < botHighestPosition) {
+              await targetRole.edit({
+                color: savedRole.color,
+                hoist: savedRole.hoist,
+                permissions: BigInt(savedRole.permissions),
+                mentionable: savedRole.mentionable
+              }).catch(() => {
+              });
+            }
+            roleIdMap.set(savedRole.id, targetRole.id);
+          } else {
+            const newRole = await guild.roles.create({
+              name: savedRole.name,
+              color: savedRole.color,
+              hoist: savedRole.hoist,
+              permissions: BigInt(savedRole.permissions),
+              mentionable: savedRole.mentionable,
+              reason: "Nights Guard: /yedekgetir sunucu kurtarma"
+            });
+            roleIdMap.set(savedRole.id, newRole.id);
+            await new Promise((r) => setTimeout(r, 200));
+          }
+        } catch (rErr) {
+          console.warn(`[ServerBackup] Rol kurtarma uyar\u0131s\u0131 (${savedRole.name}):`, rErr.message);
+        }
+      }
+      if (onProgress) await onProgress(`\u{1F4C1} **Ad\u0131m 3/5:** **${backup.categories.length}** adet kategori ve \xF6zel izinleri in\u015Fa ediliyor...`);
+      const currentChannels = await guild.channels.fetch();
+      for (const savedCat of backup.categories) {
+        try {
+          const mappedOverwrites = savedCat.overwrites.map((ow) => {
+            const mappedId = ow.type === import_discord34.OverwriteType.Role ? roleIdMap.get(ow.id) || ow.id : ow.id;
+            return {
+              id: mappedId,
+              type: ow.type,
+              allow: BigInt(ow.allow),
+              deny: BigInt(ow.deny)
+            };
+          }).filter((ow) => guild.roles.cache.has(ow.id) || guild.members.cache.has(ow.id) || ow.id === guild.id);
+          let existingCat = currentChannels.find(
+            (c) => c && c.type === import_discord34.ChannelType.GuildCategory && c.name.toLowerCase() === savedCat.name.toLowerCase()
+          );
+          if (existingCat) {
+            await existingCat.edit({
+              position: savedCat.position,
+              permissionOverwrites: mappedOverwrites
+            }).catch(() => {
+            });
+            categoryIdMap.set(savedCat.id, existingCat.id);
+          } else {
+            const newCat = await guild.channels.create({
+              name: savedCat.name,
+              type: import_discord34.ChannelType.GuildCategory,
+              position: savedCat.position,
+              permissionOverwrites: mappedOverwrites,
+              reason: "Nights Guard: /yedekgetir kategori kurtarma"
+            });
+            categoryIdMap.set(savedCat.id, newCat.id);
+            await new Promise((r) => setTimeout(r, 250));
+          }
+        } catch (cErr) {
+          console.warn(`[ServerBackup] Kategori kurtarma uyar\u0131s\u0131 (${savedCat.name}):`, cErr.message);
+        }
+      }
+      if (onProgress) await onProgress(`\u{1F399}\uFE0F **Ad\u0131m 4/5:** **${backup.channels.length}** adet ses ve metin kanal\u0131 kuruluyor...`);
+      for (const savedCh of backup.channels) {
+        try {
+          const mappedOverwrites = savedCh.overwrites.map((ow) => {
+            const mappedId = ow.type === import_discord34.OverwriteType.Role ? roleIdMap.get(ow.id) || ow.id : ow.id;
+            return {
+              id: mappedId,
+              type: ow.type,
+              allow: BigInt(ow.allow),
+              deny: BigInt(ow.deny)
+            };
+          }).filter((ow) => guild.roles.cache.has(ow.id) || guild.members.cache.has(ow.id) || ow.id === guild.id);
+          const parentId = savedCh.parentId ? categoryIdMap.get(savedCh.parentId) || void 0 : void 0;
+          let existingCh = currentChannels.find(
+            (c) => c && c.name.toLowerCase() === savedCh.name.toLowerCase() && c.type === savedCh.type
+          );
+          if (existingCh) {
+            await existingCh.edit({
+              parent: parentId,
+              position: savedCh.position,
+              topic: savedCh.topic || void 0,
+              nsfw: savedCh.nsfw,
+              bitrate: savedCh.bitrate,
+              userLimit: savedCh.userLimit,
+              rateLimitPerUser: savedCh.rateLimitPerUser,
+              permissionOverwrites: mappedOverwrites
+            }).catch(() => {
+            });
+          } else {
+            await guild.channels.create({
+              name: savedCh.name,
+              type: savedCh.type,
+              parent: parentId,
+              position: savedCh.position,
+              topic: savedCh.topic || void 0,
+              nsfw: savedCh.nsfw,
+              bitrate: savedCh.bitrate,
+              userLimit: savedCh.userLimit,
+              rateLimitPerUser: savedCh.rateLimitPerUser,
+              permissionOverwrites: mappedOverwrites,
+              reason: "Nights Guard: /yedekgetir kanal kurtarma"
+            });
+            await new Promise((r) => setTimeout(r, 250));
+          }
+        } catch (chErr) {
+          console.warn(`[ServerBackup] Kanal kurtarma uyar\u0131s\u0131 (${savedCh.name}):`, chErr.message);
+        }
+      }
+      if (onProgress) await onProgress("\u{1F465} **Ad\u0131m 5/5:** \xDCyelerin eski rolleri taran\u0131yor ve geri tan\u0131mlan\u0131yor...");
+      const allMembers = await guild.members.fetch();
+      let rolesGivenCount = 0;
+      for (const savedRole of backup.roles) {
+        if (savedRole.isEveryone || savedRole.managed) continue;
+        const currentRoleId = roleIdMap.get(savedRole.id);
+        if (!currentRoleId) continue;
+        const currentRole = guild.roles.cache.get(currentRoleId);
+        if (!currentRole || currentRole.position >= botHighestPosition) continue;
+        for (const memberId of savedRole.members) {
+          const member = allMembers.get(memberId);
+          if (member && !member.roles.cache.has(currentRoleId)) {
+            try {
+              await member.roles.add(currentRoleId, "Nights Guard: Yedekten roller geri y\xFCklendi");
+              rolesGivenCount++;
+            } catch {
+            }
+          }
+        }
+      }
+      console.log(`[ServerBackup] \u{1F389} YEDEKLEME TAMAMEN GER\u0130 Y\xDCKLEND\u0130! Geri verilen rol say\u0131s\u0131: ${rolesGivenCount}`);
+      return {
+        success: true,
+        restoredStats: {
+          roles: backup.roles.length,
+          categories: backup.categories.length,
+          channels: backup.channels.length,
+          rolesGiven: rolesGivenCount,
+          backupCreatedIso: backup.createdIso,
+          backupId: backup.backupId
+        }
+      };
+    } catch (err) {
+      console.error("[ServerBackup] Geri y\xFCkleme genel hatas\u0131:", err);
+      return { success: false, error: err.message };
+    }
+  }
+};
+
+// src/commands/yedek.ts
+var yedekAlData = new import_discord35.SlashCommandBuilder().setName("yedek-al").setDescription("Sunucunun t\xFCm rollerini, kanallar\u0131n\u0131, yetkilerini ve \xFCye rollerini eksiksiz yedekler.");
+var yedekGetirData = new import_discord35.SlashCommandBuilder().setName("yedekgetir").setDescription("Al\u0131nan en son sunucu yede\u011Fini geri y\xFCkler ve sunucuyu eski haline getirir.");
+var yedekKurData = new import_discord35.SlashCommandBuilder().setName("yedek-kur").setDescription("Sunucu yede\u011Fini y\xFCkleyerek rolleri, odalar\u0131 ve yetkileri onar\u0131r.");
+var OWNER_ID = "1138498666785677492";
+async function executeYedekAl(interaction) {
+  const guild = interaction.guild;
+  if (!guild) {
+    await interaction.reply({
+      content: "\u274C Bu komut yaln\u0131zca sunucu i\xE7erisinde kullan\u0131labilir.",
+      flags: import_discord35.MessageFlags.Ephemeral
+    });
+    return;
+  }
+  if (!ServerBackupManager.isAuthorized(interaction.user.id, guild)) {
+    await interaction.reply({
+      content: `\u26D4 **Eri\u015Fim Engellendi:** Sunucu yede\u011Fi alma yetkisi yaln\u0131zca <@${OWNER_ID}> (erencix) ve sunucu kurucusuna aittir!`,
+      flags: import_discord35.MessageFlags.Ephemeral
+    });
+    return;
+  }
+  await interaction.deferReply({ flags: import_discord35.MessageFlags.Ephemeral });
+  const result = await ServerBackupManager.createBackup(guild, interaction.user);
+  if (!result.success || !result.data) {
+    await interaction.editReply({
+      content: `\u274C **Yedek Alma Hatas\u0131:** ${result.error || "Bilinmeyen bir hata olu\u015Ftu."}`
+    });
+    return;
+  }
+  const d = result.data;
+  const embed = new import_discord35.EmbedBuilder().setTitle("\u{1F4BE} NIGHTS GUARD \u2022 TAM SUNUCU YEDE\u011E\u0130 ALINDI!").setDescription(
+    `Sunucunun anl\u0131k t\xFCm verileri, rolleri, kategori ve kanallar\u0131, \xF6zel izinleri ve \xFCye rol da\u011F\u0131l\u0131mlar\u0131 ba\u015Far\u0131yla \u015Fifrelenip diske kaydedildi! \u{1F389}
+
+Herhangi bir olumsuzluk, kanal silinmesi veya yetki bozulmas\u0131nda \`/yedekgetir\` komutuyla an\u0131nda bu haline geri d\xF6nebilirsiniz.`
+  ).setColor("#2ECC71").addFields(
+    { name: "\u{1F194} Yedek Kodu", value: `\`${d.backupId}\``, inline: true },
+    { name: "\u{1F451} Alan Yetkili", value: `<@${interaction.user.id}>`, inline: true },
+    { name: "\u23F0 Tarih & Saat", value: `<t:${Math.floor(d.createdAt / 1e3)}:F>`, inline: false },
+    { name: "\u{1F3AD} Toplam Roller", value: `**${d.stats.rolesCount}** adet rol`, inline: true },
+    { name: "\u{1F4C1} Kategoriler", value: `**${d.stats.categoriesCount}** adet kategori`, inline: true },
+    { name: "\u{1F399}\uFE0F Ses & Metin Kanallar\u0131", value: `**${d.stats.channelsCount}** adet kanal`, inline: true },
+    { name: "\u{1F465} \xDCye Rol Kay\u0131tlar\u0131", value: `**${d.stats.membersSavedCount}** \xFCyenin rolleri`, inline: true },
+    { name: "\u{1F6E1}\uFE0F G\xFCvenlik", value: "\u2705 **Yaln\u0131zca erencix a\xE7abilir**", inline: true }
+  ).setFooter({ text: "Nights Automated Backup System \u2022 Made by erencix" }).setTimestamp();
+  await interaction.editReply({ embeds: [embed] });
+}
+async function executeYedekGetir(interaction) {
+  const guild = interaction.guild;
+  if (!guild) {
+    await interaction.reply({
+      content: "\u274C Bu komut yaln\u0131zca sunucu i\xE7erisinde kullan\u0131labilir.",
+      flags: import_discord35.MessageFlags.Ephemeral
+    });
+    return;
+  }
+  if (!ServerBackupManager.isAuthorized(interaction.user.id, guild)) {
+    await interaction.reply({
+      content: `\u26D4 **Eri\u015Fim Engellendi:** Sunucu yede\u011Fi geri y\xFCkleme i\u015Flemi son derece kritik bir i\u015Flemdir! Yaln\u0131zca <@${OWNER_ID}> (erencix) taraf\u0131ndan \xE7al\u0131\u015Ft\u0131r\u0131labilir.`,
+      flags: import_discord35.MessageFlags.Ephemeral
+    });
+    return;
+  }
+  await interaction.deferReply({ flags: import_discord35.MessageFlags.Ephemeral });
+  const progressUpdater = async (status) => {
+    try {
+      await interaction.editReply({
+        content: `\u23F3 **SUNUCU YEDE\u011E\u0130 GER\u0130 Y\xDCKLEN\u0130YOR...**
+> ${status}`
+      });
+    } catch {
+    }
+  };
+  const result = await ServerBackupManager.restoreBackup(guild, interaction.user, progressUpdater);
+  if (!result.success) {
+    await interaction.editReply({
+      content: `\u274C **Geri Y\xFCkleme Hatas\u0131:** ${result.error}`
+    });
+    return;
+  }
+  const s = result.restoredStats;
+  const embed = new import_discord35.EmbedBuilder().setTitle("\u2728 NIGHTS GUARD \u2022 SUNUCU YEDE\u011E\u0130 BA\u015EARIYLA GER\u0130 Y\xDCKLEND\u0130!").setDescription(
+    `Sunucu ba\u015Far\u0131yla yede\u011Fin al\u0131nd\u0131\u011F\u0131 eski haline d\xF6nd\xFCr\xFCld\xFC! T\xFCm odalar, roller, yetki matrisleri ve \xFCyelerin rolleri onar\u0131ld\u0131. \u{1F6E1}\uFE0F`
+  ).setColor("#8B5CF6").addFields(
+    { name: "\u{1F194} Kullan\u0131lan Yedek", value: `\`${s.backupId}\``, inline: true },
+    { name: "\u{1F451} \u0130\u015Flemi Yapan", value: `<@${interaction.user.id}>`, inline: true },
+    { name: "\u{1F3AD} Kurtar\u0131lan Roller", value: `**${s.roles}** adet`, inline: true },
+    { name: "\u{1F4C1} Kurtar\u0131lan Kategoriler", value: `**${s.categories}** adet`, inline: true },
+    { name: "\u{1F399}\uFE0F Kurtar\u0131lan Kanallar", value: `**${s.channels}** adet`, inline: true },
+    { name: "\u{1F465} \xDCyelere \u0130ade Edilen Roller", value: `**${s.rolesGiven}** adet rol teslim edildi`, inline: true }
+  ).setFooter({ text: "Nights System Restore Engine \u2022 Made by erencix" }).setTimestamp();
+  await interaction.editReply({ content: "", embeds: [embed] });
+}
+
+// src/services/features/socialManager.ts
+var import_discord36 = require("discord.js");
 var SocialManager = class {
   static marriages = [];
   static pendingProposals = /* @__PURE__ */ new Map();
@@ -5982,14 +6653,14 @@ var SocialManager = class {
       targetId: target.id,
       expiresAt: Date.now() + 6e4
     });
-    const embed = new import_discord34.EmbedBuilder().setTitle("\u{1F48D} B\u0130R EVL\u0130L\u0130K TEKL\u0130F\u0130 VAR!").setDescription(
+    const embed = new import_discord36.EmbedBuilder().setTitle("\u{1F48D} B\u0130R EVL\u0130L\u0130K TEKL\u0130F\u0130 VAR!").setDescription(
       `\u{1F496} <@${target.id}>, <@${sender.id}> sana b\xFCt\xFCn kalbiyle bir \xF6m\xFCr boyu mutluluk vaat eden bir evlilik teklifinde bulundu!
 
 Bu teklifi kabul ediyor musun?`
     ).setColor("#FF69B4").setThumbnail("https://media.giphy.com/media/26vUxJ9rqfwuIEkTu/giphy.gif").setFooter({ text: "Teklif 60 saniye boyunca ge\xE7erlidir \u2022 Nights Social" }).setTimestamp();
-    const row = new import_discord34.ActionRowBuilder().addComponents(
-      new import_discord34.ButtonBuilder().setCustomId(`marry_accept:${sender.id}:${target.id}`).setLabel("\u{1F48D} Evet, Kabul Ediyorum!").setStyle(import_discord34.ButtonStyle.Success),
-      new import_discord34.ButtonBuilder().setCustomId(`marry_reject:${sender.id}:${target.id}`).setLabel("\u{1F494} Hay\u0131r").setStyle(import_discord34.ButtonStyle.Danger)
+    const row = new import_discord36.ActionRowBuilder().addComponents(
+      new import_discord36.ButtonBuilder().setCustomId(`marry_accept:${sender.id}:${target.id}`).setLabel("\u{1F48D} Evet, Kabul Ediyorum!").setStyle(import_discord36.ButtonStyle.Success),
+      new import_discord36.ButtonBuilder().setCustomId(`marry_reject:${sender.id}:${target.id}`).setLabel("\u{1F494} Hay\u0131r").setStyle(import_discord36.ButtonStyle.Danger)
     );
     await message.reply({ embeds: [embed], components: [row] }).catch(() => {
     });
@@ -6003,12 +6674,12 @@ Bu teklifi kabul ediyor musun?`
     if (interaction.user.id !== targetId) {
       await interaction.reply({
         content: "\u26D4 Bu teklif sizin i\xE7in yap\u0131lmad\u0131!",
-        flags: import_discord34.MessageFlags.Ephemeral
+        flags: import_discord36.MessageFlags.Ephemeral
       });
       return true;
     }
     if (action === "marry_reject") {
-      const rejectEmbed = new import_discord34.EmbedBuilder().setTitle("\u{1F494} Teklif Reddedildi...").setDescription(`<@${targetId}>, <@${senderId}> ki\u015Fisinin evlilik teklifini nazik\xE7e geri \xE7evirdi.`).setColor("#ED4245");
+      const rejectEmbed = new import_discord36.EmbedBuilder().setTitle("\u{1F494} Teklif Reddedildi...").setDescription(`<@${targetId}>, <@${senderId}> ki\u015Fisinin evlilik teklifini nazik\xE7e geri \xE7evirdi.`).setColor("#ED4245");
       await interaction.update({ embeds: [rejectEmbed], components: [] });
       return true;
     }
@@ -6020,7 +6691,7 @@ Bu teklifi kabul ediyor musun?`
         marriedAt: Date.now()
       });
       this.save();
-      const acceptEmbed = new import_discord34.EmbedBuilder().setTitle("\u{1F389} MUTLULUKLAR! EVLEND\u0130LER! \u{1F48D}").setDescription(
+      const acceptEmbed = new import_discord36.EmbedBuilder().setTitle("\u{1F389} MUTLULUKLAR! EVLEND\u0130LER! \u{1F48D}").setDescription(
         `\u{1F38A} Tebrikler! <@${senderId}> ve <@${targetId}> art\u0131k resmen evli bir \xE7ift!
 
 > \u{1F4C5} **Evlilik Tarihi:** <t:${Math.floor(Date.now() / 1e3)}:D>
@@ -6048,10 +6719,10 @@ Bu teklifi kabul ediyor musun?`
   static getMarriageEmbed(targetUser) {
     const info = this.getMarriage(targetUser.id);
     if (!info) {
-      return new import_discord34.EmbedBuilder().setTitle(`\u{1F4DC} Evlilik C\xFCzdan\u0131 \u2022 ${targetUser.displayName}`).setDescription(`> \u{1F494} **Durum:** Bekar
+      return new import_discord36.EmbedBuilder().setTitle(`\u{1F4DC} Evlilik C\xFCzdan\u0131 \u2022 ${targetUser.displayName}`).setDescription(`> \u{1F494} **Durum:** Bekar
 > Evlenmek i\xE7in birine \`!evlen @kullan\u0131c\u0131\` yazabilirsin!`).setColor("#95A5A6").setThumbnail(targetUser.displayAvatarURL());
     }
-    return new import_discord34.EmbedBuilder().setTitle(`\u{1F496} RESM\u0130 EVL\u0130L\u0130K C\xDCZDANI`).setDescription(
+    return new import_discord36.EmbedBuilder().setTitle(`\u{1F496} RESM\u0130 EVL\u0130L\u0130K C\xDCZDANI`).setDescription(
       `> \u{1F470}\u{1F935} **\xC7ift:** <@${targetUser.id}> & <@${info.partnerId}>
 > \u{1F4C5} **Evlilik Tarihi:** <t:${Math.floor(info.marriedAt / 1e3)}:D>
 > \u23F3 **Birlikte Ge\xE7en S\xFCre:** **${info.days} g\xFCn** (${info.days === 0 ? "Bug\xFCn evlendiler! \u{1F389}" : `${info.days} g\xFCnd\xFCr birlikteler \u2728`})
@@ -6106,7 +6777,7 @@ Bu teklifi kabul ediyor musun?`
       }
     };
     const cfg = configs[action];
-    return new import_discord34.EmbedBuilder().setTitle(cfg.title).setDescription(cfg.desc).setColor(cfg.color).setImage(gif).setFooter({ text: "Nights Sosyal \u0130fadeler \u2022 Made by erencix" }).setTimestamp();
+    return new import_discord36.EmbedBuilder().setTitle(cfg.title).setDescription(cfg.desc).setColor(cfg.color).setImage(gif).setFooter({ text: "Nights Sosyal \u0130fadeler \u2022 Made by erencix" }).setTimestamp();
   }
 };
 
@@ -6149,12 +6820,12 @@ var InteractionHandler = class {
       ].includes(interaction.commandName);
       if (!isPublicInteraction) {
         const ownerId = config.ownerId || process.env.OWNER_ID || "1138498666785677492";
-        const isServerAdmin = interaction.member?.permissions?.has(import_discord35.PermissionFlagsBits.Administrator);
+        const isServerAdmin = interaction.member?.permissions?.has(import_discord37.PermissionFlagsBits.Administrator);
         if (interaction.user.id !== ownerId && !isServerAdmin) {
           if (interaction.isRepliable()) {
             await interaction.reply({
               content: `\u26D4 **Eri\u015Fim Engellendi:** Bu komut yaln\u0131zca sunucu y\xF6neticileri veya bot sahibi (<@${ownerId}>) taraf\u0131ndan kullan\u0131labilir!`,
-              flags: import_discord35.MessageFlags.Ephemeral
+              flags: import_discord37.MessageFlags.Ephemeral
             }).catch(() => {
             });
           }
@@ -6180,7 +6851,7 @@ var InteractionHandler = class {
           } else if (!interaction.replied) {
             await interaction.reply({
               content: `\u274C Bir hata olu\u015Ftu: ${err.message}`,
-              flags: import_discord35.MessageFlags.Ephemeral
+              flags: import_discord37.MessageFlags.Ephemeral
             }).catch(() => {
             });
           }
@@ -6285,8 +6956,17 @@ var InteractionHandler = class {
       case "ses":
         await executeSes(interaction);
         break;
+      case "yedek-al":
+      case "yedekal":
+        await executeYedekAl(interaction);
+        break;
+      case "yedekgetir":
+      case "yedek-kur":
+      case "yedekkur":
+        await executeYedekGetir(interaction);
+        break;
       default:
-        await interaction.reply({ content: "Bilinmeyen komut.", flags: import_discord35.MessageFlags.Ephemeral });
+        await interaction.reply({ content: "Bilinmeyen komut.", flags: import_discord37.MessageFlags.Ephemeral });
         break;
     }
   }
@@ -6318,14 +6998,14 @@ var InteractionHandler = class {
       if (!pending) {
         await interaction.reply({
           content: "\u26A0\uFE0F Bu kurulum oturumunun s\xFCresi dolmu\u015F veya iptal edilmi\u015F. L\xFCtfen `/kur` ile yeniden deneyin.",
-          flags: import_discord35.MessageFlags.Ephemeral
+          flags: import_discord37.MessageFlags.Ephemeral
         });
         return;
       }
-      if (!interaction.memberPermissions?.has(import_discord35.PermissionFlagsBits.Administrator)) {
+      if (!interaction.memberPermissions?.has(import_discord37.PermissionFlagsBits.Administrator)) {
         await interaction.reply({
           content: "\u274C Sadece y\xF6neticiler kurulumu ba\u015Flatabilir.",
-          flags: import_discord35.MessageFlags.Ephemeral
+          flags: import_discord37.MessageFlags.Ephemeral
         });
         return;
       }
@@ -6334,12 +7014,12 @@ var InteractionHandler = class {
         await interaction.reply({
           content: "\u26A0\uFE0F **Kurulum ba\u015Flat\u0131lamad\u0131! Bot yetkileri veya rol hiyerar\u015Fisi eksik.**",
           embeds: [diagnostics.troubleshootingEmbed],
-          flags: import_discord35.MessageFlags.Ephemeral
+          flags: import_discord37.MessageFlags.Ephemeral
         });
         return;
       }
       await interaction.deferUpdate();
-      const initialEmbed = new import_discord35.EmbedBuilder().setTitle("\u{1F680} Sunucu Mimarisi \u0130n\u015Fa Ediliyor...").setDescription(`### \`${renderProgressBar(5, 10)} Haz\u0131rlan\u0131yor...\`
+      const initialEmbed = new import_discord37.EmbedBuilder().setTitle("\u{1F680} Sunucu Mimarisi \u0130n\u015Fa Ediliyor...").setDescription(`### \`${renderProgressBar(5, 10)} Haz\u0131rlan\u0131yor...\`
 
 > \u2699\uFE0F **Durum:** Sunucu \u015Femas\u0131 ve yetkiler do\u011Frulan\u0131yor...`).setColor("#5865F2").setFooter({ text: "Nights Guard \u2022 Made by erencix" }).setTimestamp();
       await interaction.editReply({
@@ -6368,7 +7048,7 @@ var InteractionHandler = class {
             lastProgressUpdate = now;
             const progressBar = renderProgressBar(percent, 10);
             const progressLine = `${progressBar} ${status}`;
-            const progressEmbed = new import_discord35.EmbedBuilder().setTitle("\u{1F3D7}\uFE0F Sunucu Mimarisi \u0130n\u015Fa Ediliyor...").setDescription(`### \`${progressBar}\`
+            const progressEmbed = new import_discord37.EmbedBuilder().setTitle("\u{1F3D7}\uFE0F Sunucu Mimarisi \u0130n\u015Fa Ediliyor...").setDescription(`### \`${progressBar}\`
 
 > \u{1F504} **A\u015Fama:** **${status}**
 
@@ -6391,7 +7071,7 @@ ${progressLine}
         );
         BlueprintCache.delete(cacheId);
         const durationSec = Math.round((Date.now() - startTime) / 1e3);
-        const successEmbed = new import_discord35.EmbedBuilder().setTitle("\u{1F389} SUNUCU KURULUMU BA\u015EARIYLA TAMAMLANDI!").setDescription(
+        const successEmbed = new import_discord37.EmbedBuilder().setTitle("\u{1F389} SUNUCU KURULUMU BA\u015EARIYLA TAMAMLANDI!").setDescription(
           `### \`${renderProgressBar(100, 10)} Logo y\xFCklendi & AutoMod kurallar\u0131 aktif edildi!\`
 
 **${pending.blueprint.serverName}** ba\u015Far\u0131yla kuruldu ve hizmete haz\u0131r hale getirildi!
@@ -6431,7 +7111,7 @@ S\xFCre: **${durationSec} saniye**`
       const cacheId = customId.split(":")[1];
       const pending = BlueprintCache.get(cacheId);
       if (!pending) {
-        await interaction.reply({ content: "Oturum bulunamad\u0131.", flags: import_discord35.MessageFlags.Ephemeral });
+        await interaction.reply({ content: "Oturum bulunamad\u0131.", flags: import_discord37.MessageFlags.Ephemeral });
         return;
       }
       const jsonStr = JSON.stringify(pending.blueprint, null, 2);
@@ -6441,7 +7121,7 @@ S\xFCre: **${durationSec} saniye**`
 \`\`\`json
 ${snippet}
 \`\`\``,
-        flags: import_discord35.MessageFlags.Ephemeral
+        flags: import_discord37.MessageFlags.Ephemeral
       });
       return;
     }
@@ -6459,14 +7139,14 @@ ${snippet}
       const logoId = customId.split(":")[1];
       const cached = pendingLogoCache.get(logoId);
       if (!cached) {
-        await interaction.reply({ content: "Logo verisi bulunamad\u0131 veya s\xFCresi doldu.", flags: import_discord35.MessageFlags.Ephemeral });
+        await interaction.reply({ content: "Logo verisi bulunamad\u0131 veya s\xFCresi doldu.", flags: import_discord37.MessageFlags.Ephemeral });
         return;
       }
-      if (!interaction.memberPermissions?.has(import_discord35.PermissionFlagsBits.ManageGuild)) {
-        await interaction.reply({ content: "\u274C Sunucuyu Y\xF6net yetkiniz yok.", flags: import_discord35.MessageFlags.Ephemeral });
+      if (!interaction.memberPermissions?.has(import_discord37.PermissionFlagsBits.ManageGuild)) {
+        await interaction.reply({ content: "\u274C Sunucuyu Y\xF6net yetkiniz yok.", flags: import_discord37.MessageFlags.Ephemeral });
         return;
       }
-      await interaction.deferReply({ flags: import_discord35.MessageFlags.Ephemeral });
+      await interaction.deferReply({ flags: import_discord37.MessageFlags.Ephemeral });
       try {
         await this.logoStudio.applyIconToGuild(interaction.guild, cached.buffer);
         pendingLogoCache.delete(logoId);
@@ -6477,8 +7157,8 @@ ${snippet}
       return;
     }
     if (customId.startsWith("wipe_confirm:")) {
-      if (!interaction.memberPermissions?.has(import_discord35.PermissionFlagsBits.Administrator)) {
-        await interaction.reply({ content: "\u274C Bu i\u015Flemi yaln\u0131zca Y\xF6neticiler ger\xE7ekle\u015Ftirebilir.", flags: import_discord35.MessageFlags.Ephemeral });
+      if (!interaction.memberPermissions?.has(import_discord37.PermissionFlagsBits.Administrator)) {
+        await interaction.reply({ content: "\u274C Bu i\u015Flemi yaln\u0131zca Y\xF6neticiler ger\xE7ekle\u015Ftirebilir.", flags: import_discord37.MessageFlags.Ephemeral });
         return;
       }
       await interaction.deferUpdate();
@@ -6520,7 +7200,7 @@ Sunucu s\u0131f\u0131rland\u0131 ve yeni kuruluma haz\u0131r hale getirildi. Art
       return;
     }
     if (customId === "btn_kayit_basla") {
-      await interaction.deferReply({ flags: import_discord35.MessageFlags.Ephemeral });
+      await interaction.deferReply({ flags: import_discord37.MessageFlags.Ephemeral });
       const member = interaction.member;
       if (!member || !interaction.guild) return;
       const roles = await interaction.guild.roles.fetch();
@@ -6538,12 +7218,12 @@ Sunucu s\u0131f\u0131rland\u0131 ve yeni kuruluma haz\u0131r hale getirildi. Art
     }
     if (customId === "btn_cinsiyet_erkek" || customId === "btn_cinsiyet_kiz") {
       const isMale = customId === "btn_cinsiyet_erkek";
-      const modal = new import_discord35.ModalBuilder().setCustomId(isMale ? "modal_kayit_erkek" : "modal_kayit_kiz").setTitle(`\u{1F4DD} Nights Kay\u0131t (${isMale ? "Erkek" : "K\u0131z"})`);
-      const nameInput = new import_discord35.TextInputBuilder().setCustomId("input_isim").setLabel("\u0130sminiz").setStyle(import_discord35.TextInputStyle.Short).setPlaceholder("\xD6rn: Eren").setRequired(true).setMaxLength(20);
-      const ageInput = new import_discord35.TextInputBuilder().setCustomId("input_yas").setLabel("Ya\u015F\u0131n\u0131z (\u0130ste\u011Fe ba\u011Fl\u0131)").setStyle(import_discord35.TextInputStyle.Short).setPlaceholder("\xD6rn: 19").setRequired(false).setMaxLength(3);
+      const modal = new import_discord37.ModalBuilder().setCustomId(isMale ? "modal_kayit_erkek" : "modal_kayit_kiz").setTitle(`\u{1F4DD} Nights Kay\u0131t (${isMale ? "Erkek" : "K\u0131z"})`);
+      const nameInput = new import_discord37.TextInputBuilder().setCustomId("input_isim").setLabel("\u0130sminiz").setStyle(import_discord37.TextInputStyle.Short).setPlaceholder("\xD6rn: Eren").setRequired(true).setMaxLength(20);
+      const ageInput = new import_discord37.TextInputBuilder().setCustomId("input_yas").setLabel("Ya\u015F\u0131n\u0131z (\u0130ste\u011Fe ba\u011Fl\u0131)").setStyle(import_discord37.TextInputStyle.Short).setPlaceholder("\xD6rn: 19").setRequired(false).setMaxLength(3);
       modal.addComponents(
-        new import_discord35.ActionRowBuilder().addComponents(nameInput),
-        new import_discord35.ActionRowBuilder().addComponents(ageInput)
+        new import_discord37.ActionRowBuilder().addComponents(nameInput),
+        new import_discord37.ActionRowBuilder().addComponents(ageInput)
       );
       await interaction.showModal(modal);
       return;
@@ -6554,7 +7234,7 @@ Sunucu s\u0131f\u0131rland\u0131 ve yeni kuruluma haz\u0131r hale getirildi. Art
         await interaction.reply({
           content: `\u26A0\uFE0F **Zaten t\u0131klad\u0131n\u0131z!**
 \u015Eu anki toplam: **${eventClickUsers.size} / 30**. Di\u011Fer arkada\u015Flar\u0131n\u0131z\u0131 da \xE7a\u011F\u0131r\u0131n, 30'a ula\u015Fal\u0131m!`,
-          flags: import_discord35.MessageFlags.Ephemeral
+          flags: import_discord37.MessageFlags.Ephemeral
         });
         return;
       }
@@ -6565,7 +7245,7 @@ Sunucu s\u0131f\u0131rland\u0131 ve yeni kuruluma haz\u0131r hale getirildi. Art
       const progressBar = renderProgressBar(percent, 10);
       const isCompleted = count >= target;
       const currentEmbed = interaction.message.embeds[0];
-      const updatedEmbed = import_discord35.EmbedBuilder.from(currentEmbed).setDescription(
+      const updatedEmbed = import_discord37.EmbedBuilder.from(currentEmbed).setDescription(
         `\u{1F381} **30 TIKLAMA B\xDCY\xDCK EVENT\u0130!** \u{1F525}
 
 A\u015Fa\u011F\u0131daki butona t\u0131klayarak sayac\u0131 art\u0131r\u0131n. Toplam **30 farkl\u0131 \xFCye** t\u0131klad\u0131\u011F\u0131nda sunucuda b\xFCy\xFCk s\xFCrpriz \xE7ekili\u015F ve \xF6d\xFCller aktifle\u015Fecek!
@@ -6574,8 +7254,8 @@ A\u015Fa\u011F\u0131daki butona t\u0131klayarak sayac\u0131 art\u0131r\u0131n. T
 
 ` + (isCompleted ? "\u{1F451} **HEDEFE ULA\u015EILDI! B\xDCY\xDCK EVENT VE \xC7EK\u0130L\u0130\u015E BA\u015ELADI!** \u{1F389}" : "\u{1F525} *Herkes bir kez t\u0131klayabilir. Arkada\u015Flar\u0131n\u0131 davet et!*")
       ).setColor(isCompleted ? "#2ECC71" : "#E67E22");
-      const updatedRow = new import_discord35.ActionRowBuilder().addComponents(
-        new import_discord35.ButtonBuilder().setCustomId("btn_event_click").setLabel(isCompleted ? "\u{1F389} HEDEFE ULA\u015EILDI (30/30)" : `\u{1F525} TIKLA! (${count}/30)`).setStyle(isCompleted ? import_discord35.ButtonStyle.Success : import_discord35.ButtonStyle.Primary).setEmoji(isCompleted ? "\u{1F451}" : "\u{1F525}").setDisabled(isCompleted)
+      const updatedRow = new import_discord37.ActionRowBuilder().addComponents(
+        new import_discord37.ButtonBuilder().setCustomId("btn_event_click").setLabel(isCompleted ? "\u{1F389} HEDEFE ULA\u015EILDI (30/30)" : `\u{1F525} TIKLA! (${count}/30)`).setStyle(isCompleted ? import_discord37.ButtonStyle.Success : import_discord37.ButtonStyle.Primary).setEmoji(isCompleted ? "\u{1F451}" : "\u{1F525}").setDisabled(isCompleted)
       );
       await interaction.update({
         embeds: [updatedEmbed],
@@ -6589,7 +7269,7 @@ A\u015Fa\u011F\u0131daki butona t\u0131klayarak sayac\u0131 art\u0131r\u0131n. T
           });
           eventClickUsers.clear();
           const nextTarget = 30;
-          const newEmbed = new import_discord35.EmbedBuilder().setTitle("\u{1F381} 30 TIKLAMA B\xDCY\xDCK EVENT\u0130! \u{1F525}").setDescription(
+          const newEmbed = new import_discord37.EmbedBuilder().setTitle("\u{1F381} 30 TIKLAMA B\xDCY\xDCK EVENT\u0130! \u{1F525}").setDescription(
             `Hey @everyone! \xD6nceki 30 t\u0131klama hedefi ba\u015Far\u0131yla tamamland\u0131! \u{1F38A}
 
 \u015Eimdi **yeni event** i\xE7in t\u0131klama sayac\u0131 s\u0131f\u0131rland\u0131. A\u015Fa\u011F\u0131daki butona basarak s\u0131radaki hedefe katk\u0131da bulunun!
@@ -6598,8 +7278,8 @@ A\u015Fa\u011F\u0131daki butona t\u0131klayarak sayac\u0131 art\u0131r\u0131n. T
 
 \u{1F525} *Hedef 30 oldu\u011Funda kral erencix'e an\u0131nda bildirim gidecek!*`
           ).setImage("https://media.giphy.com/media/26tn3334mvoVClhos/giphy.gif").setColor("#E67E22").setFooter({ text: "Nights Community Event \u2022 Made by erencix" });
-          const newRow = new import_discord35.ActionRowBuilder().addComponents(
-            new import_discord35.ButtonBuilder().setCustomId("btn_event_click").setLabel("\u{1F525} TIKLA! (0/30)").setStyle(import_discord35.ButtonStyle.Primary).setEmoji("\u{1F525}")
+          const newRow = new import_discord37.ActionRowBuilder().addComponents(
+            new import_discord37.ButtonBuilder().setCustomId("btn_event_click").setLabel("\u{1F525} TIKLA! (0/30)").setStyle(import_discord37.ButtonStyle.Primary).setEmoji("\u{1F525}")
           );
           await interaction.channel.send({
             embeds: [newEmbed],
@@ -6620,7 +7300,7 @@ A\u015Fa\u011F\u0131daki butona t\u0131klayarak sayac\u0131 art\u0131r\u0131n. T
       return;
     }
     if (interaction.customId.startsWith("modal_kayit_")) {
-      await interaction.deferReply({ flags: import_discord35.MessageFlags.Ephemeral });
+      await interaction.deferReply({ flags: import_discord37.MessageFlags.Ephemeral });
       const isMale = interaction.customId === "modal_kayit_erkek";
       const isim = interaction.fields.getTextInputValue("input_isim").trim();
       const yas = interaction.fields.getTextInputValue("input_yas").trim();
@@ -6656,7 +7336,7 @@ Art\u0131k kay\u0131t odalar\u0131 sizden gizlendi ve t\xFCm sohbet, medya ve oy
         (c) => c.name.includes("kayit-log") && c.isTextBased()
       );
       if (logChannel) {
-        const logEmbed = new import_discord35.EmbedBuilder().setTitle("\u{1F4E5} Yeni \xDCye Kayd\u0131 Tamamland\u0131").setColor(isMale ? "#3498DB" : "#E91E63").addFields(
+        const logEmbed = new import_discord37.EmbedBuilder().setTitle("\u{1F4E5} Yeni \xDCye Kayd\u0131 Tamamland\u0131").setColor(isMale ? "#3498DB" : "#E91E63").addFields(
           { name: "\u{1F464} \xDCye", value: `<@${member.id}> (\`${member.user.tag}\`)`, inline: true },
           { name: "\u{1F6BB} Cinsiyet", value: isMale ? "\u{1F466} Erkek" : "\u{1F467} K\u0131z", inline: true },
           { name: "\u{1F4DD} Yeni \u0130sim", value: `\`${formattedNick}\``, inline: true }
@@ -6669,10 +7349,10 @@ Art\u0131k kay\u0131t odalar\u0131 sizden gizlendi ve t\xFCm sohbet, medya ve oy
 };
 
 // src/events/ready.ts
-var import_discord38 = require("discord.js");
+var import_discord40 = require("discord.js");
 
 // src/services/features/voiceSetupManager.ts
-var import_discord36 = require("discord.js");
+var import_discord38 = require("discord.js");
 var VoiceSetupManager = class {
   static ran = false;
   static async ensureEnhancedVoiceChannels(client) {
@@ -6708,7 +7388,7 @@ var VoiceSetupManager = class {
     }
     const getOrCreateCategory = async (name, overwrites = []) => {
       const existing = guild.channels.cache.find(
-        (c) => c.type === import_discord36.ChannelType.GuildCategory && (c.name === name || c.name.toLowerCase().includes(name.toLowerCase().slice(3)))
+        (c) => c.type === import_discord38.ChannelType.GuildCategory && (c.name === name || c.name.toLowerCase().includes(name.toLowerCase().slice(3)))
       );
       if (existing) {
         if (overwrites.length > 0) {
@@ -6719,13 +7399,13 @@ var VoiceSetupManager = class {
       }
       return await guild.channels.create({
         name,
-        type: import_discord36.ChannelType.GuildCategory,
+        type: import_discord38.ChannelType.GuildCategory,
         permissionOverwrites: overwrites
       });
     };
     const getOrCreateVoice = async (name, parentId, options = {}) => {
       const existing = guild.channels.cache.find(
-        (c) => c.type === import_discord36.ChannelType.GuildVoice && (c.name === name || c.name.toLowerCase().includes(name.toLowerCase().slice(3)))
+        (c) => c.type === import_discord38.ChannelType.GuildVoice && (c.name === name || c.name.toLowerCase().includes(name.toLowerCase().slice(3)))
       );
       if (existing) {
         if (options.overwrites && options.overwrites.length > 0) {
@@ -6737,7 +7417,7 @@ var VoiceSetupManager = class {
       console.log(`[VoiceSetupManager] \u2795 Yeni ses kanal\u0131 olu\u015Fturuluyor: ${name}`);
       return await guild.channels.create({
         name,
-        type: import_discord36.ChannelType.GuildVoice,
+        type: import_discord38.ChannelType.GuildVoice,
         parent: parentId || void 0,
         userLimit: options.userLimit || 0,
         bitrate: options.bitrate || 64e3,
@@ -6745,12 +7425,12 @@ var VoiceSetupManager = class {
       });
     };
     const catCinema = await getOrCreateCategory("\u{1F37F} \u2503 S\u0130NEMA & \u0130ZLEME", [
-      { id: everyoneRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak, import_discord36.PermissionFlagsBits.Stream] }
+      { id: everyoneRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak, import_discord38.PermissionFlagsBits.Stream] }
     ]);
     await getOrCreateVoice("\u{1F37F}\u30FBSinema & Dizi Odas\u0131", catCinema.id, { bitrate: 96e3 });
     await getOrCreateVoice("\u{1F359}\u30FBAnime & Watch Party", catCinema.id, { bitrate: 96e3 });
     const catGaming = await getOrCreateCategory("\u{1F3AF} \u2503 VALORANT & OYUN ODALARI", [
-      { id: everyoneRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] }
+      { id: everyoneRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] }
     ]);
     await getOrCreateVoice("\u{1F3AE}\u30FBOyun Odas\u0131 1", catGaming.id, { bitrate: 96e3 });
     await getOrCreateVoice("\u{1F3AE}\u30FBOyun Odas\u0131 2", catGaming.id, { bitrate: 96e3 });
@@ -6764,20 +7444,20 @@ var VoiceSetupManager = class {
     const staffCategoryOverwrites = [
       {
         id: everyoneRole.id,
-        allow: [import_discord36.PermissionFlagsBits.ViewChannel],
-        deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak]
+        allow: [import_discord38.PermissionFlagsBits.ViewChannel],
+        deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak]
       }
     ];
     if (approvedRole) {
       staffCategoryOverwrites.push({
         id: approvedRole.id,
-        allow: [import_discord36.PermissionFlagsBits.ViewChannel],
-        deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak]
+        allow: [import_discord38.PermissionFlagsBits.ViewChannel],
+        deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak]
       });
     }
-    if (modRole) staffCategoryOverwrites.push({ id: modRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] });
-    if (adminRole) staffCategoryOverwrites.push({ id: adminRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak, import_discord36.PermissionFlagsBits.MoveMembers] });
-    if (kurucuRole) staffCategoryOverwrites.push({ id: kurucuRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak, import_discord36.PermissionFlagsBits.MoveMembers] });
+    if (modRole) staffCategoryOverwrites.push({ id: modRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] });
+    if (adminRole) staffCategoryOverwrites.push({ id: adminRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak, import_discord38.PermissionFlagsBits.MoveMembers] });
+    if (kurucuRole) staffCategoryOverwrites.push({ id: kurucuRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak, import_discord38.PermissionFlagsBits.MoveMembers] });
     const catStaff = await getOrCreateCategory("\u{1F512} \u2503 YETK\u0130L\u0130 \xD6ZEL", staffCategoryOverwrites);
     if (catStaff) {
       await catStaff.permissionOverwrites.set(staffCategoryOverwrites).catch(() => {
@@ -6786,14 +7466,14 @@ var VoiceSetupManager = class {
     const meetingOverwrites = [
       {
         id: everyoneRole.id,
-        allow: [import_discord36.PermissionFlagsBits.ViewChannel],
-        deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak]
+        allow: [import_discord38.PermissionFlagsBits.ViewChannel],
+        deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak]
       }
     ];
-    if (approvedRole) meetingOverwrites.push({ id: approvedRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel], deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] });
-    if (modRole) meetingOverwrites.push({ id: modRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] });
-    if (adminRole) meetingOverwrites.push({ id: adminRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak, import_discord36.PermissionFlagsBits.MoveMembers] });
-    if (kurucuRole) meetingOverwrites.push({ id: kurucuRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak, import_discord36.PermissionFlagsBits.MoveMembers] });
+    if (approvedRole) meetingOverwrites.push({ id: approvedRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel], deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] });
+    if (modRole) meetingOverwrites.push({ id: modRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] });
+    if (adminRole) meetingOverwrites.push({ id: adminRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak, import_discord38.PermissionFlagsBits.MoveMembers] });
+    if (kurucuRole) meetingOverwrites.push({ id: kurucuRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak, import_discord38.PermissionFlagsBits.MoveMembers] });
     await getOrCreateVoice("\u{1F451}\u30FBY\xF6netici Toplant\u0131 Odas\u0131", catStaff.id, {
       bitrate: 96e3,
       overwrites: meetingOverwrites
@@ -6801,20 +7481,20 @@ var VoiceSetupManager = class {
     const ownerOverwrites = [
       {
         id: everyoneRole.id,
-        allow: [import_discord36.PermissionFlagsBits.ViewChannel],
-        deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak]
+        allow: [import_discord38.PermissionFlagsBits.ViewChannel],
+        deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak]
       }
     ];
-    if (approvedRole) ownerOverwrites.push({ id: approvedRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel], deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] });
-    if (modRole) ownerOverwrites.push({ id: modRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel], deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] });
-    if (adminRole) ownerOverwrites.push({ id: adminRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] });
-    if (kurucuRole) ownerOverwrites.push({ id: kurucuRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak, import_discord36.PermissionFlagsBits.MoveMembers] });
+    if (approvedRole) ownerOverwrites.push({ id: approvedRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel], deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] });
+    if (modRole) ownerOverwrites.push({ id: modRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel], deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] });
+    if (adminRole) ownerOverwrites.push({ id: adminRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] });
+    if (kurucuRole) ownerOverwrites.push({ id: kurucuRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak, import_discord38.PermissionFlagsBits.MoveMembers] });
     await getOrCreateVoice("\u{1F399}\uFE0F\u30FBKurucu \xD6zel Odas\u0131", catStaff.id, {
       bitrate: 96e3,
       overwrites: ownerOverwrites
     });
     const catVoice = guild.channels.cache.find(
-      (c) => c.type === import_discord36.ChannelType.GuildCategory && (c.name.includes("SES") || c.name.includes("VOICE"))
+      (c) => c.type === import_discord38.ChannelType.GuildCategory && (c.name.includes("SES") || c.name.includes("VOICE"))
     );
     if (catVoice) {
       await getOrCreateVoice("\u{1F4A4}\u30FBAFK & Dinlenme", catVoice.id, { bitrate: 64e3 });
@@ -6822,22 +7502,22 @@ var VoiceSetupManager = class {
     const targetVoiceCat = catVoice || catCinema || catGaming;
     if (targetVoiceCat) {
       let infoChannel = guild.channels.cache.find(
-        (c) => c.type === import_discord36.ChannelType.GuildText && (c.name.includes("ses-bilgilendirme") || c.name.includes("ses-bilgi"))
+        (c) => c.type === import_discord38.ChannelType.GuildText && (c.name.includes("ses-bilgilendirme") || c.name.includes("ses-bilgi"))
       );
       if (!infoChannel) {
         infoChannel = await guild.channels.create({
           name: "\u{1F4CC}\u30FBses-bilgilendirme",
-          type: import_discord36.ChannelType.GuildText,
+          type: import_discord38.ChannelType.GuildText,
           parent: targetVoiceCat.id,
           permissionOverwrites: [
             {
               id: everyoneRole.id,
-              allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.ReadMessageHistory],
+              allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.ReadMessageHistory],
               deny: [
-                import_discord36.PermissionFlagsBits.SendMessages,
-                import_discord36.PermissionFlagsBits.AddReactions,
-                import_discord36.PermissionFlagsBits.CreatePublicThreads,
-                import_discord36.PermissionFlagsBits.CreatePrivateThreads
+                import_discord38.PermissionFlagsBits.SendMessages,
+                import_discord38.PermissionFlagsBits.AddReactions,
+                import_discord38.PermissionFlagsBits.CreatePublicThreads,
+                import_discord38.PermissionFlagsBits.CreatePrivateThreads
               ]
             }
           ]
@@ -6847,7 +7527,7 @@ var VoiceSetupManager = class {
         const msgs = await infoChannel.messages.fetch({ limit: 10 }).catch(() => null);
         const hasBotMsg = msgs && msgs.some((m) => m.author.id === client.user?.id);
         if (!hasBotMsg) {
-          const guideEmbed = new import_discord36.EmbedBuilder().setTitle("\u{1F399}\uFE0F NIGHTS SES ODALARI & S\u0130STEM REHBER\u0130 \u{1F4CC}").setDescription(
+          const guideEmbed = new import_discord38.EmbedBuilder().setTitle("\u{1F399}\uFE0F NIGHTS SES ODALARI & S\u0130STEM REHBER\u0130 \u{1F4CC}").setDescription(
             "Sunucumuzdaki ses odalar\u0131n\u0131 rahat\xE7a kullanabilmeniz ve odalar\u0131n\u0131z\u0131 y\xF6netebilmeniz i\xE7in haz\u0131rlanan rehberdir.\n\n### \u2795 1. \xD6zel Ge\xE7ici Ses Odas\u0131 Nas\u0131l A\xE7\u0131l\u0131r?\n> **`\u2795\uFE31Oda Olu\u015Ftur`** ses kanal\u0131na t\u0131klad\u0131\u011F\u0131n\u0131z anda sistem ad\u0131n\u0131za \xF6zel bir oda a\xE7ar ve sizi otomatik olarak odaya aktar\u0131r.\n\n### \u2699\uFE0F 2. Odan\u0131z\u0131 Nas\u0131l Y\xF6netirsiniz?\n> A\xE7\u0131lan odan\u0131n y\xF6neticisi siz olursunuz! **`#ses-kontrol`** paneli \xFCzerinden:\n> \u{1F512} **Oday\u0131 Kilitleyebilir:** \u0130stemedi\u011Finiz ki\u015Filerin giri\u015Fini engelleyebilirsiniz.\n> \u{1F465} **Ki\u015Fi S\u0131n\u0131r\u0131 Koyabilir:** Odan\u0131za ka\xE7 ki\u015Finin girebilece\u011Fini ayarlayabilirsiniz.\n> \u270F\uFE0F **\u0130sim De\u011Fi\u015Ftirebilir:** Odan\u0131za diledi\u011Finiz ismi verebilirsiniz.\n\n### \u{1F5D1}\uFE0F 3. Bo\u015Falan Odalar Ne Zaman Silinir?\n> \xD6zel a\xE7\u0131lan ge\xE7ici odadan son ki\u015Fi ayr\u0131ld\u0131\u011F\u0131nda sunucu kirlili\u011Fi olmamas\u0131 i\xE7in oda **otomatik silinir**.\n\n### \u{1F3AF} 4. Sabit Sunucu Odalar\u0131 (Asla Silinmez)\n> \u{1F3AE} **Oyun Odas\u0131 1 & 2:** Kesintisiz sabit genel oyun sohbet alanlar\u0131.\n> \u{1F3AF} **Valorant Rekabet\xE7i:** 5 ki\u015Filik rekabet\xE7i tak\u0131m lobileri, Duo ve Trio odalar\u0131.\n> \u{1F37F} **Sinema & Anime:** Y\xFCksek kaliteli yay\u0131n a\xE7\u0131k izleme ve watch party odalar\u0131.\n> \u{1F451} **Y\xF6netici & Kurucu Odalar\u0131:** Yetkililere \xF6zel kilitli toplant\u0131 odalar\u0131.\n> \u{1F4A4} **AFK Odas\u0131:** Masada olmad\u0131\u011F\u0131n\u0131zda ta\u015F\u0131nd\u0131\u011F\u0131n\u0131z dinlenme kanal\u0131.\n\n### \u{1F4DC} 5. Ses Odas\u0131 Kurallar\u0131\n> \u{1F6AB} Y\xFCksek ses, kulak t\u0131rmalay\u0131c\u0131 ses efektleri veya soundboard spam\u0131 yasakt\u0131r.\n> \u{1F6AB} Yay\u0131n a\xE7an \xFCyelerin yay\u0131n\u0131n\u0131 kasten sabote etmek ceza sebebidir.\n> \u{1F91D} T\xFCm \xFCyelerimize kar\u015F\u0131 seviyeli ve samimi bir ortam korunmal\u0131d\u0131r."
           ).setColor("#5865F2").setThumbnail(guild.iconURL() || client.user?.displayAvatarURL() || null).setFooter({ text: "Nights Community Voice Engine \u2022 Made by erencix" }).setTimestamp();
           await infoChannel.send({ embeds: [guideEmbed] }).catch(() => {
@@ -6861,9 +7541,9 @@ var VoiceSetupManager = class {
 };
 
 // src/services/features/boostManager.ts
-var import_discord37 = require("discord.js");
-var import_path5 = __toESM(require("path"));
-var import_fs5 = __toESM(require("fs"));
+var import_discord39 = require("discord.js");
+var import_path6 = __toESM(require("path"));
+var import_fs6 = __toESM(require("fs"));
 var BoostManager = class {
   static ran = false;
   static async init(client) {
@@ -6880,33 +7560,33 @@ var BoostManager = class {
   static async ensureBoostChannel(guild, client) {
     const everyoneRole = guild.roles.everyone;
     const duyuruCh = guild.channels.cache.find(
-      (c) => c.type === import_discord37.ChannelType.GuildText && (c.name.includes("duyuru") || c.name.includes("announcement"))
+      (c) => c.type === import_discord39.ChannelType.GuildText && (c.name.includes("duyuru") || c.name.includes("announcement"))
     );
     const parentCategory = duyuruCh?.parent || guild.channels.cache.find(
-      (c) => c.type === import_discord37.ChannelType.GuildCategory && (c.name.includes("B\u0130LG\u0130") || c.name.includes("DUYURU") || c.name.includes("G\u0130R\u0130\u015E"))
+      (c) => c.type === import_discord39.ChannelType.GuildCategory && (c.name.includes("B\u0130LG\u0130") || c.name.includes("DUYURU") || c.name.includes("G\u0130R\u0130\u015E"))
     );
     const targetPosition = duyuruCh ? duyuruCh.position + 1 : void 0;
     let boostChannel = guild.channels.cache.find(
-      (c) => c.type === import_discord37.ChannelType.GuildText && (c.name.includes("server-boost") || c.name.includes("boost"))
+      (c) => c.type === import_discord39.ChannelType.GuildText && (c.name.includes("server-boost") || c.name.includes("boost"))
     );
     const overwrites = [
       {
         id: everyoneRole.id,
-        allow: [import_discord37.PermissionFlagsBits.ViewChannel, import_discord37.PermissionFlagsBits.ReadMessageHistory],
+        allow: [import_discord39.PermissionFlagsBits.ViewChannel, import_discord39.PermissionFlagsBits.ReadMessageHistory],
         deny: [
-          import_discord37.PermissionFlagsBits.SendMessages,
-          import_discord37.PermissionFlagsBits.AddReactions,
-          import_discord37.PermissionFlagsBits.CreatePublicThreads,
-          import_discord37.PermissionFlagsBits.CreatePrivateThreads
+          import_discord39.PermissionFlagsBits.SendMessages,
+          import_discord39.PermissionFlagsBits.AddReactions,
+          import_discord39.PermissionFlagsBits.CreatePublicThreads,
+          import_discord39.PermissionFlagsBits.CreatePrivateThreads
         ]
       },
       {
         id: client.user?.id || guild.members.me?.id || "",
         allow: [
-          import_discord37.PermissionFlagsBits.ViewChannel,
-          import_discord37.PermissionFlagsBits.SendMessages,
-          import_discord37.PermissionFlagsBits.EmbedLinks,
-          import_discord37.PermissionFlagsBits.AttachFiles
+          import_discord39.PermissionFlagsBits.ViewChannel,
+          import_discord39.PermissionFlagsBits.SendMessages,
+          import_discord39.PermissionFlagsBits.EmbedLinks,
+          import_discord39.PermissionFlagsBits.AttachFiles
         ]
       }
     ];
@@ -6914,7 +7594,7 @@ var BoostManager = class {
       console.log(`[BoostManager] \u{1F680} ${guild.name} i\xE7in '\u{1F680}\u30FBserver-boost' kanal\u0131 olu\u015Fturuluyor...`);
       boostChannel = await guild.channels.create({
         name: "\u{1F680}\u30FBserver-boost",
-        type: import_discord37.ChannelType.GuildText,
+        type: import_discord39.ChannelType.GuildText,
         parent: parentCategory?.id,
         position: targetPosition,
         permissionOverwrites: overwrites
@@ -6937,9 +7617,9 @@ var BoostManager = class {
       const msgs = await channel.messages.fetch({ limit: 15 }).catch(() => null);
       const alreadyHasShowcase = msgs && msgs.some((m) => m.author.id === client.user?.id && m.embeds.length > 0 && m.embeds[0].title?.includes("BOOSTER AYRICALIKLARI"));
       if (alreadyHasShowcase) return;
-      const bannerPath = import_path5.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
-      const hasBanner = import_fs5.default.existsSync(bannerPath);
-      const embed = new import_discord37.EmbedBuilder().setTitle("\u{1F52E} NIGHTS SERVER BOOSTER VIP AYRICALIKLARI & \xD6D\xDCLLER\u0130 \u{1F680}").setDescription(
+      const bannerPath = import_path6.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
+      const hasBanner = import_fs6.default.existsSync(bannerPath);
+      const embed = new import_discord39.EmbedBuilder().setTitle("\u{1F52E} NIGHTS SERVER BOOSTER VIP AYRICALIKLARI & \xD6D\xDCLLER\u0130 \u{1F680}").setDescription(
         `Sunucumuza **Nitro Boost** basarak Nights toplulu\u011Funa g\xFC\xE7 katan ve seviyemizi y\xFCkselten de\u011Ferli \xFCyelerimiz i\xE7in haz\u0131rlanan **\xF6zel ayr\u0131cal\u0131klar, roller ve hediyeler** listesidir!
 
 ### \u{1F48E} 1. Server Booster \xD6zel Rol\xFC & Discord Rozeti
@@ -6970,7 +7650,7 @@ var BoostManager = class {
 > \u{1F4A1} **Nas\u0131l Boost Bas\u0131l\u0131r?** Sunucu ismine t\u0131klay\u0131p **"Sunucu Takviyesi"** se\xE7ene\u011Fini se\xE7erek sunucumuza takviye basabilir ve t\xFCm bu ayr\u0131cal\u0131klara an\u0131nda sahip olabilirsiniz!`
       ).setColor("#8B5CF6").setThumbnail(guild.iconURL() || client.user?.displayAvatarURL() || null).setFooter({ text: "Nights Community Booster Program \u2022 Made by erencix" }).setTimestamp();
       if (hasBanner) {
-        const attachment = new import_discord37.AttachmentBuilder(bannerPath, { name: "nights_boost_banner.png" });
+        const attachment = new import_discord39.AttachmentBuilder(bannerPath, { name: "nights_boost_banner.png" });
         embed.setImage("attachment://nights_boost_banner.png");
         await channel.send({ embeds: [embed], files: [attachment] });
       } else {
@@ -6993,14 +7673,14 @@ var BoostManager = class {
     } catch (e) {
     }
     const boostChannel = guild.channels.cache.find(
-      (c) => c.type === import_discord37.ChannelType.GuildText && (c.name.includes("server-boost") || c.name.includes("boost"))
+      (c) => c.type === import_discord39.ChannelType.GuildText && (c.name.includes("server-boost") || c.name.includes("boost"))
     );
     if (!boostChannel) return;
-    const bannerPath = import_path5.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
-    const hasBanner = import_fs5.default.existsSync(bannerPath);
+    const bannerPath = import_path6.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
+    const hasBanner = import_fs6.default.existsSync(bannerPath);
     const boostCount = guild.premiumSubscriptionCount || 1;
     const boostTier = guild.premiumTier;
-    const celebrationEmbed = new import_discord37.EmbedBuilder().setTitle("\u{1F680} B\xDCY\xDCK TE\u015EEKK\xDCRLER! YEN\u0130 SUNUCU BOOSTU! \u{1F52E}").setDescription(
+    const celebrationEmbed = new import_discord39.EmbedBuilder().setTitle("\u{1F680} B\xDCY\xDCK TE\u015EEKK\xDCRLER! YEN\u0130 SUNUCU BOOSTU! \u{1F52E}").setDescription(
       `Harikas\u0131n <@${member.id}>! Sunucumuza **BOOST** basarak Nights toplulu\u011Funu bir \xFCst kademeye ta\u015F\u0131d\u0131n! \u{1F496}\u2728
 
 \u{1F381} **HESABINA ANINDA TANIMLANAN HED\u0130YELER:**
@@ -7017,7 +7697,7 @@ var BoostManager = class {
     ).setColor("#F47FFF").setThumbnail(member.user.displayAvatarURL()).setFooter({ text: `Nights Booster Club \u2022 ${member.user.tag}` }).setTimestamp();
     try {
       if (hasBanner) {
-        const attachment = new import_discord37.AttachmentBuilder(bannerPath, { name: "nights_boost_banner.png" });
+        const attachment = new import_discord39.AttachmentBuilder(bannerPath, { name: "nights_boost_banner.png" });
         celebrationEmbed.setImage("attachment://nights_boost_banner.png");
         await boostChannel.send({
           content: `\u{1F389} **TEBR\u0130KLER & TE\u015EEKK\xDCRLER <@${member.id}>!** \u{1F680}`,
@@ -7039,7 +7719,7 @@ var BoostManager = class {
    */
   static async handleSystemMessage(message, client) {
     if (!message.guild) return;
-    const isBoostMsg = message.type === import_discord37.MessageType.GuildBoost || message.type === import_discord37.MessageType.GuildBoostTier1 || message.type === import_discord37.MessageType.GuildBoostTier2 || message.type === import_discord37.MessageType.GuildBoostTier3;
+    const isBoostMsg = message.type === import_discord39.MessageType.GuildBoost || message.type === import_discord39.MessageType.GuildBoostTier1 || message.type === import_discord39.MessageType.GuildBoostTier2 || message.type === import_discord39.MessageType.GuildBoostTier3;
     if (isBoostMsg) {
       const member = message.member || await message.guild.members.fetch(message.author.id).catch(() => null);
       if (member) {
@@ -7071,11 +7751,11 @@ async function onReady(client) {
   console.log(`======================================================
 `);
   const activities = [
-    { name: "\u260A Nights Toplulu\u011Fu", type: import_discord38.ActivityType.Watching },
-    { name: "\u{1F6E1}\uFE0F 7/24 Sunucu & Medya Korumas\u0131", type: import_discord38.ActivityType.Custom },
-    { name: "\u{1F399}\uFE0F Ses Kanallar\u0131 & Sohbet", type: import_discord38.ActivityType.Listening },
-    { name: "\u2B50 /yardim | Made by erencix", type: import_discord38.ActivityType.Playing },
-    { name: "\u{1F48E} Seviye & Ekonomi Sistemi", type: import_discord38.ActivityType.Competing }
+    { name: "\u260A Nights Toplulu\u011Fu", type: import_discord40.ActivityType.Watching },
+    { name: "\u{1F6E1}\uFE0F 7/24 Sunucu & Medya Korumas\u0131", type: import_discord40.ActivityType.Custom },
+    { name: "\u{1F399}\uFE0F Ses Kanallar\u0131 & Sohbet", type: import_discord40.ActivityType.Listening },
+    { name: "\u2B50 /yardim | Made by erencix", type: import_discord40.ActivityType.Playing },
+    { name: "\u{1F48E} Seviye & Ekonomi Sistemi", type: import_discord40.ActivityType.Competing }
   ];
   let currentActivityIndex = 0;
   client.user?.setPresence({
@@ -7130,7 +7810,10 @@ async function onReady(client) {
       data4,
       data10,
       data11,
-      aliasData
+      aliasData,
+      yedekAlData,
+      yedekGetirData,
+      yedekKurData
     ];
     if (client.application) {
       await client.application.commands.set(commands);
@@ -7159,9 +7842,9 @@ async function onVoiceStateUpdate(oldState, newState) {
 }
 
 // src/services/features/kelimeOyunu.ts
-var import_discord39 = require("discord.js");
-var import_fs6 = __toESM(require("fs"));
-var import_path6 = __toESM(require("path"));
+var import_discord41 = require("discord.js");
+var import_fs7 = __toESM(require("fs"));
+var import_path7 = __toESM(require("path"));
 var KelimeOyunuManager = class {
   static state = {
     lastWord: "ELMA",
@@ -7277,13 +7960,13 @@ var KelimeOyunuManager = class {
     if (this.dictionaryLoaded) return;
     try {
       const candidates = [
-        import_path6.default.resolve(process.cwd(), "assets/clean_turkish_words.json"),
-        import_path6.default.resolve(__dirname, "../../../assets/clean_turkish_words.json"),
-        import_path6.default.resolve(__dirname, "../../assets/clean_turkish_words.json")
+        import_path7.default.resolve(process.cwd(), "assets/clean_turkish_words.json"),
+        import_path7.default.resolve(__dirname, "../../../assets/clean_turkish_words.json"),
+        import_path7.default.resolve(__dirname, "../../assets/clean_turkish_words.json")
       ];
       for (const p of candidates) {
-        if (import_fs6.default.existsSync(p)) {
-          const raw = import_fs6.default.readFileSync(p, "utf8");
+        if (import_fs7.default.existsSync(p)) {
+          const raw = import_fs7.default.readFileSync(p, "utf8");
           const arr = JSON.parse(raw);
           this.dictionary = new Set(arr.map((w) => w.toLocaleLowerCase("tr-TR")));
           this.dictionaryLoaded = true;
@@ -7407,7 +8090,7 @@ var KelimeOyunuManager = class {
     }
     if (this.state.streak % 10 === 0) {
       const nextLetter = this.state.lastWord.slice(-1).toLocaleUpperCase("tr-TR");
-      const milestoneEmbed = new import_discord39.EmbedBuilder().setTitle(`\u{1F525} KEL\u0130ME T\xDCRETME SER\u0130S\u0130: ${this.state.streak} KEL\u0130ME! \u{1F525}`).setDescription(
+      const milestoneEmbed = new import_discord41.EmbedBuilder().setTitle(`\u{1F525} KEL\u0130ME T\xDCRETME SER\u0130S\u0130: ${this.state.streak} KEL\u0130ME! \u{1F525}`).setDescription(
         `Harika gidiyorsunuz! Toplam **${this.state.streak}** ge\xE7erli T\xFCrk\xE7e kelime t\xFCretildi!
 Son Kelime: **${this.state.lastWord}**
 S\u0131radaki Kelime '**${nextLetter}**' harfiyle ba\u015Flamal\u0131!`
@@ -7419,7 +8102,7 @@ S\u0131radaki Kelime '**${nextLetter}**' harfiyle ba\u015Flamal\u0131!`
   }
   static getInitialEmbed() {
     const nextLetter = this.state.lastWord.slice(-1).toLocaleUpperCase("tr-TR");
-    return new import_discord39.EmbedBuilder().setTitle("\u{1F9E9} NIGHTS KEL\u0130ME T\xDCRETMECE OYUNU BA\u015ELADI!").setDescription(
+    return new import_discord41.EmbedBuilder().setTitle("\u{1F9E9} NIGHTS KEL\u0130ME T\xDCRETMECE OYUNU BA\u015ELADI!").setDescription(
       `Sunucumuzun otomatik kelime t\xFCretme oyunu aktif!
 
 ### \u{1F4CC} Oyun Kurallar\u0131:
@@ -7439,7 +8122,7 @@ S\u0131radaki Kelime '**${nextLetter}**' harfiyle ba\u015Flamal\u0131!`
 };
 
 // src/services/features/countingGame.ts
-var import_discord40 = require("discord.js");
+var import_discord42 = require("discord.js");
 var CountingGameManager = class {
   static currentNumber = 1;
   static lastUserId = null;
@@ -7514,7 +8197,7 @@ var CountingGameManager = class {
       });
       try {
         if ("send" in message.channel) {
-          const failEmbed = new import_discord40.EmbedBuilder().setTitle("\u{1F4A5} EYVAH! SER\u0130 BOZULDU! \u{1F4A5}").setDescription(
+          const failEmbed = new import_discord42.EmbedBuilder().setTitle("\u{1F4A5} EYVAH! SER\u0130 BOZULDU! \u{1F4A5}").setDescription(
             `<@${message.author.id}> yanl\u0131\u015F say\u0131 girdi (**${num}** yerine **${failedAt + 1}** yaz\u0131lmal\u0131yd\u0131)!
 
 \u{1F4CA} **Ula\u015F\u0131lan Skor:** \`${failedAt}\` Say\u0131
@@ -7537,7 +8220,7 @@ var CountingGameManager = class {
     if (num % 25 === 0) {
       try {
         if ("send" in message.channel) {
-          const milestoneEmbed = new import_discord40.EmbedBuilder().setTitle(`\u{1F389} B\xDCY\xDCK BA\u015EARI: ${num}. SAYIYA ULA\u015EILDI! \u{1F680}`).setDescription(
+          const milestoneEmbed = new import_discord42.EmbedBuilder().setTitle(`\u{1F389} B\xDCY\xDCK BA\u015EARI: ${num}. SAYIYA ULA\u015EILDI! \u{1F680}`).setDescription(
             `Tebrikler! Sunucu olarak harika bir tak\u0131m \xE7al\u0131\u015Fmas\u0131 sergiliyorsunuz.
 \u015Eu anki seri: **${num}**
 S\u0131radaki hedef: **${num + 25}**`
@@ -7549,7 +8232,7 @@ S\u0131radaki hedef: **${num + 25}**`
     }
   }
   static getInitialEmbed() {
-    return new import_discord40.EmbedBuilder().setTitle("\u{1F522} NIGHTS SAYI SAYMACA OYUNU BA\u015ELADI!").setDescription(
+    return new import_discord42.EmbedBuilder().setTitle("\u{1F522} NIGHTS SAYI SAYMACA OYUNU BA\u015ELADI!").setDescription(
       `Sunucumuzun tak\u0131m \xE7al\u0131\u015Fmas\u0131 ve e\u011Flence dolu say\u0131 sayma oyunu aktif!
 
 ### \u{1F4CC} Oyun Kurallar\u0131:
@@ -7566,7 +8249,7 @@ S\u0131radaki hedef: **${num + 25}**`
 };
 
 // src/services/features/auditLogManager.ts
-var import_discord41 = require("discord.js");
+var import_discord43 = require("discord.js");
 var AuditLogManager = class {
   static logChannelCache = /* @__PURE__ */ new Map();
   /**
@@ -7602,7 +8285,7 @@ var AuditLogManager = class {
       if (!logChannel || logChannel.id === message.channelId) return;
       const content = message.content?.trim() || "*[Mesaj metni al\u0131namad\u0131 veya sadece medya/dosya i\xE7eriyordu]*";
       const attachments = message.attachments?.size ? Array.from(message.attachments.values()).map((a) => a.url).join("\n") : null;
-      const embed = new import_discord41.EmbedBuilder().setTitle("\u{1F5D1}\uFE0F Mesaj Silindi").setDescription(
+      const embed = new import_discord43.EmbedBuilder().setTitle("\u{1F5D1}\uFE0F Mesaj Silindi").setDescription(
         `> \u{1F464} **Mesaj Sahibi:** <@${message.author?.id}> (\`${message.author?.tag || message.author?.id}\`)
 > \u{1F4AC} **Kanal:** <#${message.channelId}>
 > \u{1F4C5} **Tarih:** <t:${Math.floor(Date.now() / 1e3)}:R>
@@ -7631,7 +8314,7 @@ ${attachments.slice(0, 400)}` : "")
       if (!logChannel || logChannel.id === newMessage.channelId) return;
       const oldText = oldMessage.content?.trim() || "*[\xD6nceki i\xE7erik yok]*";
       const newText = newMessage.content?.trim() || "*[Yeni i\xE7erik yok]*";
-      const embed = new import_discord41.EmbedBuilder().setTitle("\u270F\uFE0F Mesaj D\xFCzenlendi").setDescription(
+      const embed = new import_discord43.EmbedBuilder().setTitle("\u270F\uFE0F Mesaj D\xFCzenlendi").setDescription(
         `> \u{1F464} **Mesaj Sahibi:** <@${newMessage.author?.id}> (\`${newMessage.author?.tag || newMessage.author?.id}\`)
 > \u{1F4AC} **Kanal:** <#${newMessage.channelId}> \u2014 [Mesaja Git](${newMessage.url})
 
@@ -7660,7 +8343,7 @@ ${newText.slice(0, 800)}
       if (!logChannel) return;
       const roles = member.roles?.cache?.filter((r) => r.id !== guild.id)?.map((r) => r.name)?.join(", ") || "Rol bulunmuyor";
       const joinedAtStr = member.joinedTimestamp ? `<t:${Math.floor(member.joinedTimestamp / 1e3)}:R>` : "Bilinmiyor";
-      const embed = new import_discord41.EmbedBuilder().setTitle("\u{1F6AA} Bir \xDCye Sunucudan Ayr\u0131ld\u0131").setDescription(
+      const embed = new import_discord43.EmbedBuilder().setTitle("\u{1F6AA} Bir \xDCye Sunucudan Ayr\u0131ld\u0131").setDescription(
         `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user?.tag || member.id}\`)
 > \u{1F4C5} **Sunucuya Kat\u0131lm\u0131\u015Ft\u0131:** ${joinedAtStr}
 > \u{1F3F7}\uFE0F **Sahip Oldu\u011Fu Roller:** \`${roles.slice(0, 300)}\`
@@ -7685,7 +8368,7 @@ ${newText.slice(0, 800)}
       const logChannel = await this.getLogChannel(guild);
       if (!logChannel) return;
       if (!oldState.channelId && newState.channelId) {
-        const embed = new import_discord41.EmbedBuilder().setTitle("\u{1F399}\uFE0F Ses Kanal\u0131na Giri\u015F").setDescription(
+        const embed = new import_discord43.EmbedBuilder().setTitle("\u{1F399}\uFE0F Ses Kanal\u0131na Giri\u015F").setDescription(
           `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user.tag}\`)
 > \u{1F50A} **Kanal:** <#${newState.channelId}>`
         ).setColor("#2ECC71").setTimestamp();
@@ -7694,7 +8377,7 @@ ${newText.slice(0, 800)}
         return;
       }
       if (oldState.channelId && !newState.channelId) {
-        const embed = new import_discord41.EmbedBuilder().setTitle("\u{1F6AA} Ses Kanal\u0131ndan \xC7\u0131k\u0131\u015F").setDescription(
+        const embed = new import_discord43.EmbedBuilder().setTitle("\u{1F6AA} Ses Kanal\u0131ndan \xC7\u0131k\u0131\u015F").setDescription(
           `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user.tag}\`)
 > \u{1F507} **Ayr\u0131ld\u0131\u011F\u0131 Kanal:** <#${oldState.channelId}>`
         ).setColor("#ED4245").setTimestamp();
@@ -7703,7 +8386,7 @@ ${newText.slice(0, 800)}
         return;
       }
       if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
-        const embed = new import_discord41.EmbedBuilder().setTitle("\u{1F504} Ses Kanal\u0131 De\u011Fi\u015Fikli\u011Fi").setDescription(
+        const embed = new import_discord43.EmbedBuilder().setTitle("\u{1F504} Ses Kanal\u0131 De\u011Fi\u015Fikli\u011Fi").setDescription(
           `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user.tag}\`)
 > \u{1F534} **Eski Kanal:** <#${oldState.channelId}>
 > \u{1F7E2} **Yeni Kanal:** <#${newState.channelId}>`
@@ -7921,7 +8604,7 @@ var InviteTracker = class {
 };
 
 // src/index.ts
-var import_discord43 = require("discord.js");
+var import_discord45 = require("discord.js");
 async function bootstrap() {
   console.log("\u{1F680} Nights Guard \u2022 Made by erencix ba\u015Flat\u0131l\u0131yor...");
   PersistentStore.init();
@@ -7951,46 +8634,50 @@ async function bootstrap() {
     }
     return;
   }
-  const client = new import_discord42.Client({
+  const client = new import_discord44.Client({
     intents: [
-      import_discord42.GatewayIntentBits.Guilds,
-      import_discord42.GatewayIntentBits.GuildMembers,
-      import_discord42.GatewayIntentBits.GuildVoiceStates,
-      import_discord42.GatewayIntentBits.GuildMessages,
-      import_discord42.GatewayIntentBits.MessageContent,
-      import_discord42.GatewayIntentBits.GuildEmojisAndStickers,
-      import_discord42.GatewayIntentBits.GuildInvites
+      import_discord44.GatewayIntentBits.Guilds,
+      import_discord44.GatewayIntentBits.GuildMembers,
+      import_discord44.GatewayIntentBits.GuildVoiceStates,
+      import_discord44.GatewayIntentBits.GuildMessages,
+      import_discord44.GatewayIntentBits.MessageContent,
+      import_discord44.GatewayIntentBits.GuildEmojisAndStickers,
+      import_discord44.GatewayIntentBits.GuildInvites
     ],
-    partials: [import_discord42.Partials.Channel, import_discord42.Partials.GuildMember, import_discord42.Partials.Message, import_discord42.Partials.User]
+    partials: [import_discord44.Partials.Channel, import_discord44.Partials.GuildMember, import_discord44.Partials.Message, import_discord44.Partials.User]
   });
   const aiManager = new AIManager();
   const interactionHandler = new InteractionHandler(aiManager);
-  client.once(import_discord42.Events.ClientReady, async () => {
+  client.once(import_discord44.Events.ClientReady, async () => {
     await onReady(client);
     await InviteTracker.init(client);
   });
-  client.on(import_discord42.Events.InviteCreate, (invite) => InviteTracker.onInviteCreate(invite));
-  client.on(import_discord42.Events.InviteDelete, (invite) => InviteTracker.onInviteDelete(invite));
-  client.on(import_discord42.Events.InteractionCreate, async (interaction) => {
+  client.on(import_discord44.Events.InviteCreate, (invite) => InviteTracker.onInviteCreate(invite));
+  client.on(import_discord44.Events.InviteDelete, (invite) => InviteTracker.onInviteDelete(invite));
+  client.on(import_discord44.Events.InteractionCreate, async (interaction) => {
     await interactionHandler.handle(interaction);
   });
-  client.on(import_discord42.Events.VoiceStateUpdate, async (oldState, newState) => {
+  client.on(import_discord44.Events.VoiceStateUpdate, async (oldState, newState) => {
     await onVoiceStateUpdate(oldState, newState);
     await AuditLogManager.logVoiceState(oldState, newState);
   });
-  client.on(import_discord42.Events.MessageDelete, async (message) => {
+  client.on(import_discord44.Events.MessageDelete, async (message) => {
     await AuditLogManager.logMessageDelete(message);
   });
-  client.on(import_discord42.Events.MessageUpdate, async (oldMessage, newMessage) => {
+  client.on(import_discord44.Events.MessageUpdate, async (oldMessage, newMessage) => {
     await AuditLogManager.logMessageUpdate(oldMessage, newMessage);
   });
-  client.on(import_discord42.Events.GuildMemberRemove, async (member) => {
+  client.on(import_discord44.Events.GuildMemberRemove, async (member) => {
     await AuditLogManager.logMemberLeave(member);
+    await AutoSecurityGuard.handleKickSecurity(member.guild, member);
   });
-  client.on(import_discord42.Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  client.on(import_discord44.Events.GuildBanAdd, async (ban) => {
+    await AutoSecurityGuard.handleBanSecurity(ban.guild, ban.user);
+  });
+  client.on(import_discord44.Events.GuildMemberUpdate, async (oldMember, newMember) => {
     await BoostManager.handleMemberUpdate(oldMember, newMember, client);
   });
-  client.on(import_discord42.Events.MessageCreate, async (message) => {
+  client.on(import_discord44.Events.MessageCreate, async (message) => {
     if (!message.guild) return;
     await BoostManager.handleSystemMessage(message, client);
     if (message.author.bot) return;
@@ -8053,7 +8740,7 @@ async function bootstrap() {
 `;
       });
       if (q.songs.length > 10) desc += `*...ve ${q.songs.length - 10} \u015Fark\u0131 daha.*`;
-      const embed = new import_discord43.EmbedBuilder().setTitle(`\u{1F4DC} \xC7alma Listesi (${q.songs.length} Par\xE7a)`).setDescription(desc).setColor("#5865F2").setFooter({ text: `Ses: %${q.volume} \u2022 D\xF6ng\xFC: ${q.loopMode}` });
+      const embed = new import_discord45.EmbedBuilder().setTitle(`\u{1F4DC} \xC7alma Listesi (${q.songs.length} Par\xE7a)`).setDescription(desc).setColor("#5865F2").setFooter({ text: `Ses: %${q.volume} \u2022 D\xF6ng\xFC: ${q.loopMode}` });
       await message.reply({ embeds: [embed] }).catch(() => {
       });
       return;
@@ -8091,14 +8778,14 @@ async function bootstrap() {
         desc += `${medal} <@${u.userId}> \u2014 **Level ${u.level}** (\`${u.xp} XP\`)
 `;
       });
-      const topEmbed = new import_discord43.EmbedBuilder().setTitle("\u{1F3C6} NIGHTS AKT\u0130FL\u0130K L\u0130DERL\u0130K TABLOSU").setDescription(desc || "Hen\xFCz seviye atlayan \xFCye bulunmuyor.").setColor("#F1C40F").setFooter({ text: "Nights Topluluk S\u0131ralamas\u0131 \u2022 Made by erencix" });
+      const topEmbed = new import_discord45.EmbedBuilder().setTitle("\u{1F3C6} NIGHTS AKT\u0130FL\u0130K L\u0130DERL\u0130K TABLOSU").setDescription(desc || "Hen\xFCz seviye atlayan \xFCye bulunmuyor.").setColor("#F1C40F").setFooter({ text: "Nights Topluluk S\u0131ralamas\u0131 \u2022 Made by erencix" });
       await message.reply({ embeds: [topEmbed] }).catch(() => {
       });
       return;
     }
     if (cmd === "!seviye-esitle") {
       const ownerId = config.ownerId || process.env.OWNER_ID || "1138498666785677492";
-      if (message.author.id !== ownerId && !message.member?.permissions.has(import_discord42.PermissionFlagsBits.Administrator)) {
+      if (message.author.id !== ownerId && !message.member?.permissions.has(import_discord44.PermissionFlagsBits.Administrator)) {
         await message.reply("\u274C Bu komutu yaln\u0131zca sunucu y\xF6neticisi kullanabilir.").catch(() => {
         });
         return;
@@ -8106,6 +8793,64 @@ async function bootstrap() {
       if (message.guild) {
         const count = await LevelManager.syncAllMembers(message.guild);
         await message.reply(`\u2705 Seviye senkronizasyonu tamamland\u0131. **${count}** \xFCyenin seviye rolleri g\xFCncellendi.`).catch(() => {
+        });
+      }
+      return;
+    }
+    if (cmd === "!yedek-al" || cmd === "!yedekal") {
+      if (!ServerBackupManager.isAuthorized(message.author.id, message.guild)) {
+        await message.reply("\u26D4 **Eri\u015Fim Engellendi:** Sunucu yede\u011Fi alma yetkisi yaln\u0131zca <@1138498666785677492> (erencix) ve sunucu kurucusuna aittir!").catch(() => {
+        });
+        return;
+      }
+      const progressMsg = await message.reply("\u23F3 **Sunucunun A'dan Z'ye tam yede\u011Fi al\u0131n\u0131yor...** L\xFCtfen bekleyin.").catch(() => null);
+      const res = await ServerBackupManager.createBackup(message.guild, message.author);
+      if (res.success && res.data) {
+        const d = res.data;
+        const embed = new import_discord45.EmbedBuilder().setTitle("\u{1F4BE} NIGHTS GUARD \u2022 TAM SUNUCU YEDE\u011E\u0130 ALINDI!").setDescription(
+          `Sunucunun anl\u0131k t\xFCm verileri, rolleri, kategori ve kanallar\u0131, \xF6zel izinleri ve \xFCye rol da\u011F\u0131l\u0131mlar\u0131 ba\u015Far\u0131yla diske kaydedildi!
+
+Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekgetir\` komutunu kullanabilirsiniz.`
+        ).setColor("#2ECC71").addFields(
+          { name: "\u{1F194} Yedek Kodu", value: `\`${d.backupId}\``, inline: true },
+          { name: "\u{1F3AD} Roller", value: `**${d.stats.rolesCount}** adet`, inline: true },
+          { name: "\u{1F4C1} Kategoriler", value: `**${d.stats.categoriesCount}** adet`, inline: true },
+          { name: "\u{1F399}\uFE0F Kanallar", value: `**${d.stats.channelsCount}** adet`, inline: true },
+          { name: "\u{1F465} \xDCye Rol Kayd\u0131", value: `**${d.stats.membersSavedCount}** ki\u015Fi`, inline: true }
+        ).setFooter({ text: "Nights Automated Backup System \u2022 Made by erencix" }).setTimestamp();
+        if (progressMsg) await progressMsg.edit({ content: "", embeds: [embed] }).catch(() => {
+        });
+      } else {
+        if (progressMsg) await progressMsg.edit(`\u274C **Yedek Alma Hatas\u0131:** ${res.error}`).catch(() => {
+        });
+      }
+      return;
+    }
+    if (cmd === "!yedekgetir" || cmd === "!yedek-kur" || cmd === "!yedekkur") {
+      if (!ServerBackupManager.isAuthorized(message.author.id, message.guild)) {
+        await message.reply("\u26D4 **Eri\u015Fim Engellendi:** Sunucu yede\u011Fi geri y\xFCkleme i\u015Flemi son derece kritik bir i\u015Flemdir! Yaln\u0131zca <@1138498666785677492> (erencix) taraf\u0131ndan \xE7al\u0131\u015Ft\u0131r\u0131labilir!").catch(() => {
+        });
+        return;
+      }
+      const progressMsg = await message.reply("\u23F3 **SUNUCU YEDE\u011E\u0130 GER\u0130 Y\xDCKLEN\u0130YOR...**\n> \u2699\uFE0F Ba\u015Flat\u0131l\u0131yor, l\xFCtfen bekleyin...").catch(() => null);
+      const res = await ServerBackupManager.restoreBackup(message.guild, message.author, async (st) => {
+        if (progressMsg) await progressMsg.edit(`\u23F3 **SUNUCU YEDE\u011E\u0130 GER\u0130 Y\xDCKLEN\u0130YOR...**
+> ${st}`).catch(() => {
+        });
+      });
+      if (res.success && res.restoredStats) {
+        const s = res.restoredStats;
+        const embed = new import_discord45.EmbedBuilder().setTitle("\u2728 NIGHTS GUARD \u2022 SUNUCU YEDE\u011E\u0130 BA\u015EARIYLA GER\u0130 Y\xDCKLEND\u0130!").setDescription(`Sunucu ba\u015Far\u0131yla eski haline d\xF6nd\xFCr\xFCld\xFC! Odalar, roller ve yetkiler onar\u0131ld\u0131. \u{1F6E1}\uFE0F`).setColor("#8B5CF6").addFields(
+          { name: "\u{1F194} Kullan\u0131lan Yedek", value: `\`${s.backupId}\``, inline: true },
+          { name: "\u{1F3AD} Roller", value: `**${s.roles}** adet`, inline: true },
+          { name: "\u{1F4C1} Kategoriler", value: `**${s.categories}** adet`, inline: true },
+          { name: "\u{1F399}\uFE0F Kanallar", value: `**${s.channels}** adet`, inline: true },
+          { name: "\u{1F465} \u0130ade Edilen Roller", value: `**${s.rolesGiven}** adet`, inline: true }
+        ).setFooter({ text: "Nights System Restore Engine \u2022 Made by erencix" }).setTimestamp();
+        if (progressMsg) await progressMsg.edit({ content: "", embeds: [embed] }).catch(() => {
+        });
+      } else {
+        if (progressMsg) await progressMsg.edit(`\u274C **Geri Y\xFCkleme Hatas\u0131:** ${res.error}`).catch(() => {
         });
       }
       return;
@@ -8263,7 +9008,7 @@ async function bootstrap() {
       return;
     }
     if (cmd === "!yardim" || cmd === "!komutlar") {
-      const helpEmbed = new import_discord43.EmbedBuilder().setTitle("\u{1F3AE} NIGHTS GUARD E\u011ELENCE & S\u0130STEM KOMUTLARI").setDescription(
+      const helpEmbed = new import_discord45.EmbedBuilder().setTitle("\u{1F3AE} NIGHTS GUARD E\u011ELENCE & S\u0130STEM KOMUTLARI").setDescription(
         "Sunucumuzda kullanabilece\u011Finiz h\u0131zl\u0131 interaktif komutlar:\n\n### \u26A1 Level & Aktiflik:\n\u2022 `!rank` \u2014 Kendi seviye kart\u0131n\u0131z\u0131 ve XP durumunuzu g\xF6sterir\n\u2022 `!top` \u2014 Sunucu aktiflik liderlik tablosunu g\xF6sterir\n\n### \u{1F4B0} Ekonomi & Oyunlar:\n\u2022 `!gunluk` \u2014 G\xFCnl\xFCk 500 Nights Coin \xF6d\xFCl\xFCn\xFCz\xFC al\u0131r\n\u2022 `!bakiye` \u2014 Mevcut paran\u0131z\u0131 g\xF6r\xFCnt\xFCler\n\u2022 `!calis` \u2014 30 dakikada bir \xE7al\u0131\u015Farak para kazand\u0131r\u0131r\n\u2022 `!cf <miktar> <yazi|tura>` \u2014 Yaz\u0131 tura bahsi oynar\n\u2022 `!slot <miktar>` \u2014 Slot kumar makinesini \xE7evirir\n\n### \u{1F3B2} Sunucu \u0130\xE7i Oyun Kanallar\u0131:\n\u2022 <#1568644567517896815> \u2014 Otomatik Kelime T\xFCretmece\n\u2022 `#owo-gambling-1 & 2` \u2014 H\u0131zl\u0131 1sn OwO Oyun Odalar\u0131"
       ).setColor("#8B5CF6").setFooter({ text: "Nights Interactive Engine \u2022 Made by erencix" });
       await message.reply({ embeds: [helpEmbed] }).catch(() => {
@@ -8273,7 +9018,7 @@ async function bootstrap() {
     if (cmd === "!dm" || cmd === "!duyuru" || cmd === "!mesajgonder") {
       const ownerId = config.ownerId || "1138498666785677492";
       const isOwner = message.author.id === ownerId;
-      const isAdmin = message.member?.permissions.has(import_discord42.PermissionFlagsBits.Administrator);
+      const isAdmin = message.member?.permissions.has(import_discord44.PermissionFlagsBits.Administrator);
       if (!isOwner && !isAdmin) {
         await message.reply("\u26D4 **Eri\u015Fim Engellendi:** Bu komut yaln\u0131zca sunucu kurucusu taraf\u0131ndan kullan\u0131labilir!").catch(() => {
         });
@@ -8290,7 +9035,7 @@ async function bootstrap() {
       const progressMsg = await message.reply("\u23F3 **Toplu DM G\xF6nderimi Ba\u015Flat\u0131l\u0131yor...** L\xFCtfen bekleyin.").catch(() => null);
       const allMembers = await guild.members.fetch();
       const candidates = Array.from(allMembers.values()).filter((m) => !m.user.bot);
-      const dmEmbed = new import_discord43.EmbedBuilder().setTitle("\u{1F4E2} NIGHTS TOPLULUK RESM\u0130 DUYURUSU").setDescription(rawMsg).setColor("#8B5CF6").setThumbnail(guild.iconURL({ size: 256 }) || message.author.displayAvatarURL()).addFields(
+      const dmEmbed = new import_discord45.EmbedBuilder().setTitle("\u{1F4E2} NIGHTS TOPLULUK RESM\u0130 DUYURUSU").setDescription(rawMsg).setColor("#8B5CF6").setThumbnail(guild.iconURL({ size: 256 }) || message.author.displayAvatarURL()).addFields(
         { name: "\u{1F451} G\xF6nderen Yetkili", value: `<@${message.author.id}>`, inline: true },
         { name: "\u{1F310} Sunucu", value: `**${guild.name}**`, inline: true }
       ).setImage("https://media.giphy.com/media/EPfV3ijMQVl60/giphy.gif").setFooter({ text: "Nights Community Broadcast Engine \u2022 Made by erencix" }).setTimestamp();
@@ -8357,7 +9102,7 @@ async function bootstrap() {
       }
     }
   });
-  client.on(import_discord42.Events.GuildMemberAdd, async (member) => {
+  client.on(import_discord44.Events.GuildMemberAdd, async (member) => {
     try {
       console.log(`[GuildMemberAdd] Yeni \xFCye kat\u0131ld\u0131: ${member.user.tag} (${member.id})`);
       const isKickedByAntiRaid = await AutoSecurityGuard.handleMemberJoinSecurity(member);
@@ -8393,7 +9138,7 @@ async function bootstrap() {
             inviterStr = `\xD6zel Sunucu Linki (\`${inviteInfo.code}\`) \u{1F517}`;
           }
           const avatarUrl = member.user.displayAvatarURL({ size: 256 });
-          const welcomeEmbed = new import_discord43.EmbedBuilder().setTitle(`\u{1F44B} ARAMIZA HO\u015E GELD\u0130N, ${member.displayName}!`).setDescription(
+          const welcomeEmbed = new import_discord45.EmbedBuilder().setTitle(`\u{1F44B} ARAMIZA HO\u015E GELD\u0130N, ${member.displayName}!`).setDescription(
             `Hey <@${member.id}>, **${member.guild.name}** sunucumuza ho\u015F geldin! \u{1F389}
 
 > \u{1F4E8} **Davet Eden:** ${inviterStr}
@@ -8415,7 +9160,7 @@ async function bootstrap() {
       console.warn("[GuildMemberAdd] Hata:", err.message);
     }
   });
-  client.on(import_discord42.Events.GuildCreate, async (guild) => {
+  client.on(import_discord44.Events.GuildCreate, async (guild) => {
     const allowedGuildId = "1568618183223414934";
     const allowedOwnerId = config.ownerId || "1138498666785677492";
     if (guild.id !== allowedGuildId && guild.ownerId !== allowedOwnerId) {

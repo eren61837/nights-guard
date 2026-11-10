@@ -19,6 +19,7 @@ import * as kullaniciCmd from '../commands/kullanici';
 import * as gonderCmd from '../commands/gonder';
 import * as itirafCmd from '../commands/itiraf';
 import * as muzikCmd from '../commands/muzik';
+import * as yedekCmd from '../commands/yedek';
 import { rankData, topData, seviyeAyarlaData } from '../commands/seviye';
 import { LevelManager } from '../services/features/levelManager';
 import { VoiceLobbyManager } from '../services/features/voiceLobbyManager';
@@ -113,6 +114,11 @@ export async function onReady(client: Client): Promise<void> {
       davetCmd.data,
       mesajGonderCmd.data,
       mesajGonderCmd.aliasData,
+
+      // Kurucu Özel Yedekleme Sistemi (Yalnızca erencix)
+      yedekCmd.yedekAlData,
+      yedekCmd.yedekGetirData,
+      yedekCmd.yedekKurData,
     ];
 
     if (client.application) {
