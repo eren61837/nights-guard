@@ -336,6 +336,33 @@ async function bootstrap() {
       return;
     }
 
+    // !ai-anahtar / !aianahtar / !aikey (Yalnızca erencix veya Sunucu Kurucusu)
+    if (cmd === '!ai-anahtar' || cmd === '!aianahtar' || cmd === '!aikey') {
+      const ownerId = config.ownerId || process.env.OWNER_ID || '1138498666785677492';
+      if (message.author.id !== ownerId && message.author.id !== message.guild?.ownerId) {
+        await message.reply('⛔ **Erişim Engellendi:** Bu komut yalnızca <@1138498666785677492> (erencix) tarafından kullanılabilir!').catch(() => {});
+        return;
+      }
+      const keyArg = args[1]?.trim();
+      if (!keyArg) {
+        await message.reply('💡 Kullanım: `!ai-anahtar <Google Gemini API Key>` (https://aistudio.google.com/app/apikey adresinden ücretsiz alabilirsiniz)').catch(() => {});
+        return;
+      }
+      try {
+        const { GoogleGenerativeAI } = await import('@google/generative-ai');
+        const genAI = new GoogleGenerativeAI(keyArg);
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        await model.generateContent('ping');
+
+        process.env.GEMINI_API_KEY = keyArg;
+        AIChatManager.initGemini(keyArg);
+        await message.reply('✅ **Google Gemini 1.5 Flash Başarıyla Bağlandı!** Artık bot doğrudan resmi Gemini yapay zekasıyla çalışıyor! 🚀').catch(() => {});
+      } catch (err: any) {
+        await message.reply(`❌ **Anahtar Doğrulanamadı:** ${err.message}`).catch(() => {});
+      }
+      return;
+    }
+
     // !gunluk
     if (cmd === '!gunluk') {
       const isBooster = !!message.member?.premiumSince;

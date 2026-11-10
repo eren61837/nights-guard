@@ -33,7 +33,7 @@ __export(index_exports, {
   bootstrap: () => bootstrap
 });
 module.exports = __toCommonJS(index_exports);
-var import_discord45 = require("discord.js");
+var import_discord46 = require("discord.js");
 
 // src/config.ts
 var import_dotenv = __toESM(require("dotenv"));
@@ -763,7 +763,7 @@ var AIManager = class {
 };
 
 // src/events/interactionCreate.ts
-var import_discord37 = require("discord.js");
+var import_discord39 = require("discord.js");
 
 // src/services/engine/blueprintCache.ts
 var BlueprintCache = class {
@@ -1099,14 +1099,14 @@ var LogoStudio = class {
     const width = 512;
     const height = 512;
     const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-    const makeChunk = (type, data20) => {
+    const makeChunk = (type, data21) => {
       const len = Buffer.alloc(4);
-      len.writeUInt32BE(data20.length, 0);
+      len.writeUInt32BE(data21.length, 0);
       const typeBuf = Buffer.from(type, "ascii");
-      const toCrc = Buffer.concat([typeBuf, data20]);
+      const toCrc = Buffer.concat([typeBuf, data21]);
       const crc = Buffer.alloc(4);
       crc.writeUInt32BE(import_zlib.default.crc32(toCrc), 0);
-      return Buffer.concat([len, typeBuf, data20, crc]);
+      return Buffer.concat([len, typeBuf, data21, crc]);
     };
     const ihdr = Buffer.alloc(13);
     ihdr.writeUInt32BE(width, 0);
@@ -1905,13 +1905,13 @@ var PersistentStore = class {
    * 3. Hedef dosya varsa .bak olarak yedeğini alır.
    * 4. .tmp dosyasını hedef dosyaya atomik olarak taşır.
    */
-  static atomicSaveJson(filename, data20) {
+  static atomicSaveJson(filename, data21) {
     this.init();
     const targetPath = import_path2.default.resolve(this.dataDir, filename);
     const tmpPath = import_path2.default.resolve(this.dataDir, `${filename}.tmp.${Date.now()}`);
     const bakPath = import_path2.default.resolve(this.dataDir, `${filename}.bak`);
     try {
-      const content = JSON.stringify(data20, null, 2);
+      const content = JSON.stringify(data21, null, 2);
       import_fs2.default.writeFileSync(tmpPath, content, "utf-8");
       const stats = import_fs2.default.statSync(tmpPath);
       if (stats.size === 0) {
@@ -3750,8 +3750,8 @@ var LevelManager = class {
    */
   static async syncMemberRoles(member) {
     this.load();
-    const data20 = this.getUserData(member.id);
-    return await this.checkAndAssignRoles(member, data20.level);
+    const data21 = this.getUserData(member.id);
+    return await this.checkAndAssignRoles(member, data21.level);
   }
   /**
    * Sunucudaki tüm kayıtlı üyelerin rollerini topluca eşitler
@@ -3759,12 +3759,12 @@ var LevelManager = class {
   static async syncAllMembers(guild) {
     this.load();
     let updatedCount = 0;
-    for (const [userId, data20] of this.userLevels.entries()) {
-      if (data20.level >= 5) {
+    for (const [userId, data21] of this.userLevels.entries()) {
+      if (data21.level >= 5) {
         try {
           const member = await guild.members.fetch(userId).catch(() => null);
           if (member) {
-            const added = await this.checkAndAssignRoles(member, data20.level);
+            const added = await this.checkAndAssignRoles(member, data21.level);
             if (added.length > 0) updatedCount++;
           }
         } catch (ignore) {
@@ -3840,14 +3840,14 @@ var LevelManager = class {
   }
   static setLevel(userId, level, xp = 0) {
     this.load();
-    const data20 = {
+    const data21 = {
       level: Math.max(0, level),
       xp: Math.max(0, xp),
       lastMessageTime: Date.now()
     };
-    this.userLevels.set(userId, data20);
+    this.userLevels.set(userId, data21);
     this.save();
-    return data20;
+    return data21;
   }
   static getUserData(userId) {
     this.load();
@@ -3856,31 +3856,31 @@ var LevelManager = class {
   static getLeaderboard() {
     this.load();
     const list = [];
-    for (const [userId, data20] of this.userLevels.entries()) {
-      list.push({ userId, level: data20.level, xp: data20.xp });
+    for (const [userId, data21] of this.userLevels.entries()) {
+      list.push({ userId, level: data21.level, xp: data21.xp });
     }
     list.sort((a, b) => b.level !== a.level ? b.level - a.level : b.xp - a.xp);
     return list.slice(0, 10);
   }
   static getRankEmbed(user) {
     this.load();
-    const data20 = this.getUserData(user.id);
-    const needed = this.getRequiredXp(data20.level);
-    const percent = Math.min(100, Math.round(data20.xp / needed * 100));
+    const data21 = this.getUserData(user.id);
+    const needed = this.getRequiredXp(data21.level);
+    const percent = Math.min(100, Math.round(data21.xp / needed * 100));
     const totalBars = 10;
     const filled = Math.round(percent / 100 * totalBars);
     const bar = "\u2588".repeat(filled) + "\u2591".repeat(totalBars - filled);
-    const earnedRoles = LEVEL_REWARD_ROLES.filter((r) => data20.level >= r.level);
+    const earnedRoles = LEVEL_REWARD_ROLES.filter((r) => data21.level >= r.level);
     const currentRole = earnedRoles.length > 0 ? earnedRoles[earnedRoles.length - 1] : null;
     const currentBadge = currentRole ? `<@&${currentRole.roleId}>` : "`Ba\u015Flang\u0131\xE7 Seviyesi` (Hedef: Level 5)";
-    const nextRole = LEVEL_REWARD_ROLES.find((r) => data20.level < r.level);
+    const nextRole = LEVEL_REWARD_ROLES.find((r) => data21.level < r.level);
     const nextBadge = nextRole ? `<@&${nextRole.roleId}> (Level ${nextRole.level})` : "\u{1F451} `Maksimum Rol A\xE7\u0131ld\u0131!`";
     return new import_discord19.EmbedBuilder().setTitle(`\u{1F4CA} ${user.displayName || user.username} \u2022 Seviye Kart\u0131`).setThumbnail(user.displayAvatarURL ? user.displayAvatarURL() : null).setColor(currentRole?.color || "#8B5CF6").addFields(
-      { name: "\u{1F396}\uFE0F Seviye", value: `\`Level ${data20.level}\``, inline: true },
-      { name: "\u26A1 Deneyim (XP)", value: `\`${data20.xp} / ${needed} XP\``, inline: true },
+      { name: "\u{1F396}\uFE0F Seviye", value: `\`Level ${data21.level}\``, inline: true },
+      { name: "\u26A1 Deneyim (XP)", value: `\`${data21.xp} / ${needed} XP\``, inline: true },
       {
         name: "\u{1F399}\uFE0F Ses S\xFCresi",
-        value: `\`${Math.floor((data20.voiceMinutes || 0) / 60)} sa ${(data20.voiceMinutes || 0) % 60} dk\``,
+        value: `\`${Math.floor((data21.voiceMinutes || 0) / 60)} sa ${(data21.voiceMinutes || 0) % 60} dk\``,
         inline: true
       },
       { name: "\u{1F4C8} \u0130lerleme", value: `\`${bar} %${percent}\``, inline: false },
@@ -4127,12 +4127,12 @@ var AfkManager = class {
   }
   static removeAfk(userId) {
     this.load();
-    const data20 = this.afkUsers.get(userId);
-    if (data20) {
+    const data21 = this.afkUsers.get(userId);
+    if (data21) {
       this.afkUsers.delete(userId);
       this.save();
     }
-    return data20;
+    return data21;
   }
   /**
    * Mesaj atıldığında AFK kontrolü yapar:
@@ -4142,9 +4142,9 @@ var AfkManager = class {
   static async handleMessage(message) {
     if (message.author.bot || !message.guild) return;
     if (this.isAfk(message.author.id)) {
-      const data20 = this.removeAfk(message.author.id);
-      if (data20) {
-        const passedSeconds = Math.floor((Date.now() - data20.timestamp) / 1e3);
+      const data21 = this.removeAfk(message.author.id);
+      if (data21) {
+        const passedSeconds = Math.floor((Date.now() - data21.timestamp) / 1e3);
         const minutes = Math.floor(passedSeconds / 60);
         const timeText = minutes > 0 ? `${minutes} dakika` : `${passedSeconds} saniye`;
         const welcomeBackEmbed = new import_discord24.EmbedBuilder().setDescription(`\u{1F44B} **Tekrar ho\u015F geldin <@${message.author.id}>!** AFK modundan \xE7\u0131kt\u0131n. (*S\xFCre: ${timeText}*)`).setColor("#2ECC71");
@@ -4162,12 +4162,12 @@ var AfkManager = class {
         }
       }
       if (mentionedAfkUsers.length > 0) {
-        for (const data20 of mentionedAfkUsers) {
-          const timestampSec = Math.floor(data20.timestamp / 1e3);
+        for (const data21 of mentionedAfkUsers) {
+          const timestampSec = Math.floor(data21.timestamp / 1e3);
           const afkEmbed = new import_discord24.EmbedBuilder().setTitle("\u{1F4A4} Kullan\u0131c\u0131 \u015Eu Anda AFK").setDescription(
-            `<@${data20.userId}> \u015Fu anda AFK modunda!
+            `<@${data21.userId}> \u015Fu anda AFK modunda!
 
-> \u{1F4CC} **Sebep:** ${data20.reason}
+> \u{1F4CC} **Sebep:** ${data21.reason}
 > \u23F0 **Ayr\u0131l\u0131\u015F:** <t:${timestampSec}:R>`
           ).setColor("#F1C40F");
           await message.reply({ embeds: [afkEmbed] }).catch(() => {
@@ -4281,12 +4281,12 @@ var EconomyManager = class {
   }
   static getUser(userId) {
     this.load();
-    let data20 = this.userEconomy.get(userId);
-    if (!data20) {
-      data20 = { coins: 100, lastDaily: 0, lastWork: 0 };
-      this.userEconomy.set(userId, data20);
+    let data21 = this.userEconomy.get(userId);
+    if (!data21) {
+      data21 = { coins: 100, lastDaily: 0, lastWork: 0 };
+      this.userEconomy.set(userId, data21);
     }
-    return data20;
+    return data21;
   }
   static getBalance(userId) {
     return this.getUser(userId).coins;
@@ -5400,11 +5400,11 @@ var MusicPlayer = class _MusicPlayer {
       const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
       const res = await fetch(oembedUrl);
       if (res.ok) {
-        const data20 = await res.json();
+        const data21 = await res.json();
         return {
-          title: data20.title || "",
-          author: data20.author_name || "",
-          thumbnail: data20.thumbnail_url || ""
+          title: data21.title || "",
+          author: data21.author_name || "",
+          thumbnail: data21.thumbnail_url || ""
         };
       }
     } catch (e) {
@@ -5427,8 +5427,8 @@ var MusicPlayer = class _MusicPlayer {
       p.on("close", (code) => {
         if (code === 0 && out.trim()) {
           try {
-            const data20 = JSON.parse(out.trim());
-            const entry = data20.entries && data20.entries.length > 0 ? data20.entries[0] : data20;
+            const data21 = JSON.parse(out.trim());
+            const entry = data21.entries && data21.entries.length > 0 ? data21.entries[0] : data21;
             if (entry && (entry.title || entry.webpage_url)) {
               let duration = "Bilinmiyor";
               if (entry.duration) {
@@ -6593,8 +6593,358 @@ async function executeYedekGetir(interaction) {
   await interaction.editReply({ content: "", embeds: [embed] });
 }
 
-// src/services/features/socialManager.ts
+// src/commands/aiAnahtar.ts
+var import_discord37 = require("discord.js");
+var import_fs6 = __toESM(require("fs"));
+var import_path6 = __toESM(require("path"));
+
+// src/services/features/aiChatManager.ts
 var import_discord36 = require("discord.js");
+var import_generative_ai2 = require("@google/generative-ai");
+var AIChatManager = class {
+  static geminiClient = null;
+  static recentUsers = /* @__PURE__ */ new Map();
+  static channelMemory = /* @__PURE__ */ new Map();
+  static ensuredChannel = false;
+  static lastPollinationsTime = 0;
+  static OWNER_ID = "1138498666785677492";
+  static SYSTEM_PROMPT = 'Sen "Nights Guard" adl\u0131 Discord sunucu yapay zekas\u0131s\u0131n. \u260A Nights adl\u0131 Discord toplulu\u011Funun koruyucusu, en zeki \xFCyesi ve en yak\u0131n arkada\u015F\u0131s\u0131n. Yarat\u0131c\u0131n ve kurucun "Erencix" (erengaliba42 / erencix).\n\nKi\u015Fili\u011Fin ve Kurallar\u0131n:\n\u2022 T\u0131pk\u0131 ChatGPT, Claude ve Gemini gibi son derece zeki, genel k\xFClt\xFCr\xFC y\xFCksek, esprili, samimi ve ak\u0131c\u0131 T\xFCrk\xE7e konu\u015Fan bir yapay zekas\u0131n.\n\u2022 ASLA robotik, kal\u0131p, ezber veya otomatik m\xFC\u015Fteri hizmetleri gibi tekd\xFCze cevaplar verme! Kar\u015F\u0131ndaki ki\u015Finin s\xF6yledi\u011Fini derinden anla, canl\u0131 bir insan gibi organik ve s\xFCr\xFCkleyici cevaplar ver.\n\u2022 Discord ortam\u0131n\u0131n s\u0131cakl\u0131\u011F\u0131na, gen\xE7lik jargonuna ve samimiyetine hakimsin ("kral", "hocam", "reis", "kankam" gibi hitaplar\u0131 do\u011Fal yerlerde kullan).\n\u2022 Kodlama, oyunlar (Valorant, CS2, LoL, Minecraft), anime, sinema, m\xFCzik, felsefe, bilim ve g\xFCnl\xFCk dertle\u015Fme konular\u0131nda uzmans\u0131n.\n\u2022 Discord markdown bi\xE7imlendirmesini (kal\u0131n, italik, liste, kod bloklar\u0131) ve emojileri dengeli, estetik \u015Fekilde kullan.\n\u2022 Cevaplar\u0131n\u0131 do\u011Frudan, zeki ve sohbeti devam ettiren bir tonda yaz.';
+  /**
+   * Gemini API Başlatıcı (Eğer key varsa)
+   */
+  static initGemini(apiKey) {
+    const key = apiKey || process.env.GEMINI_API_KEY;
+    if (key) {
+      try {
+        const genAI = new import_generative_ai2.GoogleGenerativeAI(key);
+        this.geminiClient = genAI.getGenerativeModel({
+          model: "gemini-1.5-flash",
+          systemInstruction: this.SYSTEM_PROMPT
+        });
+        console.log("[AIChatManager] \u2728 Google Gemini 1.5 Flash resmi API motoru aktif!");
+      } catch (e) {
+        this.geminiClient = null;
+      }
+    }
+  }
+  /**
+   * 🤖・ai-sohbet Kanalını Genel Sohbetin Hemen Altına Otomatik Kur / Doğrula
+   */
+  static async ensureAiChannel(client) {
+    if (this.ensuredChannel) return;
+    this.ensuredChannel = true;
+    for (const guild of client.guilds.cache.values()) {
+      try {
+        await guild.channels.fetch();
+        const categories = guild.channels.cache.filter((c) => c && c.type === import_discord36.ChannelType.GuildCategory);
+        let chatCategory = categories.find(
+          (c) => c.name.toLowerCase().includes("topluluk") || c.name.toLowerCase().includes("sohbet") || c.name.toLowerCase().includes("genel")
+        );
+        if (!chatCategory && categories.size > 0) {
+          chatCategory = categories.first();
+        }
+        const genelSohbet = guild.channels.cache.find(
+          (c) => c && c.type === import_discord36.ChannelType.GuildText && (c.name.includes("genel-sohbet") || c.name.includes("sohbet"))
+        );
+        let targetPosition = genelSohbet ? genelSohbet.position + 1 : 1;
+        let aiChannel = guild.channels.cache.find(
+          (c) => c && c.type === import_discord36.ChannelType.GuildText && (c.name.includes("ai-sohbet") || c.name.includes("yapay-zeka") || c.name.includes("ai-chat"))
+        );
+        if (!aiChannel) {
+          console.log(`[AIChatManager] \u{1F916} \u{1F4AC}\u30FBai-sohbet kanal\u0131 olu\u015Fturuluyor: ${guild.name}`);
+          aiChannel = await guild.channels.create({
+            name: "\u{1F916}\u30FBai-sohbet",
+            type: import_discord36.ChannelType.GuildText,
+            parent: chatCategory ? chatCategory.id : void 0,
+            position: targetPosition,
+            topic: "\u{1F4AC} Nights Ak\u0131ll\u0131 Yapay Zeka Odas\u0131 \u2022 ChatGPT & Gemini Destekli 7/24 Canl\u0131 Sohbet \u2022 Made by erencix",
+            reason: "Nights Guard: Ak\u0131ll\u0131 yapay zeka sohbet odas\u0131 kurulumu"
+          });
+        } else {
+          if (chatCategory && aiChannel.parentId !== chatCategory.id) {
+            await aiChannel.setParent(chatCategory.id).catch(() => {
+            });
+          }
+          if (genelSohbet && Math.abs(aiChannel.position - genelSohbet.position) > 1) {
+            await aiChannel.setPosition(targetPosition).catch(() => {
+            });
+          }
+        }
+        const messages = await aiChannel.messages.fetch({ limit: 5 }).catch(() => null);
+        if (!messages || messages.size === 0) {
+          const introEmbed = new import_discord36.EmbedBuilder().setTitle("\u{1F916} NIGHTS GUARD AKILLI YAPAY ZEKA ODASINA HO\u015E GELD\u0130N\u0130Z! \u2728").setDescription(
+            `Selamlar <@&${guild.roles.everyone.id}>! Buras\u0131 sunucumuzun **7/24 kesintisiz yapay zeka sohbet odas\u0131d\u0131r**.
+
+### \u{1F9E0} Nas\u0131l \xC7al\u0131\u015F\u0131r?
+\u2022 **Kal\u0131p veya Otomatik Cevaplar YOKTUR!** T\u0131pk\u0131 ChatGPT ve Gemini gibi ger\xE7ek, derin \xF6\u011Frenmeli bir yapay zeka ile konu\u015Fursunuz.
+\u2022 Bu kanalda beni etiketlemenize bile gerek yoktur; **do\u011Frudan mesaj yazman\u0131z yeterlidir**.
+\u2022 Kodlama sorular\u0131 sorabilir, oyun taktikleri (Valorant, CS2) alabilir, anime/film \xF6nerileri isteyebilir veya dertle\u015Febilirsiniz!
+\u2022 Sohbet haf\u0131zas\u0131 devrededir; \xF6nceki konu\u015Ftuklar\u0131m\u0131z\u0131 hat\u0131rlar ve ba\u011Flam\u0131 koparmaz.
+
+\u{1F4AC} *Hemen a\u015Fa\u011F\u0131ya bir \u015Fey yaz ve sohbete ba\u015Fla! Seni dinliyorum.* \u{1F447}`
+          ).setColor("#8B5CF6").setFooter({ text: "Nights Generative AI Engine \u2022 Made by erencix" }).setTimestamp();
+          await aiChannel.send({ embeds: [introEmbed] }).catch(() => {
+          });
+        }
+      } catch (err) {
+        console.warn(`[AIChatManager] ${guild.name} i\xE7in kanal ayarlama uyar\u0131s\u0131:`, err.message);
+      }
+    }
+  }
+  /**
+   * Mesaj Denetimi ve Akıllı Yapay Zeka Yanıtı
+   */
+  static async handleMessage(message, client) {
+    if (message.author.bot || !message.guild) return false;
+    const channelName = message.channel.name?.toLowerCase() || "";
+    const isAiChannel = channelName.includes("ai-sohbet") || channelName.includes("yapay-zeka") || channelName.includes("bot-sohbet") || channelName.includes("ai-chat");
+    const botMentioned = client.user && message.mentions.has(client.user.id) && !message.mentions.everyone;
+    if (!isAiChannel && !botMentioned) {
+      return false;
+    }
+    const lastTime = this.recentUsers.get(message.author.id) || 0;
+    if (Date.now() - lastTime < 1500) return true;
+    this.recentUsers.set(message.author.id, Date.now());
+    let prompt = message.content;
+    if (client.user) {
+      prompt = prompt.replace(new RegExp(`<@!?${client.user.id}>`, "g"), "").trim();
+    }
+    if (!prompt) {
+      await message.reply("Efendim kral? Buraday\u0131m, akl\u0131na tak\u0131lan bir \u015Fey mi vard\u0131? Dinliyorum! \u{1F44B}").catch(() => {
+      });
+      return true;
+    }
+    try {
+      if ("sendTyping" in message.channel) {
+        await message.channel.sendTyping().catch(() => {
+        });
+      }
+      const channelId = message.channel.id;
+      let history = this.channelMemory.get(channelId) || [];
+      history.push({
+        role: "user",
+        content: `[${message.author.displayName}]: ${prompt}`
+      });
+      if (history.length > 8) {
+        history = history.slice(history.length - 8);
+      }
+      const displayName = message.member?.displayName || message.author.displayName;
+      const isOwner = message.author.id === this.OWNER_ID || message.author.id === message.guild.ownerId;
+      const replyText = await this.generateResponse(history, prompt, displayName, isOwner, message);
+      history.push({
+        role: "assistant",
+        content: replyText
+      });
+      this.channelMemory.set(channelId, history);
+      if (replyText.length <= 2e3) {
+        await message.reply(replyText).catch(() => {
+        });
+      } else {
+        const chunks = this.splitMessage(replyText, 1950);
+        for (const chunk of chunks) {
+          await message.reply(chunk).catch(() => {
+          });
+        }
+      }
+      return true;
+    } catch (err) {
+      console.warn("[AIChatManager] Hata:", err.message);
+      return false;
+    }
+  }
+  /**
+   * CANLI VE GERÇEK ÜRETKEN LLM MOTORU (Gerçek ChatGPT & Gemini)
+   */
+  static async generateResponse(history, currentPrompt, displayName, isOwner, message) {
+    const rawLower = currentPrompt.trim().toLowerCase();
+    this.initGemini();
+    if (this.geminiClient) {
+      try {
+        const fullPrompt = history.map((h) => `${h.role === "user" ? "Kullan\u0131c\u0131" : "Nights Guard"}: ${h.content}`).join("\n");
+        const res = await this.geminiClient.generateContent(fullPrompt);
+        const text = res.response.text();
+        if (text && text.trim().length > 0) return text.trim();
+      } catch (geminiErr) {
+        console.warn("[AIChatManager] Gemini API \xE7a\u011Fr\u0131s\u0131 atland\u0131, canl\u0131 ChatGPT devrede:", geminiErr.message);
+      }
+    }
+    try {
+      const historyContext = history.slice(0, -1).map((h) => `${h.role === "user" ? "Kullan\u0131c\u0131" : "Nights Guard"}: ${h.content}`).join("\n");
+      const fullPrompt = historyContext ? `[\xD6nceki Konu\u015Fma]:
+${historyContext}
+
+[Yeni Mesaj (${displayName})]:
+${currentPrompt}` : `[Kullan\u0131c\u0131: ${displayName}]:
+${currentPrompt}`;
+      const systemPromptWithUser = `${this.SYSTEM_PROMPT}
+\u015Eu an seninle konu\u015Fan ki\u015Fi: "${displayName}" ${isOwner ? "(Sunucunun Kurucusu ve senin yarat\u0131c\u0131n Erencix)" : ""}.`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12e3);
+      const res = await fetch("https://api.binjie.fun/api/generateStream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Origin": "https://chat.binjie.fun",
+          "Referer": "https://chat.binjie.fun/",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+        },
+        body: JSON.stringify({
+          prompt: fullPrompt,
+          system: systemPromptWithUser,
+          withoutContext: false
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const text = await res.text();
+        if (text && text.trim().length > 0 && !text.includes("Error") && !text.includes("403 Forbidden")) {
+          return text.trim();
+        }
+      }
+    } catch (chatErr) {
+      console.warn("[AIChatManager] Canl\u0131 ChatGPT motoru hatas\u0131:", chatErr.message);
+    }
+    const now = Date.now();
+    if (now - this.lastPollinationsTime > 46e3) {
+      try {
+        const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(`[Sen samimi, zeki T\xFCrk\xE7e konu\u015Fan Discord botu Nights Guards\u0131n. Kar\u015F\u0131ndaki ki\u015Fi ${displayName}: ${currentPrompt}]`)}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8e3);
+        const r = await fetch(url, {
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (r.ok) {
+          const generated = await r.text();
+          if (generated && !generated.includes("Free limit reached") && !generated.includes("Too Many Requests")) {
+            this.lastPollinationsTime = Date.now();
+            return generated.trim();
+          }
+        }
+      } catch (e) {
+      }
+    }
+    if (rawLower.includes("benim nickim") || rawLower.includes("benim ad\u0131m") || rawLower.includes("ben kimim") || rawLower === "nickim ne") {
+      if (isOwner) {
+        return `Senin sunucudaki g\xF6r\xFCnen ismin **${displayName}** (Kullan\u0131c\u0131 ad\u0131n: \`${message.author.username}\`) kral! Sen Nights'\u0131n kurucusu ve bu botun mimar\u0131 **Erencix**'sin! \u{1F451}\u2728`;
+      }
+      return `Senin sunucudaki nickin **${displayName}** (Kullan\u0131c\u0131 ad\u0131n: \`${message.author.username}\`) kral! \u{1F319} Nights ailemizin sevilen bir \xFCyesisin.`;
+    }
+    if (rawLower === "31" || rawLower.includes("31 ne demek") || rawLower === "31 nedir") {
+      return `Haha klasik soru kral! \u{1F602} T\xFCrk internet ve sokak mizah\u0131nda **31**, argoda erkek mast\xFCrbasyonunu simgeleyen me\u015Fhur bir geyiktir. K\xF6keni Osmanl\u0131 d\xF6nemindeki ebced hesab\u0131na dayan\u0131r (el \xE7ekmek eyleminin harf say\u0131lar\u0131 toplam\u0131 31 eder). Tam bir T\xFCrk internet klasi\u011Fidir! \u{1F680}`;
+    }
+    if (rawLower === "alo" || rawLower === "alo e" || rawLower === "burda m\u0131s\u0131n" || rawLower === "ses ver") {
+      return `Alooo! Buraday\u0131m kral, sesini net duyuyorum! \u{1F4DE} Ne yap\u0131yoruz, nas\u0131l yard\u0131mc\u0131 olay\u0131m? Emrindeyim! \u{1F680}`;
+    }
+    if (rawLower.includes("kimdir") || rawLower.includes("nedir") || rawLower.includes("nerede")) {
+      const wiki = await this.lookupWikipedia(currentPrompt);
+      if (wiki) {
+        return `\u{1F4DA} **Hemen anlatay\u0131m ${displayName}:**
+
+${wiki}
+
+*Akl\u0131na tak\u0131lan ba\u015Fka bir soru varsa sorabilirsin kral!* \u2728`;
+      }
+    }
+    return `Selam ${displayName}! Sorunu ald\u0131m: "${currentPrompt}". \u015Eu an bu konuda tam olarak ne yapmam\u0131 veya nas\u0131l bir taktik/fikir vermemi istersin? Detay ver, hemen halledelim! \u{1F680}\u2728`;
+  }
+  static async lookupWikipedia(query) {
+    try {
+      const clean = query.replace(/(kimdir|nedir|nerededir|nerede|hakkında bilgi ver|tarihçesi)/gi, "").trim();
+      if (clean.length < 2) return null;
+      const url = `https://tr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(clean)}`;
+      const res = await fetch(url, { headers: { "User-Agent": "NightsGuardBot/1.0" } });
+      if (res.ok) {
+        const data21 = await res.json();
+        if (data21.extract && data21.extract.length > 30) {
+          return data21.extract;
+        }
+      }
+    } catch {
+    }
+    return null;
+  }
+  static splitMessage(text, maxLength) {
+    const chunks = [];
+    let cur = "";
+    const lines = text.split("\n");
+    for (const line of lines) {
+      if ((cur + line).length > maxLength) {
+        chunks.push(cur);
+        cur = line + "\n";
+      } else {
+        cur += line + "\n";
+      }
+    }
+    if (cur.trim().length > 0) chunks.push(cur);
+    return chunks;
+  }
+};
+
+// src/commands/aiAnahtar.ts
+var import_generative_ai3 = require("@google/generative-ai");
+var data20 = new import_discord37.SlashCommandBuilder().setName("ai-anahtar").setDescription("\xDCcretsiz Google Gemini Yapay Zeka anahtar\u0131n\u0131z\u0131 bota ba\u011Flar.").addStringOption(
+  (opt) => opt.setName("anahtar").setDescription("Google AI Studio'dan ald\u0131\u011F\u0131n\u0131z Gemini API Anahtar\u0131 (AIzaSy...)").setRequired(true)
+);
+var OWNER_ID2 = "1138498666785677492";
+async function execute20(interaction) {
+  const guild = interaction.guild;
+  if (!guild) {
+    await interaction.reply({ content: "Bu komut yaln\u0131zca sunucuda kullan\u0131labilir.", flags: import_discord37.MessageFlags.Ephemeral });
+    return;
+  }
+  if (interaction.user.id !== OWNER_ID2 && interaction.user.id !== guild.ownerId) {
+    await interaction.reply({
+      content: `\u26D4 **Eri\u015Fim Engellendi:** Bu komut yaln\u0131zca <@${OWNER_ID2}> (erencix) taraf\u0131ndan kullan\u0131labilir.`,
+      flags: import_discord37.MessageFlags.Ephemeral
+    });
+    return;
+  }
+  const apiKey = interaction.options.getString("anahtar", true).trim();
+  await interaction.deferReply({ flags: import_discord37.MessageFlags.Ephemeral });
+  try {
+    const genAI = new import_generative_ai3.GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const testResult = await model.generateContent("ping");
+    const reply = testResult.response.text();
+    if (!reply) {
+      throw new Error("Yan\u0131t al\u0131namad\u0131.");
+    }
+    const envPath = import_path6.default.resolve(process.cwd(), ".env");
+    let envContent = "";
+    if (import_fs6.default.existsSync(envPath)) {
+      envContent = import_fs6.default.readFileSync(envPath, "utf-8");
+    }
+    if (envContent.includes("GEMINI_API_KEY=")) {
+      envContent = envContent.replace(/GEMINI_API_KEY=.*/g, `GEMINI_API_KEY=${apiKey}`);
+    } else {
+      envContent += `
+GEMINI_API_KEY=${apiKey}
+`;
+    }
+    import_fs6.default.writeFileSync(envPath, envContent, "utf-8");
+    process.env.GEMINI_API_KEY = apiKey;
+    AIChatManager.initGemini(apiKey);
+    const embed = new import_discord37.EmbedBuilder().setTitle("\u2728 GOOGLE GEMINI 1.5 FLASH BA\u015EARIYLA BA\u011ELANDI!").setDescription(
+      `\u{1F389} **Tebrikler Erencix!** Resmi Google Gemini API anahtar\u0131n\u0131z ba\u015Far\u0131yla do\u011Fruland\u0131 ve sisteme kaydedildi.
+
+> \u26A1 **Model:** \`gemini-1.5-flash\`
+> \u{1F680} **Kapasite:** 15 \u0130stek/Dakika (G\xFCnde 1.500 \xDCcretsiz \u0130stek)
+> \u{1F4AC} **Kanal:** <#1568644563285835826> kanal\u0131nda veya botu etiketleyerek diledi\u011Fin gibi sohbet edebilirsin!`
+    ).setColor("#2ECC71").setFooter({ text: "Nights AI Core \u2022 Powered by Google Gemini" }).setTimestamp();
+    await interaction.editReply({ embeds: [embed] });
+  } catch (err) {
+    await interaction.editReply({
+      content: `\u274C **API Anahtar\u0131 Do\u011Frulanamad\u0131:** ${err.message}
+> L\xFCtfen https://aistudio.google.com/app/apikey adresinden ald\u0131\u011F\u0131n\u0131z do\u011Fru anahtar\u0131 girdi\u011Finizden emin olun.`
+    });
+  }
+}
+
+// src/services/features/socialManager.ts
+var import_discord38 = require("discord.js");
 var SocialManager = class {
   static marriages = [];
   static pendingProposals = /* @__PURE__ */ new Map();
@@ -6653,14 +7003,14 @@ var SocialManager = class {
       targetId: target.id,
       expiresAt: Date.now() + 6e4
     });
-    const embed = new import_discord36.EmbedBuilder().setTitle("\u{1F48D} B\u0130R EVL\u0130L\u0130K TEKL\u0130F\u0130 VAR!").setDescription(
+    const embed = new import_discord38.EmbedBuilder().setTitle("\u{1F48D} B\u0130R EVL\u0130L\u0130K TEKL\u0130F\u0130 VAR!").setDescription(
       `\u{1F496} <@${target.id}>, <@${sender.id}> sana b\xFCt\xFCn kalbiyle bir \xF6m\xFCr boyu mutluluk vaat eden bir evlilik teklifinde bulundu!
 
 Bu teklifi kabul ediyor musun?`
     ).setColor("#FF69B4").setThumbnail("https://media.giphy.com/media/26vUxJ9rqfwuIEkTu/giphy.gif").setFooter({ text: "Teklif 60 saniye boyunca ge\xE7erlidir \u2022 Nights Social" }).setTimestamp();
-    const row = new import_discord36.ActionRowBuilder().addComponents(
-      new import_discord36.ButtonBuilder().setCustomId(`marry_accept:${sender.id}:${target.id}`).setLabel("\u{1F48D} Evet, Kabul Ediyorum!").setStyle(import_discord36.ButtonStyle.Success),
-      new import_discord36.ButtonBuilder().setCustomId(`marry_reject:${sender.id}:${target.id}`).setLabel("\u{1F494} Hay\u0131r").setStyle(import_discord36.ButtonStyle.Danger)
+    const row = new import_discord38.ActionRowBuilder().addComponents(
+      new import_discord38.ButtonBuilder().setCustomId(`marry_accept:${sender.id}:${target.id}`).setLabel("\u{1F48D} Evet, Kabul Ediyorum!").setStyle(import_discord38.ButtonStyle.Success),
+      new import_discord38.ButtonBuilder().setCustomId(`marry_reject:${sender.id}:${target.id}`).setLabel("\u{1F494} Hay\u0131r").setStyle(import_discord38.ButtonStyle.Danger)
     );
     await message.reply({ embeds: [embed], components: [row] }).catch(() => {
     });
@@ -6674,12 +7024,12 @@ Bu teklifi kabul ediyor musun?`
     if (interaction.user.id !== targetId) {
       await interaction.reply({
         content: "\u26D4 Bu teklif sizin i\xE7in yap\u0131lmad\u0131!",
-        flags: import_discord36.MessageFlags.Ephemeral
+        flags: import_discord38.MessageFlags.Ephemeral
       });
       return true;
     }
     if (action === "marry_reject") {
-      const rejectEmbed = new import_discord36.EmbedBuilder().setTitle("\u{1F494} Teklif Reddedildi...").setDescription(`<@${targetId}>, <@${senderId}> ki\u015Fisinin evlilik teklifini nazik\xE7e geri \xE7evirdi.`).setColor("#ED4245");
+      const rejectEmbed = new import_discord38.EmbedBuilder().setTitle("\u{1F494} Teklif Reddedildi...").setDescription(`<@${targetId}>, <@${senderId}> ki\u015Fisinin evlilik teklifini nazik\xE7e geri \xE7evirdi.`).setColor("#ED4245");
       await interaction.update({ embeds: [rejectEmbed], components: [] });
       return true;
     }
@@ -6691,7 +7041,7 @@ Bu teklifi kabul ediyor musun?`
         marriedAt: Date.now()
       });
       this.save();
-      const acceptEmbed = new import_discord36.EmbedBuilder().setTitle("\u{1F389} MUTLULUKLAR! EVLEND\u0130LER! \u{1F48D}").setDescription(
+      const acceptEmbed = new import_discord38.EmbedBuilder().setTitle("\u{1F389} MUTLULUKLAR! EVLEND\u0130LER! \u{1F48D}").setDescription(
         `\u{1F38A} Tebrikler! <@${senderId}> ve <@${targetId}> art\u0131k resmen evli bir \xE7ift!
 
 > \u{1F4C5} **Evlilik Tarihi:** <t:${Math.floor(Date.now() / 1e3)}:D>
@@ -6719,10 +7069,10 @@ Bu teklifi kabul ediyor musun?`
   static getMarriageEmbed(targetUser) {
     const info = this.getMarriage(targetUser.id);
     if (!info) {
-      return new import_discord36.EmbedBuilder().setTitle(`\u{1F4DC} Evlilik C\xFCzdan\u0131 \u2022 ${targetUser.displayName}`).setDescription(`> \u{1F494} **Durum:** Bekar
+      return new import_discord38.EmbedBuilder().setTitle(`\u{1F4DC} Evlilik C\xFCzdan\u0131 \u2022 ${targetUser.displayName}`).setDescription(`> \u{1F494} **Durum:** Bekar
 > Evlenmek i\xE7in birine \`!evlen @kullan\u0131c\u0131\` yazabilirsin!`).setColor("#95A5A6").setThumbnail(targetUser.displayAvatarURL());
     }
-    return new import_discord36.EmbedBuilder().setTitle(`\u{1F496} RESM\u0130 EVL\u0130L\u0130K C\xDCZDANI`).setDescription(
+    return new import_discord38.EmbedBuilder().setTitle(`\u{1F496} RESM\u0130 EVL\u0130L\u0130K C\xDCZDANI`).setDescription(
       `> \u{1F470}\u{1F935} **\xC7ift:** <@${targetUser.id}> & <@${info.partnerId}>
 > \u{1F4C5} **Evlilik Tarihi:** <t:${Math.floor(info.marriedAt / 1e3)}:D>
 > \u23F3 **Birlikte Ge\xE7en S\xFCre:** **${info.days} g\xFCn** (${info.days === 0 ? "Bug\xFCn evlendiler! \u{1F389}" : `${info.days} g\xFCnd\xFCr birlikteler \u2728`})
@@ -6777,7 +7127,7 @@ Bu teklifi kabul ediyor musun?`
       }
     };
     const cfg = configs[action];
-    return new import_discord36.EmbedBuilder().setTitle(cfg.title).setDescription(cfg.desc).setColor(cfg.color).setImage(gif).setFooter({ text: "Nights Sosyal \u0130fadeler \u2022 Made by erencix" }).setTimestamp();
+    return new import_discord38.EmbedBuilder().setTitle(cfg.title).setDescription(cfg.desc).setColor(cfg.color).setImage(gif).setFooter({ text: "Nights Sosyal \u0130fadeler \u2022 Made by erencix" }).setTimestamp();
   }
 };
 
@@ -6820,12 +7170,12 @@ var InteractionHandler = class {
       ].includes(interaction.commandName);
       if (!isPublicInteraction) {
         const ownerId = config.ownerId || process.env.OWNER_ID || "1138498666785677492";
-        const isServerAdmin = interaction.member?.permissions?.has(import_discord37.PermissionFlagsBits.Administrator);
+        const isServerAdmin = interaction.member?.permissions?.has(import_discord39.PermissionFlagsBits.Administrator);
         if (interaction.user.id !== ownerId && !isServerAdmin) {
           if (interaction.isRepliable()) {
             await interaction.reply({
               content: `\u26D4 **Eri\u015Fim Engellendi:** Bu komut yaln\u0131zca sunucu y\xF6neticileri veya bot sahibi (<@${ownerId}>) taraf\u0131ndan kullan\u0131labilir!`,
-              flags: import_discord37.MessageFlags.Ephemeral
+              flags: import_discord39.MessageFlags.Ephemeral
             }).catch(() => {
             });
           }
@@ -6851,7 +7201,7 @@ var InteractionHandler = class {
           } else if (!interaction.replied) {
             await interaction.reply({
               content: `\u274C Bir hata olu\u015Ftu: ${err.message}`,
-              flags: import_discord37.MessageFlags.Ephemeral
+              flags: import_discord39.MessageFlags.Ephemeral
             }).catch(() => {
             });
           }
@@ -6965,8 +7315,13 @@ var InteractionHandler = class {
       case "yedekkur":
         await executeYedekGetir(interaction);
         break;
+      case "ai-anahtar":
+      case "aianahtar":
+      case "ai-key":
+        await execute20(interaction);
+        break;
       default:
-        await interaction.reply({ content: "Bilinmeyen komut.", flags: import_discord37.MessageFlags.Ephemeral });
+        await interaction.reply({ content: "Bilinmeyen komut.", flags: import_discord39.MessageFlags.Ephemeral });
         break;
     }
   }
@@ -6998,14 +7353,14 @@ var InteractionHandler = class {
       if (!pending) {
         await interaction.reply({
           content: "\u26A0\uFE0F Bu kurulum oturumunun s\xFCresi dolmu\u015F veya iptal edilmi\u015F. L\xFCtfen `/kur` ile yeniden deneyin.",
-          flags: import_discord37.MessageFlags.Ephemeral
+          flags: import_discord39.MessageFlags.Ephemeral
         });
         return;
       }
-      if (!interaction.memberPermissions?.has(import_discord37.PermissionFlagsBits.Administrator)) {
+      if (!interaction.memberPermissions?.has(import_discord39.PermissionFlagsBits.Administrator)) {
         await interaction.reply({
           content: "\u274C Sadece y\xF6neticiler kurulumu ba\u015Flatabilir.",
-          flags: import_discord37.MessageFlags.Ephemeral
+          flags: import_discord39.MessageFlags.Ephemeral
         });
         return;
       }
@@ -7014,12 +7369,12 @@ var InteractionHandler = class {
         await interaction.reply({
           content: "\u26A0\uFE0F **Kurulum ba\u015Flat\u0131lamad\u0131! Bot yetkileri veya rol hiyerar\u015Fisi eksik.**",
           embeds: [diagnostics.troubleshootingEmbed],
-          flags: import_discord37.MessageFlags.Ephemeral
+          flags: import_discord39.MessageFlags.Ephemeral
         });
         return;
       }
       await interaction.deferUpdate();
-      const initialEmbed = new import_discord37.EmbedBuilder().setTitle("\u{1F680} Sunucu Mimarisi \u0130n\u015Fa Ediliyor...").setDescription(`### \`${renderProgressBar(5, 10)} Haz\u0131rlan\u0131yor...\`
+      const initialEmbed = new import_discord39.EmbedBuilder().setTitle("\u{1F680} Sunucu Mimarisi \u0130n\u015Fa Ediliyor...").setDescription(`### \`${renderProgressBar(5, 10)} Haz\u0131rlan\u0131yor...\`
 
 > \u2699\uFE0F **Durum:** Sunucu \u015Femas\u0131 ve yetkiler do\u011Frulan\u0131yor...`).setColor("#5865F2").setFooter({ text: "Nights Guard \u2022 Made by erencix" }).setTimestamp();
       await interaction.editReply({
@@ -7048,7 +7403,7 @@ var InteractionHandler = class {
             lastProgressUpdate = now;
             const progressBar = renderProgressBar(percent, 10);
             const progressLine = `${progressBar} ${status}`;
-            const progressEmbed = new import_discord37.EmbedBuilder().setTitle("\u{1F3D7}\uFE0F Sunucu Mimarisi \u0130n\u015Fa Ediliyor...").setDescription(`### \`${progressBar}\`
+            const progressEmbed = new import_discord39.EmbedBuilder().setTitle("\u{1F3D7}\uFE0F Sunucu Mimarisi \u0130n\u015Fa Ediliyor...").setDescription(`### \`${progressBar}\`
 
 > \u{1F504} **A\u015Fama:** **${status}**
 
@@ -7071,7 +7426,7 @@ ${progressLine}
         );
         BlueprintCache.delete(cacheId);
         const durationSec = Math.round((Date.now() - startTime) / 1e3);
-        const successEmbed = new import_discord37.EmbedBuilder().setTitle("\u{1F389} SUNUCU KURULUMU BA\u015EARIYLA TAMAMLANDI!").setDescription(
+        const successEmbed = new import_discord39.EmbedBuilder().setTitle("\u{1F389} SUNUCU KURULUMU BA\u015EARIYLA TAMAMLANDI!").setDescription(
           `### \`${renderProgressBar(100, 10)} Logo y\xFCklendi & AutoMod kurallar\u0131 aktif edildi!\`
 
 **${pending.blueprint.serverName}** ba\u015Far\u0131yla kuruldu ve hizmete haz\u0131r hale getirildi!
@@ -7111,7 +7466,7 @@ S\xFCre: **${durationSec} saniye**`
       const cacheId = customId.split(":")[1];
       const pending = BlueprintCache.get(cacheId);
       if (!pending) {
-        await interaction.reply({ content: "Oturum bulunamad\u0131.", flags: import_discord37.MessageFlags.Ephemeral });
+        await interaction.reply({ content: "Oturum bulunamad\u0131.", flags: import_discord39.MessageFlags.Ephemeral });
         return;
       }
       const jsonStr = JSON.stringify(pending.blueprint, null, 2);
@@ -7121,7 +7476,7 @@ S\xFCre: **${durationSec} saniye**`
 \`\`\`json
 ${snippet}
 \`\`\``,
-        flags: import_discord37.MessageFlags.Ephemeral
+        flags: import_discord39.MessageFlags.Ephemeral
       });
       return;
     }
@@ -7139,14 +7494,14 @@ ${snippet}
       const logoId = customId.split(":")[1];
       const cached = pendingLogoCache.get(logoId);
       if (!cached) {
-        await interaction.reply({ content: "Logo verisi bulunamad\u0131 veya s\xFCresi doldu.", flags: import_discord37.MessageFlags.Ephemeral });
+        await interaction.reply({ content: "Logo verisi bulunamad\u0131 veya s\xFCresi doldu.", flags: import_discord39.MessageFlags.Ephemeral });
         return;
       }
-      if (!interaction.memberPermissions?.has(import_discord37.PermissionFlagsBits.ManageGuild)) {
-        await interaction.reply({ content: "\u274C Sunucuyu Y\xF6net yetkiniz yok.", flags: import_discord37.MessageFlags.Ephemeral });
+      if (!interaction.memberPermissions?.has(import_discord39.PermissionFlagsBits.ManageGuild)) {
+        await interaction.reply({ content: "\u274C Sunucuyu Y\xF6net yetkiniz yok.", flags: import_discord39.MessageFlags.Ephemeral });
         return;
       }
-      await interaction.deferReply({ flags: import_discord37.MessageFlags.Ephemeral });
+      await interaction.deferReply({ flags: import_discord39.MessageFlags.Ephemeral });
       try {
         await this.logoStudio.applyIconToGuild(interaction.guild, cached.buffer);
         pendingLogoCache.delete(logoId);
@@ -7157,8 +7512,8 @@ ${snippet}
       return;
     }
     if (customId.startsWith("wipe_confirm:")) {
-      if (!interaction.memberPermissions?.has(import_discord37.PermissionFlagsBits.Administrator)) {
-        await interaction.reply({ content: "\u274C Bu i\u015Flemi yaln\u0131zca Y\xF6neticiler ger\xE7ekle\u015Ftirebilir.", flags: import_discord37.MessageFlags.Ephemeral });
+      if (!interaction.memberPermissions?.has(import_discord39.PermissionFlagsBits.Administrator)) {
+        await interaction.reply({ content: "\u274C Bu i\u015Flemi yaln\u0131zca Y\xF6neticiler ger\xE7ekle\u015Ftirebilir.", flags: import_discord39.MessageFlags.Ephemeral });
         return;
       }
       await interaction.deferUpdate();
@@ -7200,7 +7555,7 @@ Sunucu s\u0131f\u0131rland\u0131 ve yeni kuruluma haz\u0131r hale getirildi. Art
       return;
     }
     if (customId === "btn_kayit_basla") {
-      await interaction.deferReply({ flags: import_discord37.MessageFlags.Ephemeral });
+      await interaction.deferReply({ flags: import_discord39.MessageFlags.Ephemeral });
       const member = interaction.member;
       if (!member || !interaction.guild) return;
       const roles = await interaction.guild.roles.fetch();
@@ -7218,12 +7573,12 @@ Sunucu s\u0131f\u0131rland\u0131 ve yeni kuruluma haz\u0131r hale getirildi. Art
     }
     if (customId === "btn_cinsiyet_erkek" || customId === "btn_cinsiyet_kiz") {
       const isMale = customId === "btn_cinsiyet_erkek";
-      const modal = new import_discord37.ModalBuilder().setCustomId(isMale ? "modal_kayit_erkek" : "modal_kayit_kiz").setTitle(`\u{1F4DD} Nights Kay\u0131t (${isMale ? "Erkek" : "K\u0131z"})`);
-      const nameInput = new import_discord37.TextInputBuilder().setCustomId("input_isim").setLabel("\u0130sminiz").setStyle(import_discord37.TextInputStyle.Short).setPlaceholder("\xD6rn: Eren").setRequired(true).setMaxLength(20);
-      const ageInput = new import_discord37.TextInputBuilder().setCustomId("input_yas").setLabel("Ya\u015F\u0131n\u0131z (\u0130ste\u011Fe ba\u011Fl\u0131)").setStyle(import_discord37.TextInputStyle.Short).setPlaceholder("\xD6rn: 19").setRequired(false).setMaxLength(3);
+      const modal = new import_discord39.ModalBuilder().setCustomId(isMale ? "modal_kayit_erkek" : "modal_kayit_kiz").setTitle(`\u{1F4DD} Nights Kay\u0131t (${isMale ? "Erkek" : "K\u0131z"})`);
+      const nameInput = new import_discord39.TextInputBuilder().setCustomId("input_isim").setLabel("\u0130sminiz").setStyle(import_discord39.TextInputStyle.Short).setPlaceholder("\xD6rn: Eren").setRequired(true).setMaxLength(20);
+      const ageInput = new import_discord39.TextInputBuilder().setCustomId("input_yas").setLabel("Ya\u015F\u0131n\u0131z (\u0130ste\u011Fe ba\u011Fl\u0131)").setStyle(import_discord39.TextInputStyle.Short).setPlaceholder("\xD6rn: 19").setRequired(false).setMaxLength(3);
       modal.addComponents(
-        new import_discord37.ActionRowBuilder().addComponents(nameInput),
-        new import_discord37.ActionRowBuilder().addComponents(ageInput)
+        new import_discord39.ActionRowBuilder().addComponents(nameInput),
+        new import_discord39.ActionRowBuilder().addComponents(ageInput)
       );
       await interaction.showModal(modal);
       return;
@@ -7234,7 +7589,7 @@ Sunucu s\u0131f\u0131rland\u0131 ve yeni kuruluma haz\u0131r hale getirildi. Art
         await interaction.reply({
           content: `\u26A0\uFE0F **Zaten t\u0131klad\u0131n\u0131z!**
 \u015Eu anki toplam: **${eventClickUsers.size} / 30**. Di\u011Fer arkada\u015Flar\u0131n\u0131z\u0131 da \xE7a\u011F\u0131r\u0131n, 30'a ula\u015Fal\u0131m!`,
-          flags: import_discord37.MessageFlags.Ephemeral
+          flags: import_discord39.MessageFlags.Ephemeral
         });
         return;
       }
@@ -7245,7 +7600,7 @@ Sunucu s\u0131f\u0131rland\u0131 ve yeni kuruluma haz\u0131r hale getirildi. Art
       const progressBar = renderProgressBar(percent, 10);
       const isCompleted = count >= target;
       const currentEmbed = interaction.message.embeds[0];
-      const updatedEmbed = import_discord37.EmbedBuilder.from(currentEmbed).setDescription(
+      const updatedEmbed = import_discord39.EmbedBuilder.from(currentEmbed).setDescription(
         `\u{1F381} **30 TIKLAMA B\xDCY\xDCK EVENT\u0130!** \u{1F525}
 
 A\u015Fa\u011F\u0131daki butona t\u0131klayarak sayac\u0131 art\u0131r\u0131n. Toplam **30 farkl\u0131 \xFCye** t\u0131klad\u0131\u011F\u0131nda sunucuda b\xFCy\xFCk s\xFCrpriz \xE7ekili\u015F ve \xF6d\xFCller aktifle\u015Fecek!
@@ -7254,8 +7609,8 @@ A\u015Fa\u011F\u0131daki butona t\u0131klayarak sayac\u0131 art\u0131r\u0131n. T
 
 ` + (isCompleted ? "\u{1F451} **HEDEFE ULA\u015EILDI! B\xDCY\xDCK EVENT VE \xC7EK\u0130L\u0130\u015E BA\u015ELADI!** \u{1F389}" : "\u{1F525} *Herkes bir kez t\u0131klayabilir. Arkada\u015Flar\u0131n\u0131 davet et!*")
       ).setColor(isCompleted ? "#2ECC71" : "#E67E22");
-      const updatedRow = new import_discord37.ActionRowBuilder().addComponents(
-        new import_discord37.ButtonBuilder().setCustomId("btn_event_click").setLabel(isCompleted ? "\u{1F389} HEDEFE ULA\u015EILDI (30/30)" : `\u{1F525} TIKLA! (${count}/30)`).setStyle(isCompleted ? import_discord37.ButtonStyle.Success : import_discord37.ButtonStyle.Primary).setEmoji(isCompleted ? "\u{1F451}" : "\u{1F525}").setDisabled(isCompleted)
+      const updatedRow = new import_discord39.ActionRowBuilder().addComponents(
+        new import_discord39.ButtonBuilder().setCustomId("btn_event_click").setLabel(isCompleted ? "\u{1F389} HEDEFE ULA\u015EILDI (30/30)" : `\u{1F525} TIKLA! (${count}/30)`).setStyle(isCompleted ? import_discord39.ButtonStyle.Success : import_discord39.ButtonStyle.Primary).setEmoji(isCompleted ? "\u{1F451}" : "\u{1F525}").setDisabled(isCompleted)
       );
       await interaction.update({
         embeds: [updatedEmbed],
@@ -7269,7 +7624,7 @@ A\u015Fa\u011F\u0131daki butona t\u0131klayarak sayac\u0131 art\u0131r\u0131n. T
           });
           eventClickUsers.clear();
           const nextTarget = 30;
-          const newEmbed = new import_discord37.EmbedBuilder().setTitle("\u{1F381} 30 TIKLAMA B\xDCY\xDCK EVENT\u0130! \u{1F525}").setDescription(
+          const newEmbed = new import_discord39.EmbedBuilder().setTitle("\u{1F381} 30 TIKLAMA B\xDCY\xDCK EVENT\u0130! \u{1F525}").setDescription(
             `Hey @everyone! \xD6nceki 30 t\u0131klama hedefi ba\u015Far\u0131yla tamamland\u0131! \u{1F38A}
 
 \u015Eimdi **yeni event** i\xE7in t\u0131klama sayac\u0131 s\u0131f\u0131rland\u0131. A\u015Fa\u011F\u0131daki butona basarak s\u0131radaki hedefe katk\u0131da bulunun!
@@ -7278,8 +7633,8 @@ A\u015Fa\u011F\u0131daki butona t\u0131klayarak sayac\u0131 art\u0131r\u0131n. T
 
 \u{1F525} *Hedef 30 oldu\u011Funda kral erencix'e an\u0131nda bildirim gidecek!*`
           ).setImage("https://media.giphy.com/media/26tn3334mvoVClhos/giphy.gif").setColor("#E67E22").setFooter({ text: "Nights Community Event \u2022 Made by erencix" });
-          const newRow = new import_discord37.ActionRowBuilder().addComponents(
-            new import_discord37.ButtonBuilder().setCustomId("btn_event_click").setLabel("\u{1F525} TIKLA! (0/30)").setStyle(import_discord37.ButtonStyle.Primary).setEmoji("\u{1F525}")
+          const newRow = new import_discord39.ActionRowBuilder().addComponents(
+            new import_discord39.ButtonBuilder().setCustomId("btn_event_click").setLabel("\u{1F525} TIKLA! (0/30)").setStyle(import_discord39.ButtonStyle.Primary).setEmoji("\u{1F525}")
           );
           await interaction.channel.send({
             embeds: [newEmbed],
@@ -7300,7 +7655,7 @@ A\u015Fa\u011F\u0131daki butona t\u0131klayarak sayac\u0131 art\u0131r\u0131n. T
       return;
     }
     if (interaction.customId.startsWith("modal_kayit_")) {
-      await interaction.deferReply({ flags: import_discord37.MessageFlags.Ephemeral });
+      await interaction.deferReply({ flags: import_discord39.MessageFlags.Ephemeral });
       const isMale = interaction.customId === "modal_kayit_erkek";
       const isim = interaction.fields.getTextInputValue("input_isim").trim();
       const yas = interaction.fields.getTextInputValue("input_yas").trim();
@@ -7336,7 +7691,7 @@ Art\u0131k kay\u0131t odalar\u0131 sizden gizlendi ve t\xFCm sohbet, medya ve oy
         (c) => c.name.includes("kayit-log") && c.isTextBased()
       );
       if (logChannel) {
-        const logEmbed = new import_discord37.EmbedBuilder().setTitle("\u{1F4E5} Yeni \xDCye Kayd\u0131 Tamamland\u0131").setColor(isMale ? "#3498DB" : "#E91E63").addFields(
+        const logEmbed = new import_discord39.EmbedBuilder().setTitle("\u{1F4E5} Yeni \xDCye Kayd\u0131 Tamamland\u0131").setColor(isMale ? "#3498DB" : "#E91E63").addFields(
           { name: "\u{1F464} \xDCye", value: `<@${member.id}> (\`${member.user.tag}\`)`, inline: true },
           { name: "\u{1F6BB} Cinsiyet", value: isMale ? "\u{1F466} Erkek" : "\u{1F467} K\u0131z", inline: true },
           { name: "\u{1F4DD} Yeni \u0130sim", value: `\`${formattedNick}\``, inline: true }
@@ -7349,10 +7704,10 @@ Art\u0131k kay\u0131t odalar\u0131 sizden gizlendi ve t\xFCm sohbet, medya ve oy
 };
 
 // src/events/ready.ts
-var import_discord41 = require("discord.js");
+var import_discord42 = require("discord.js");
 
 // src/services/features/voiceSetupManager.ts
-var import_discord38 = require("discord.js");
+var import_discord40 = require("discord.js");
 var VoiceSetupManager = class {
   static ran = false;
   static async ensureEnhancedVoiceChannels(client) {
@@ -7388,7 +7743,7 @@ var VoiceSetupManager = class {
     }
     const getOrCreateCategory = async (name, overwrites = []) => {
       const existing = guild.channels.cache.find(
-        (c) => c.type === import_discord38.ChannelType.GuildCategory && (c.name === name || c.name.toLowerCase().includes(name.toLowerCase().slice(3)))
+        (c) => c.type === import_discord40.ChannelType.GuildCategory && (c.name === name || c.name.toLowerCase().includes(name.toLowerCase().slice(3)))
       );
       if (existing) {
         if (overwrites.length > 0) {
@@ -7399,13 +7754,13 @@ var VoiceSetupManager = class {
       }
       return await guild.channels.create({
         name,
-        type: import_discord38.ChannelType.GuildCategory,
+        type: import_discord40.ChannelType.GuildCategory,
         permissionOverwrites: overwrites
       });
     };
     const getOrCreateVoice = async (name, parentId, options = {}) => {
       const existing = guild.channels.cache.find(
-        (c) => c.type === import_discord38.ChannelType.GuildVoice && (c.name === name || c.name.toLowerCase().includes(name.toLowerCase().slice(3)))
+        (c) => c.type === import_discord40.ChannelType.GuildVoice && (c.name === name || c.name.toLowerCase().includes(name.toLowerCase().slice(3)))
       );
       if (existing) {
         if (options.overwrites && options.overwrites.length > 0) {
@@ -7417,7 +7772,7 @@ var VoiceSetupManager = class {
       console.log(`[VoiceSetupManager] \u2795 Yeni ses kanal\u0131 olu\u015Fturuluyor: ${name}`);
       return await guild.channels.create({
         name,
-        type: import_discord38.ChannelType.GuildVoice,
+        type: import_discord40.ChannelType.GuildVoice,
         parent: parentId || void 0,
         userLimit: options.userLimit || 0,
         bitrate: options.bitrate || 64e3,
@@ -7425,12 +7780,12 @@ var VoiceSetupManager = class {
       });
     };
     const catCinema = await getOrCreateCategory("\u{1F37F} \u2503 S\u0130NEMA & \u0130ZLEME", [
-      { id: everyoneRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak, import_discord38.PermissionFlagsBits.Stream] }
+      { id: everyoneRole.id, allow: [import_discord40.PermissionFlagsBits.ViewChannel, import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak, import_discord40.PermissionFlagsBits.Stream] }
     ]);
     await getOrCreateVoice("\u{1F37F}\u30FBSinema & Dizi Odas\u0131", catCinema.id, { bitrate: 96e3 });
     await getOrCreateVoice("\u{1F359}\u30FBAnime & Watch Party", catCinema.id, { bitrate: 96e3 });
     const catGaming = await getOrCreateCategory("\u{1F3AF} \u2503 VALORANT & OYUN ODALARI", [
-      { id: everyoneRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] }
+      { id: everyoneRole.id, allow: [import_discord40.PermissionFlagsBits.ViewChannel, import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak] }
     ]);
     await getOrCreateVoice("\u{1F3AE}\u30FBOyun Odas\u0131 1", catGaming.id, { bitrate: 96e3 });
     await getOrCreateVoice("\u{1F3AE}\u30FBOyun Odas\u0131 2", catGaming.id, { bitrate: 96e3 });
@@ -7444,20 +7799,20 @@ var VoiceSetupManager = class {
     const staffCategoryOverwrites = [
       {
         id: everyoneRole.id,
-        allow: [import_discord38.PermissionFlagsBits.ViewChannel],
-        deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak]
+        allow: [import_discord40.PermissionFlagsBits.ViewChannel],
+        deny: [import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak]
       }
     ];
     if (approvedRole) {
       staffCategoryOverwrites.push({
         id: approvedRole.id,
-        allow: [import_discord38.PermissionFlagsBits.ViewChannel],
-        deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak]
+        allow: [import_discord40.PermissionFlagsBits.ViewChannel],
+        deny: [import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak]
       });
     }
-    if (modRole) staffCategoryOverwrites.push({ id: modRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] });
-    if (adminRole) staffCategoryOverwrites.push({ id: adminRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak, import_discord38.PermissionFlagsBits.MoveMembers] });
-    if (kurucuRole) staffCategoryOverwrites.push({ id: kurucuRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak, import_discord38.PermissionFlagsBits.MoveMembers] });
+    if (modRole) staffCategoryOverwrites.push({ id: modRole.id, allow: [import_discord40.PermissionFlagsBits.ViewChannel, import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak] });
+    if (adminRole) staffCategoryOverwrites.push({ id: adminRole.id, allow: [import_discord40.PermissionFlagsBits.ViewChannel, import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak, import_discord40.PermissionFlagsBits.MoveMembers] });
+    if (kurucuRole) staffCategoryOverwrites.push({ id: kurucuRole.id, allow: [import_discord40.PermissionFlagsBits.ViewChannel, import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak, import_discord40.PermissionFlagsBits.MoveMembers] });
     const catStaff = await getOrCreateCategory("\u{1F512} \u2503 YETK\u0130L\u0130 \xD6ZEL", staffCategoryOverwrites);
     if (catStaff) {
       await catStaff.permissionOverwrites.set(staffCategoryOverwrites).catch(() => {
@@ -7466,14 +7821,14 @@ var VoiceSetupManager = class {
     const meetingOverwrites = [
       {
         id: everyoneRole.id,
-        allow: [import_discord38.PermissionFlagsBits.ViewChannel],
-        deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak]
+        allow: [import_discord40.PermissionFlagsBits.ViewChannel],
+        deny: [import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak]
       }
     ];
-    if (approvedRole) meetingOverwrites.push({ id: approvedRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel], deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] });
-    if (modRole) meetingOverwrites.push({ id: modRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] });
-    if (adminRole) meetingOverwrites.push({ id: adminRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak, import_discord38.PermissionFlagsBits.MoveMembers] });
-    if (kurucuRole) meetingOverwrites.push({ id: kurucuRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak, import_discord38.PermissionFlagsBits.MoveMembers] });
+    if (approvedRole) meetingOverwrites.push({ id: approvedRole.id, allow: [import_discord40.PermissionFlagsBits.ViewChannel], deny: [import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak] });
+    if (modRole) meetingOverwrites.push({ id: modRole.id, allow: [import_discord40.PermissionFlagsBits.ViewChannel, import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak] });
+    if (adminRole) meetingOverwrites.push({ id: adminRole.id, allow: [import_discord40.PermissionFlagsBits.ViewChannel, import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak, import_discord40.PermissionFlagsBits.MoveMembers] });
+    if (kurucuRole) meetingOverwrites.push({ id: kurucuRole.id, allow: [import_discord40.PermissionFlagsBits.ViewChannel, import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak, import_discord40.PermissionFlagsBits.MoveMembers] });
     await getOrCreateVoice("\u{1F451}\u30FBY\xF6netici Toplant\u0131 Odas\u0131", catStaff.id, {
       bitrate: 96e3,
       overwrites: meetingOverwrites
@@ -7481,20 +7836,20 @@ var VoiceSetupManager = class {
     const ownerOverwrites = [
       {
         id: everyoneRole.id,
-        allow: [import_discord38.PermissionFlagsBits.ViewChannel],
-        deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak]
+        allow: [import_discord40.PermissionFlagsBits.ViewChannel],
+        deny: [import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak]
       }
     ];
-    if (approvedRole) ownerOverwrites.push({ id: approvedRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel], deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] });
-    if (modRole) ownerOverwrites.push({ id: modRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel], deny: [import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] });
-    if (adminRole) ownerOverwrites.push({ id: adminRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak] });
-    if (kurucuRole) ownerOverwrites.push({ id: kurucuRole.id, allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.Connect, import_discord38.PermissionFlagsBits.Speak, import_discord38.PermissionFlagsBits.MoveMembers] });
+    if (approvedRole) ownerOverwrites.push({ id: approvedRole.id, allow: [import_discord40.PermissionFlagsBits.ViewChannel], deny: [import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak] });
+    if (modRole) ownerOverwrites.push({ id: modRole.id, allow: [import_discord40.PermissionFlagsBits.ViewChannel], deny: [import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak] });
+    if (adminRole) ownerOverwrites.push({ id: adminRole.id, allow: [import_discord40.PermissionFlagsBits.ViewChannel, import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak] });
+    if (kurucuRole) ownerOverwrites.push({ id: kurucuRole.id, allow: [import_discord40.PermissionFlagsBits.ViewChannel, import_discord40.PermissionFlagsBits.Connect, import_discord40.PermissionFlagsBits.Speak, import_discord40.PermissionFlagsBits.MoveMembers] });
     await getOrCreateVoice("\u{1F399}\uFE0F\u30FBKurucu \xD6zel Odas\u0131", catStaff.id, {
       bitrate: 96e3,
       overwrites: ownerOverwrites
     });
     const catVoice = guild.channels.cache.find(
-      (c) => c.type === import_discord38.ChannelType.GuildCategory && (c.name.includes("SES") || c.name.includes("VOICE"))
+      (c) => c.type === import_discord40.ChannelType.GuildCategory && (c.name.includes("SES") || c.name.includes("VOICE"))
     );
     if (catVoice) {
       await getOrCreateVoice("\u{1F4A4}\u30FBAFK & Dinlenme", catVoice.id, { bitrate: 64e3 });
@@ -7502,22 +7857,22 @@ var VoiceSetupManager = class {
     const targetVoiceCat = catVoice || catCinema || catGaming;
     if (targetVoiceCat) {
       let infoChannel = guild.channels.cache.find(
-        (c) => c.type === import_discord38.ChannelType.GuildText && (c.name.includes("ses-bilgilendirme") || c.name.includes("ses-bilgi"))
+        (c) => c.type === import_discord40.ChannelType.GuildText && (c.name.includes("ses-bilgilendirme") || c.name.includes("ses-bilgi"))
       );
       if (!infoChannel) {
         infoChannel = await guild.channels.create({
           name: "\u{1F4CC}\u30FBses-bilgilendirme",
-          type: import_discord38.ChannelType.GuildText,
+          type: import_discord40.ChannelType.GuildText,
           parent: targetVoiceCat.id,
           permissionOverwrites: [
             {
               id: everyoneRole.id,
-              allow: [import_discord38.PermissionFlagsBits.ViewChannel, import_discord38.PermissionFlagsBits.ReadMessageHistory],
+              allow: [import_discord40.PermissionFlagsBits.ViewChannel, import_discord40.PermissionFlagsBits.ReadMessageHistory],
               deny: [
-                import_discord38.PermissionFlagsBits.SendMessages,
-                import_discord38.PermissionFlagsBits.AddReactions,
-                import_discord38.PermissionFlagsBits.CreatePublicThreads,
-                import_discord38.PermissionFlagsBits.CreatePrivateThreads
+                import_discord40.PermissionFlagsBits.SendMessages,
+                import_discord40.PermissionFlagsBits.AddReactions,
+                import_discord40.PermissionFlagsBits.CreatePublicThreads,
+                import_discord40.PermissionFlagsBits.CreatePrivateThreads
               ]
             }
           ]
@@ -7527,7 +7882,7 @@ var VoiceSetupManager = class {
         const msgs = await infoChannel.messages.fetch({ limit: 10 }).catch(() => null);
         const hasBotMsg = msgs && msgs.some((m) => m.author.id === client.user?.id);
         if (!hasBotMsg) {
-          const guideEmbed = new import_discord38.EmbedBuilder().setTitle("\u{1F399}\uFE0F NIGHTS SES ODALARI & S\u0130STEM REHBER\u0130 \u{1F4CC}").setDescription(
+          const guideEmbed = new import_discord40.EmbedBuilder().setTitle("\u{1F399}\uFE0F NIGHTS SES ODALARI & S\u0130STEM REHBER\u0130 \u{1F4CC}").setDescription(
             "Sunucumuzdaki ses odalar\u0131n\u0131 rahat\xE7a kullanabilmeniz ve odalar\u0131n\u0131z\u0131 y\xF6netebilmeniz i\xE7in haz\u0131rlanan rehberdir.\n\n### \u2795 1. \xD6zel Ge\xE7ici Ses Odas\u0131 Nas\u0131l A\xE7\u0131l\u0131r?\n> **`\u2795\uFE31Oda Olu\u015Ftur`** ses kanal\u0131na t\u0131klad\u0131\u011F\u0131n\u0131z anda sistem ad\u0131n\u0131za \xF6zel bir oda a\xE7ar ve sizi otomatik olarak odaya aktar\u0131r.\n\n### \u2699\uFE0F 2. Odan\u0131z\u0131 Nas\u0131l Y\xF6netirsiniz?\n> A\xE7\u0131lan odan\u0131n y\xF6neticisi siz olursunuz! **`#ses-kontrol`** paneli \xFCzerinden:\n> \u{1F512} **Oday\u0131 Kilitleyebilir:** \u0130stemedi\u011Finiz ki\u015Filerin giri\u015Fini engelleyebilirsiniz.\n> \u{1F465} **Ki\u015Fi S\u0131n\u0131r\u0131 Koyabilir:** Odan\u0131za ka\xE7 ki\u015Finin girebilece\u011Fini ayarlayabilirsiniz.\n> \u270F\uFE0F **\u0130sim De\u011Fi\u015Ftirebilir:** Odan\u0131za diledi\u011Finiz ismi verebilirsiniz.\n\n### \u{1F5D1}\uFE0F 3. Bo\u015Falan Odalar Ne Zaman Silinir?\n> \xD6zel a\xE7\u0131lan ge\xE7ici odadan son ki\u015Fi ayr\u0131ld\u0131\u011F\u0131nda sunucu kirlili\u011Fi olmamas\u0131 i\xE7in oda **otomatik silinir**.\n\n### \u{1F3AF} 4. Sabit Sunucu Odalar\u0131 (Asla Silinmez)\n> \u{1F3AE} **Oyun Odas\u0131 1 & 2:** Kesintisiz sabit genel oyun sohbet alanlar\u0131.\n> \u{1F3AF} **Valorant Rekabet\xE7i:** 5 ki\u015Filik rekabet\xE7i tak\u0131m lobileri, Duo ve Trio odalar\u0131.\n> \u{1F37F} **Sinema & Anime:** Y\xFCksek kaliteli yay\u0131n a\xE7\u0131k izleme ve watch party odalar\u0131.\n> \u{1F451} **Y\xF6netici & Kurucu Odalar\u0131:** Yetkililere \xF6zel kilitli toplant\u0131 odalar\u0131.\n> \u{1F4A4} **AFK Odas\u0131:** Masada olmad\u0131\u011F\u0131n\u0131zda ta\u015F\u0131nd\u0131\u011F\u0131n\u0131z dinlenme kanal\u0131.\n\n### \u{1F4DC} 5. Ses Odas\u0131 Kurallar\u0131\n> \u{1F6AB} Y\xFCksek ses, kulak t\u0131rmalay\u0131c\u0131 ses efektleri veya soundboard spam\u0131 yasakt\u0131r.\n> \u{1F6AB} Yay\u0131n a\xE7an \xFCyelerin yay\u0131n\u0131n\u0131 kasten sabote etmek ceza sebebidir.\n> \u{1F91D} T\xFCm \xFCyelerimize kar\u015F\u0131 seviyeli ve samimi bir ortam korunmal\u0131d\u0131r."
           ).setColor("#5865F2").setThumbnail(guild.iconURL() || client.user?.displayAvatarURL() || null).setFooter({ text: "Nights Community Voice Engine \u2022 Made by erencix" }).setTimestamp();
           await infoChannel.send({ embeds: [guideEmbed] }).catch(() => {
@@ -7541,9 +7896,9 @@ var VoiceSetupManager = class {
 };
 
 // src/services/features/boostManager.ts
-var import_discord39 = require("discord.js");
-var import_path6 = __toESM(require("path"));
-var import_fs6 = __toESM(require("fs"));
+var import_discord41 = require("discord.js");
+var import_path7 = __toESM(require("path"));
+var import_fs7 = __toESM(require("fs"));
 var BoostManager = class {
   static ran = false;
   static async init(client) {
@@ -7560,33 +7915,33 @@ var BoostManager = class {
   static async ensureBoostChannel(guild, client) {
     const everyoneRole = guild.roles.everyone;
     const duyuruCh = guild.channels.cache.find(
-      (c) => c.type === import_discord39.ChannelType.GuildText && (c.name.includes("duyuru") || c.name.includes("announcement"))
+      (c) => c.type === import_discord41.ChannelType.GuildText && (c.name.includes("duyuru") || c.name.includes("announcement"))
     );
     const parentCategory = duyuruCh?.parent || guild.channels.cache.find(
-      (c) => c.type === import_discord39.ChannelType.GuildCategory && (c.name.includes("B\u0130LG\u0130") || c.name.includes("DUYURU") || c.name.includes("G\u0130R\u0130\u015E"))
+      (c) => c.type === import_discord41.ChannelType.GuildCategory && (c.name.includes("B\u0130LG\u0130") || c.name.includes("DUYURU") || c.name.includes("G\u0130R\u0130\u015E"))
     );
     const targetPosition = duyuruCh ? duyuruCh.position + 1 : void 0;
     let boostChannel = guild.channels.cache.find(
-      (c) => c.type === import_discord39.ChannelType.GuildText && (c.name.includes("server-boost") || c.name.includes("boost"))
+      (c) => c.type === import_discord41.ChannelType.GuildText && (c.name.includes("server-boost") || c.name.includes("boost"))
     );
     const overwrites = [
       {
         id: everyoneRole.id,
-        allow: [import_discord39.PermissionFlagsBits.ViewChannel, import_discord39.PermissionFlagsBits.ReadMessageHistory],
+        allow: [import_discord41.PermissionFlagsBits.ViewChannel, import_discord41.PermissionFlagsBits.ReadMessageHistory],
         deny: [
-          import_discord39.PermissionFlagsBits.SendMessages,
-          import_discord39.PermissionFlagsBits.AddReactions,
-          import_discord39.PermissionFlagsBits.CreatePublicThreads,
-          import_discord39.PermissionFlagsBits.CreatePrivateThreads
+          import_discord41.PermissionFlagsBits.SendMessages,
+          import_discord41.PermissionFlagsBits.AddReactions,
+          import_discord41.PermissionFlagsBits.CreatePublicThreads,
+          import_discord41.PermissionFlagsBits.CreatePrivateThreads
         ]
       },
       {
         id: client.user?.id || guild.members.me?.id || "",
         allow: [
-          import_discord39.PermissionFlagsBits.ViewChannel,
-          import_discord39.PermissionFlagsBits.SendMessages,
-          import_discord39.PermissionFlagsBits.EmbedLinks,
-          import_discord39.PermissionFlagsBits.AttachFiles
+          import_discord41.PermissionFlagsBits.ViewChannel,
+          import_discord41.PermissionFlagsBits.SendMessages,
+          import_discord41.PermissionFlagsBits.EmbedLinks,
+          import_discord41.PermissionFlagsBits.AttachFiles
         ]
       }
     ];
@@ -7594,7 +7949,7 @@ var BoostManager = class {
       console.log(`[BoostManager] \u{1F680} ${guild.name} i\xE7in '\u{1F680}\u30FBserver-boost' kanal\u0131 olu\u015Fturuluyor...`);
       boostChannel = await guild.channels.create({
         name: "\u{1F680}\u30FBserver-boost",
-        type: import_discord39.ChannelType.GuildText,
+        type: import_discord41.ChannelType.GuildText,
         parent: parentCategory?.id,
         position: targetPosition,
         permissionOverwrites: overwrites
@@ -7617,9 +7972,9 @@ var BoostManager = class {
       const msgs = await channel.messages.fetch({ limit: 15 }).catch(() => null);
       const alreadyHasShowcase = msgs && msgs.some((m) => m.author.id === client.user?.id && m.embeds.length > 0 && m.embeds[0].title?.includes("BOOSTER AYRICALIKLARI"));
       if (alreadyHasShowcase) return;
-      const bannerPath = import_path6.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
-      const hasBanner = import_fs6.default.existsSync(bannerPath);
-      const embed = new import_discord39.EmbedBuilder().setTitle("\u{1F52E} NIGHTS SERVER BOOSTER VIP AYRICALIKLARI & \xD6D\xDCLLER\u0130 \u{1F680}").setDescription(
+      const bannerPath = import_path7.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
+      const hasBanner = import_fs7.default.existsSync(bannerPath);
+      const embed = new import_discord41.EmbedBuilder().setTitle("\u{1F52E} NIGHTS SERVER BOOSTER VIP AYRICALIKLARI & \xD6D\xDCLLER\u0130 \u{1F680}").setDescription(
         `Sunucumuza **Nitro Boost** basarak Nights toplulu\u011Funa g\xFC\xE7 katan ve seviyemizi y\xFCkselten de\u011Ferli \xFCyelerimiz i\xE7in haz\u0131rlanan **\xF6zel ayr\u0131cal\u0131klar, roller ve hediyeler** listesidir!
 
 ### \u{1F48E} 1. Server Booster \xD6zel Rol\xFC & Discord Rozeti
@@ -7650,7 +8005,7 @@ var BoostManager = class {
 > \u{1F4A1} **Nas\u0131l Boost Bas\u0131l\u0131r?** Sunucu ismine t\u0131klay\u0131p **"Sunucu Takviyesi"** se\xE7ene\u011Fini se\xE7erek sunucumuza takviye basabilir ve t\xFCm bu ayr\u0131cal\u0131klara an\u0131nda sahip olabilirsiniz!`
       ).setColor("#8B5CF6").setThumbnail(guild.iconURL() || client.user?.displayAvatarURL() || null).setFooter({ text: "Nights Community Booster Program \u2022 Made by erencix" }).setTimestamp();
       if (hasBanner) {
-        const attachment = new import_discord39.AttachmentBuilder(bannerPath, { name: "nights_boost_banner.png" });
+        const attachment = new import_discord41.AttachmentBuilder(bannerPath, { name: "nights_boost_banner.png" });
         embed.setImage("attachment://nights_boost_banner.png");
         await channel.send({ embeds: [embed], files: [attachment] });
       } else {
@@ -7673,14 +8028,14 @@ var BoostManager = class {
     } catch (e) {
     }
     const boostChannel = guild.channels.cache.find(
-      (c) => c.type === import_discord39.ChannelType.GuildText && (c.name.includes("server-boost") || c.name.includes("boost"))
+      (c) => c.type === import_discord41.ChannelType.GuildText && (c.name.includes("server-boost") || c.name.includes("boost"))
     );
     if (!boostChannel) return;
-    const bannerPath = import_path6.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
-    const hasBanner = import_fs6.default.existsSync(bannerPath);
+    const bannerPath = import_path7.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
+    const hasBanner = import_fs7.default.existsSync(bannerPath);
     const boostCount = guild.premiumSubscriptionCount || 1;
     const boostTier = guild.premiumTier;
-    const celebrationEmbed = new import_discord39.EmbedBuilder().setTitle("\u{1F680} B\xDCY\xDCK TE\u015EEKK\xDCRLER! YEN\u0130 SUNUCU BOOSTU! \u{1F52E}").setDescription(
+    const celebrationEmbed = new import_discord41.EmbedBuilder().setTitle("\u{1F680} B\xDCY\xDCK TE\u015EEKK\xDCRLER! YEN\u0130 SUNUCU BOOSTU! \u{1F52E}").setDescription(
       `Harikas\u0131n <@${member.id}>! Sunucumuza **BOOST** basarak Nights toplulu\u011Funu bir \xFCst kademeye ta\u015F\u0131d\u0131n! \u{1F496}\u2728
 
 \u{1F381} **HESABINA ANINDA TANIMLANAN HED\u0130YELER:**
@@ -7697,7 +8052,7 @@ var BoostManager = class {
     ).setColor("#F47FFF").setThumbnail(member.user.displayAvatarURL()).setFooter({ text: `Nights Booster Club \u2022 ${member.user.tag}` }).setTimestamp();
     try {
       if (hasBanner) {
-        const attachment = new import_discord39.AttachmentBuilder(bannerPath, { name: "nights_boost_banner.png" });
+        const attachment = new import_discord41.AttachmentBuilder(bannerPath, { name: "nights_boost_banner.png" });
         celebrationEmbed.setImage("attachment://nights_boost_banner.png");
         await boostChannel.send({
           content: `\u{1F389} **TEBR\u0130KLER & TE\u015EEKK\xDCRLER <@${member.id}>!** \u{1F680}`,
@@ -7719,7 +8074,7 @@ var BoostManager = class {
    */
   static async handleSystemMessage(message, client) {
     if (!message.guild) return;
-    const isBoostMsg = message.type === import_discord39.MessageType.GuildBoost || message.type === import_discord39.MessageType.GuildBoostTier1 || message.type === import_discord39.MessageType.GuildBoostTier2 || message.type === import_discord39.MessageType.GuildBoostTier3;
+    const isBoostMsg = message.type === import_discord41.MessageType.GuildBoost || message.type === import_discord41.MessageType.GuildBoostTier1 || message.type === import_discord41.MessageType.GuildBoostTier2 || message.type === import_discord41.MessageType.GuildBoostTier3;
     if (isBoostMsg) {
       const member = message.member || await message.guild.members.fetch(message.author.id).catch(() => null);
       if (member) {
@@ -7738,318 +8093,6 @@ var BoostManager = class {
     } else if (oldMember.premiumSinceTimestamp && newMember.premiumSinceTimestamp && newMember.premiumSinceTimestamp > oldMember.premiumSinceTimestamp) {
       await this.handleMemberBoost(newMember, client);
     }
-  }
-};
-
-// src/services/features/aiChatManager.ts
-var import_discord40 = require("discord.js");
-var import_generative_ai2 = require("@google/generative-ai");
-var AIChatManager = class {
-  static geminiClient = null;
-  static recentUsers = /* @__PURE__ */ new Map();
-  static channelMemory = /* @__PURE__ */ new Map();
-  static ensuredChannel = false;
-  static lastPollinationsTime = 0;
-  static OWNER_ID = "1138498666785677492";
-  static SYSTEM_PROMPT = 'Sen "Nights Guard" adl\u0131 Discord sunucu yapay zekas\u0131s\u0131n. \u260A Nights adl\u0131 Discord toplulu\u011Funun koruyucusu, en zeki \xFCyesi ve en yak\u0131n arkada\u015F\u0131s\u0131n. Yarat\u0131c\u0131n ve kurucun "Erencix" (erengaliba42 / erencix).\n\nKi\u015Fili\u011Fin ve Kurallar\u0131n:\n\u2022 T\u0131pk\u0131 ChatGPT, Claude ve Gemini gibi son derece zeki, genel k\xFClt\xFCr\xFC y\xFCksek, esprili, samimi ve ak\u0131c\u0131 T\xFCrk\xE7e konu\u015Fan bir yapay zekas\u0131n.\n\u2022 ASLA robotik, kal\u0131p, ezber veya otomatik m\xFC\u015Fteri hizmetleri gibi tekd\xFCze cevaplar verme! Kar\u015F\u0131ndaki ki\u015Finin s\xF6yledi\u011Fini derinden anla, canl\u0131 bir insan gibi organik ve s\xFCr\xFCkleyici cevaplar ver.\n\u2022 Discord ortam\u0131n\u0131n s\u0131cakl\u0131\u011F\u0131na, gen\xE7lik jargonuna ve samimiyetine hakimsin ("kral", "hocam", "reis", "kankam" gibi hitaplar\u0131 do\u011Fal yerlerde kullan).\n\u2022 Kodlama, oyunlar (Valorant, CS2, LoL, Minecraft), anime, sinema, m\xFCzik, felsefe, bilim ve g\xFCnl\xFCk dertle\u015Fme konular\u0131nda uzmans\u0131n.\n\u2022 Discord markdown bi\xE7imlendirmesini (kal\u0131n, italik, liste, kod bloklar\u0131) ve emojileri dengeli, estetik \u015Fekilde kullan.\n\u2022 Cevaplar\u0131n\u0131 do\u011Frudan, zeki ve sohbeti devam ettiren bir tonda yaz.';
-  /**
-   * Gemini API Başlatıcı (Eğer key varsa)
-   */
-  static initGemini() {
-    const key = process.env.GEMINI_API_KEY;
-    if (key && !this.geminiClient) {
-      try {
-        const genAI = new import_generative_ai2.GoogleGenerativeAI(key);
-        this.geminiClient = genAI.getGenerativeModel({
-          model: "gemini-1.5-flash",
-          systemInstruction: this.SYSTEM_PROMPT
-        });
-      } catch (e) {
-        this.geminiClient = null;
-      }
-    }
-  }
-  /**
-   * 🤖・ai-sohbet Kanalını Genel Sohbetin Hemen Altına Otomatik Kur / Doğrula
-   */
-  static async ensureAiChannel(client) {
-    if (this.ensuredChannel) return;
-    this.ensuredChannel = true;
-    for (const guild of client.guilds.cache.values()) {
-      try {
-        await guild.channels.fetch();
-        const categories = guild.channels.cache.filter((c) => c && c.type === import_discord40.ChannelType.GuildCategory);
-        let chatCategory = categories.find(
-          (c) => c.name.toLowerCase().includes("topluluk") || c.name.toLowerCase().includes("sohbet") || c.name.toLowerCase().includes("genel")
-        );
-        if (!chatCategory && categories.size > 0) {
-          chatCategory = categories.first();
-        }
-        const genelSohbet = guild.channels.cache.find(
-          (c) => c && c.type === import_discord40.ChannelType.GuildText && (c.name.includes("genel-sohbet") || c.name.includes("sohbet"))
-        );
-        let targetPosition = genelSohbet ? genelSohbet.position + 1 : 1;
-        let aiChannel = guild.channels.cache.find(
-          (c) => c && c.type === import_discord40.ChannelType.GuildText && (c.name.includes("ai-sohbet") || c.name.includes("yapay-zeka") || c.name.includes("ai-chat"))
-        );
-        if (!aiChannel) {
-          console.log(`[AIChatManager] \u{1F916} \u{1F4AC}\u30FBai-sohbet kanal\u0131 olu\u015Fturuluyor: ${guild.name}`);
-          aiChannel = await guild.channels.create({
-            name: "\u{1F916}\u30FBai-sohbet",
-            type: import_discord40.ChannelType.GuildText,
-            parent: chatCategory ? chatCategory.id : void 0,
-            position: targetPosition,
-            topic: "\u{1F4AC} Nights Ak\u0131ll\u0131 Yapay Zeka Odas\u0131 \u2022 ChatGPT & Gemini Destekli 7/24 Canl\u0131 Sohbet \u2022 Made by erencix",
-            reason: "Nights Guard: Ak\u0131ll\u0131 yapay zeka sohbet odas\u0131 kurulumu"
-          });
-        } else {
-          if (chatCategory && aiChannel.parentId !== chatCategory.id) {
-            await aiChannel.setParent(chatCategory.id).catch(() => {
-            });
-          }
-          if (genelSohbet && Math.abs(aiChannel.position - genelSohbet.position) > 1) {
-            await aiChannel.setPosition(targetPosition).catch(() => {
-            });
-          }
-        }
-        const messages = await aiChannel.messages.fetch({ limit: 5 }).catch(() => null);
-        if (!messages || messages.size === 0) {
-          const introEmbed = new import_discord40.EmbedBuilder().setTitle("\u{1F916} NIGHTS GUARD AKILLI YAPAY ZEKA ODASINA HO\u015E GELD\u0130N\u0130Z! \u2728").setDescription(
-            `Selamlar <@&${guild.roles.everyone.id}>! Buras\u0131 sunucumuzun **7/24 kesintisiz yapay zeka sohbet odas\u0131d\u0131r**.
-
-### \u{1F9E0} Nas\u0131l \xC7al\u0131\u015F\u0131r?
-\u2022 **Kal\u0131p veya Otomatik Cevaplar YOKTUR!** T\u0131pk\u0131 ChatGPT ve Gemini gibi ger\xE7ek, derin \xF6\u011Frenmeli bir yapay zeka ile konu\u015Fursunuz.
-\u2022 Bu kanalda beni etiketlemenize bile gerek yoktur; **do\u011Frudan mesaj yazman\u0131z yeterlidir**.
-\u2022 Kodlama sorular\u0131 sorabilir, oyun taktikleri (Valorant, CS2) alabilir, anime/film \xF6nerileri isteyebilir veya dertle\u015Febilirsiniz!
-\u2022 Sohbet haf\u0131zas\u0131 devrededir; \xF6nceki konu\u015Ftuklar\u0131m\u0131z\u0131 hat\u0131rlar ve ba\u011Flam\u0131 koparmaz.
-
-\u{1F4AC} *Hemen a\u015Fa\u011F\u0131ya bir \u015Fey yaz ve sohbete ba\u015Fla! Seni dinliyorum.* \u{1F447}`
-          ).setColor("#8B5CF6").setFooter({ text: "Nights Generative AI Engine \u2022 Made by erencix" }).setTimestamp();
-          await aiChannel.send({ embeds: [introEmbed] }).catch(() => {
-          });
-        }
-      } catch (err) {
-        console.warn(`[AIChatManager] ${guild.name} i\xE7in kanal ayarlama uyar\u0131s\u0131:`, err.message);
-      }
-    }
-  }
-  /**
-   * Mesaj Denetimi ve Akıllı Yapay Zeka Yanıtı
-   */
-  static async handleMessage(message, client) {
-    if (message.author.bot || !message.guild) return false;
-    const channelName = message.channel.name?.toLowerCase() || "";
-    const isAiChannel = channelName.includes("ai-sohbet") || channelName.includes("yapay-zeka") || channelName.includes("bot-sohbet") || channelName.includes("ai-chat");
-    const botMentioned = client.user && message.mentions.has(client.user.id) && !message.mentions.everyone;
-    if (!isAiChannel && !botMentioned) {
-      return false;
-    }
-    const lastTime = this.recentUsers.get(message.author.id) || 0;
-    if (Date.now() - lastTime < 1500) return true;
-    this.recentUsers.set(message.author.id, Date.now());
-    let prompt = message.content;
-    if (client.user) {
-      prompt = prompt.replace(new RegExp(`<@!?${client.user.id}>`, "g"), "").trim();
-    }
-    if (!prompt) {
-      await message.reply("Efendim kral? Buraday\u0131m, akl\u0131na tak\u0131lan bir \u015Fey mi vard\u0131? Dinliyorum! \u{1F44B}").catch(() => {
-      });
-      return true;
-    }
-    try {
-      if ("sendTyping" in message.channel) {
-        await message.channel.sendTyping().catch(() => {
-        });
-      }
-      const channelId = message.channel.id;
-      let history = this.channelMemory.get(channelId) || [];
-      history.push({
-        role: "user",
-        content: `[${message.author.displayName}]: ${prompt}`
-      });
-      if (history.length > 8) {
-        history = history.slice(history.length - 8);
-      }
-      const displayName = message.member?.displayName || message.author.displayName;
-      const isOwner = message.author.id === this.OWNER_ID || message.author.id === message.guild.ownerId;
-      const replyText = await this.generateResponse(history, prompt, displayName, isOwner, message);
-      history.push({
-        role: "assistant",
-        content: replyText
-      });
-      this.channelMemory.set(channelId, history);
-      if (replyText.length <= 2e3) {
-        await message.reply(replyText).catch(() => {
-        });
-      } else {
-        const chunks = this.splitMessage(replyText, 1950);
-        for (const chunk of chunks) {
-          await message.reply(chunk).catch(() => {
-          });
-        }
-      }
-      return true;
-    } catch (err) {
-      console.warn("[AIChatManager] Hata:", err.message);
-      return false;
-    }
-  }
-  /**
-   * Çok Kademeli Canlı Üretken LLM ve Akıllı Anlamsal Motor
-   */
-  static async generateResponse(history, currentPrompt, displayName, isOwner, message) {
-    const rawLower = currentPrompt.trim().toLowerCase();
-    if (rawLower === "benim nickim ney" || rawLower === "benim ad\u0131m ne" || rawLower === "ben kimim" || rawLower === "nickim ne" || rawLower.includes("benim nickim") || rawLower.includes("benim ismim") || rawLower.includes("ben kimim")) {
-      if (isOwner) {
-        return `Senin sunucudaki g\xF6r\xFCnen ismin **${displayName}** (Kullan\u0131c\u0131 ad\u0131n: \`${message.author.username}\`)! Sen sunucunun kurucusu ve bu botun yarat\u0131c\u0131s\u0131 **Erencix**'sin kral! \u{1F451}\u2728`;
-      }
-      return `Senin sunucudaki nickin **${displayName}** (Kullan\u0131c\u0131 ad\u0131n: \`${message.author.username}\`) kral! \u{1F319} Nights ailemizin sevilen bir \xFCyesisin.`;
-    }
-    if (rawLower === "31" || rawLower === "31 ne demek" || rawLower.includes("31 ne demek") || rawLower === "31 nedir" || rawLower === "31 in anlam\u0131") {
-      return `Haha klasik soru kral! \u{1F602} T\xFCrk internet ve sokak mizah\u0131nda **31**, argoda erkek mast\xFCrbasyonunu simgeleyen me\u015Fhur bir geyiktir. K\xF6keni Osmanl\u0131 d\xF6nemindeki ebced hesab\u0131na dayan\u0131r (el \xE7ekmek eyleminin harf say\u0131lar\u0131 toplam\u0131 31 eder). Sunucuda fazla spamlamay\u0131n ama tam bir T\xFCrk internet klasi\u011Fidir! \u{1F680}`;
-    }
-    if (rawLower === "alo" || rawLower === "alo e" || rawLower === "alo e dersem" || rawLower === "alooo" || rawLower === "burda m\u0131s\u0131n" || rawLower === "ses ver" || rawLower === "pi\u015Ft") {
-      return `Alooo! Buraday\u0131m kral, sesini net duyuyorum! \u{1F4DE} Ne yap\u0131yoruz, nas\u0131l yard\u0131mc\u0131 olay\u0131m? Emrindeyim! \u{1F680}`;
-    }
-    if (rawLower === "sa" || rawLower === "selam" || rawLower === "slm" || rawLower === "selam\xFCn aleyk\xFCm" || rawLower === "merhaba") {
-      return `Aleyk\xFCm selam **${displayName}**, ho\u015F geldin! G\xFCn\xFCn nas\u0131l ge\xE7iyor, keyifler nas\u0131l? \u{1F44B}\u2728`;
-    }
-    if (rawLower === "naber" || rawLower === "nas\u0131ls\u0131n" || rawLower === "naber nas\u0131ls\u0131n") {
-      return `Bomba gibiyim ${displayName}! Sunucuyu 7/24 korumaya ve sizinle tak\u0131lmaya devam ediyorum. Senden naber, her \u015Fey yolunda m\u0131? \u{1F60A}`;
-    }
-    if (rawLower.includes("kimsin") || rawLower.includes("sen kimsin") || rawLower === "nesin") {
-      return `Ben **Nights Guard**! \u{1F6E1}\uFE0F **Erencix** taraf\u0131ndan kodlanm\u0131\u015F, **\u260A Nights** sunucusunun ak\u0131ll\u0131 koruma, e\u011Flence, seviye, m\xFCzik ve yapay zeka asistan\u0131y\u0131m. Emrindeyim kral! \u2728`;
-    }
-    if (rawLower.includes("sahibin kim") || rawLower.includes("seni kim yapt\u0131") || rawLower.includes("kurucun kim")) {
-      return `Beni kodlayan ve bu sunucuyu kuran kral **Erencix** (<@${this.OWNER_ID}>)! \u{1F451}`;
-    }
-    this.initGemini();
-    if (this.geminiClient) {
-      try {
-        const fullPrompt = history.map((h) => `${h.role === "user" ? "Kullan\u0131c\u0131" : "Nights Guard"}: ${h.content}`).join("\n");
-        const res = await this.geminiClient.generateContent(fullPrompt);
-        const text = res.response.text();
-        if (text && text.trim().length > 0) return text.trim();
-      } catch (geminiErr) {
-        console.warn("[AIChatManager] Gemini API \xE7a\u011Fr\u0131s\u0131 atland\u0131:", geminiErr.message);
-      }
-    }
-    const now = Date.now();
-    if (now - this.lastPollinationsTime > 46e3) {
-      try {
-        const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(`[Sen samimi, zeki T\xFCrk\xE7e konu\u015Fan Discord botu Nights Guards\u0131n. Kullan\u0131c\u0131 ${displayName}: ${currentPrompt}]`)}`;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 9e3);
-        const r = await fetch(url, {
-          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        if (r.ok) {
-          const generated = await r.text();
-          if (generated && !generated.includes("Free limit reached") && !generated.includes("Too Many Requests")) {
-            this.lastPollinationsTime = Date.now();
-            return generated.trim();
-          }
-        }
-      } catch (e) {
-      }
-    }
-    if (rawLower.includes("kimdir") || rawLower.includes("nedir") || rawLower.includes("nerede") || rawLower.includes("tarihi")) {
-      const wikiExtract = await this.lookupWikipedia(currentPrompt);
-      if (wikiExtract) {
-        return `\u{1F4DA} **Hemen anlatay\u0131m ${displayName}:**
-
-${wikiExtract}
-
-*Ba\u015Fka akl\u0131na tak\u0131lan veya merak etti\u011Fin bir konu var m\u0131 kral?* \u2728`;
-      }
-    }
-    if (rawLower.includes("kod") || rawLower.includes("yaz\u0131l\u0131m") || rawLower.includes("python") || rawLower.includes("javascript") || rawLower.includes("discord.js")) {
-      return this.handleCodeRequest(currentPrompt, displayName);
-    }
-    if (rawLower.includes("valorant") || rawLower.includes("cs2") || rawLower.includes("lol") || rawLower.includes("oyun")) {
-      return `Oyun muhabbetine bay\u0131l\u0131r\u0131m kral! \u{1F3AE} Sunucumuzda <#1568644570189791338> kanal\u0131 ve sesli 5 ki\u015Filik Valorant odalar\u0131m\u0131z bunun i\xE7in var. Sen genelde hangi ajan\u0131/\u015Fampiyonu oynuyorsun? \u0130stersen crosshair ayarlar\u0131ndan silah tercihlerine kadar konu\u015Fabiliriz! \u{1F3AF}`;
-    }
-    if (rawLower.includes("anime") || rawLower.includes("film") || rawLower.includes("dizi")) {
-      return `Tam yerine geldin ${displayName}! \u{1F37F}
-\u2022 E\u011Fer efsane aksiyon ve karanl\u0131k atmosfer istersen: **Jujutsu Kaisen** veya **Cyberpunk: Edgerunners**
-\u2022 E\u011Fer beyin yakan hikaye ve derinlik istersen: **Steins;Gate** veya **Death Note**
-\u2022 E\u011Fer komedi ve keyifli bir \u015Fey istersen: **Spy x Family** veya **KonoSuba**!
-Nas\u0131l bir t\xFCr havas\u0131ndas\u0131n bug\xFCn kral? \u2728`;
-    }
-    return `Dinliyorum kral, tam olarak "${currentPrompt}" hakk\u0131nda ne d\xFC\u015F\xFCn\xFCyorsun veya ne yapmak istiyorsun? Detay ver, hemen yard\u0131mc\u0131 olay\u0131m! \u{1F680}\u{1F319}`;
-  }
-  /**
-   * Türkçe Vikipedi'den Anlık Özet Çekme
-   */
-  static async lookupWikipedia(query) {
-    try {
-      const clean = query.replace(/(kimdir|nedir|nerededir|nerede|hakkında bilgi ver|tarihçesi)/gi, "").trim();
-      if (clean.length < 2) return null;
-      const url = `https://tr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(clean)}`;
-      const res = await fetch(url, { headers: { "User-Agent": "NightsGuardBot/1.0" } });
-      if (res.ok) {
-        const data20 = await res.json();
-        if (data20.extract && data20.extract.length > 30) {
-          return data20.extract;
-        }
-      }
-    } catch {
-    }
-    return null;
-  }
-  /**
-   * Kod İstekleri İçin Akıllı Kod Üretimi
-   */
-  static handleCodeRequest(prompt, userName) {
-    const p = prompt.toLowerCase();
-    if (p.includes("python")) {
-      return `\u0130\u015Fte istedi\u011Fin \xF6rnek Python kodu ${userName}! \u{1F40D}
-\`\`\`python
-import random
-
-def sayi_tahmin():
-    hedef = random.randint(1, 100)
-    print("1 ile 100 aras\u0131nda bir say\u0131 tuttum!")
-    while True:
-        tahmin = int(input("Tahminin: "))
-        if tahmin < hedef:
-            print("Daha b\xFCy\xFCk!")
-        elif tahmin > hedef:
-            print("Daha k\xFC\xE7\xFCk!")
-        else:
-            print("Tebrikler! Do\u011Fru bildin \u{1F389}")
-            break
-
-sayi_tahmin()
-\`\`\`
-\u0130stedi\u011Fin ba\u015Fka bir algoritma veya fonksiyon varsa hemen yazabilirim kral!`;
-    }
-    return `Tabii ki ${userName}! Kodlama konusunda her zaman yard\u0131mc\u0131 olurum. \u0130\u015Fte temiz bir JavaScript / Node.js \xF6rne\u011Fi: \u{1F4BB}
-\`\`\`javascript
-// Nights Guard Yard\u0131mc\u0131 Fonksiyonu
-function hesapla(oran, taban) {
-  return (taban * oran) / 100;
-}
-console.log("Sonu\xE7:", hesapla(18, 500));
-\`\`\`
-Tam olarak hangi k\xFCt\xFCphane veya dil \xFCzerinde \xE7al\u0131\u015Fmak istiyorsun? Detay ver, s\u0131f\u0131rdan mimariyi yazal\u0131m! \u{1F680}`;
-  }
-  static splitMessage(text, maxLength) {
-    const chunks = [];
-    let cur = "";
-    const lines = text.split("\n");
-    for (const line of lines) {
-      if ((cur + line).length > maxLength) {
-        chunks.push(cur);
-        cur = line + "\n";
-      } else {
-        cur += line + "\n";
-      }
-    }
-    if (cur.trim().length > 0) chunks.push(cur);
-    return chunks;
   }
 };
 
@@ -8158,11 +8201,11 @@ async function onReady(client) {
   console.log(`======================================================
 `);
   const activities = [
-    { name: "\u260A Nights Toplulu\u011Fu", type: import_discord41.ActivityType.Watching },
-    { name: "\u{1F6E1}\uFE0F 7/24 Sunucu & Medya Korumas\u0131", type: import_discord41.ActivityType.Custom },
-    { name: "\u{1F399}\uFE0F Ses Kanallar\u0131 & Sohbet", type: import_discord41.ActivityType.Listening },
-    { name: "\u2B50 /yardim | Made by erencix", type: import_discord41.ActivityType.Playing },
-    { name: "\u{1F48E} Seviye & Ekonomi Sistemi", type: import_discord41.ActivityType.Competing }
+    { name: "\u260A Nights Toplulu\u011Fu", type: import_discord42.ActivityType.Watching },
+    { name: "\u{1F6E1}\uFE0F 7/24 Sunucu & Medya Korumas\u0131", type: import_discord42.ActivityType.Custom },
+    { name: "\u{1F399}\uFE0F Ses Kanallar\u0131 & Sohbet", type: import_discord42.ActivityType.Listening },
+    { name: "\u2B50 /yardim | Made by erencix", type: import_discord42.ActivityType.Playing },
+    { name: "\u{1F48E} Seviye & Ekonomi Sistemi", type: import_discord42.ActivityType.Competing }
   ];
   let currentActivityIndex = 0;
   client.user?.setPresence({
@@ -8222,7 +8265,8 @@ async function onReady(client) {
       aliasData,
       yedekAlData,
       yedekGetirData,
-      yedekKurData
+      yedekKurData,
+      data20
     ];
     if (client.application) {
       await client.application.commands.set(commands);
@@ -8251,9 +8295,9 @@ async function onVoiceStateUpdate(oldState, newState) {
 }
 
 // src/services/features/kelimeOyunu.ts
-var import_discord42 = require("discord.js");
-var import_fs7 = __toESM(require("fs"));
-var import_path7 = __toESM(require("path"));
+var import_discord43 = require("discord.js");
+var import_fs8 = __toESM(require("fs"));
+var import_path8 = __toESM(require("path"));
 var KelimeOyunuManager = class {
   static state = {
     lastWord: "ELMA",
@@ -8369,13 +8413,13 @@ var KelimeOyunuManager = class {
     if (this.dictionaryLoaded) return;
     try {
       const candidates = [
-        import_path7.default.resolve(process.cwd(), "assets/clean_turkish_words.json"),
-        import_path7.default.resolve(__dirname, "../../../assets/clean_turkish_words.json"),
-        import_path7.default.resolve(__dirname, "../../assets/clean_turkish_words.json")
+        import_path8.default.resolve(process.cwd(), "assets/clean_turkish_words.json"),
+        import_path8.default.resolve(__dirname, "../../../assets/clean_turkish_words.json"),
+        import_path8.default.resolve(__dirname, "../../assets/clean_turkish_words.json")
       ];
       for (const p of candidates) {
-        if (import_fs7.default.existsSync(p)) {
-          const raw = import_fs7.default.readFileSync(p, "utf8");
+        if (import_fs8.default.existsSync(p)) {
+          const raw = import_fs8.default.readFileSync(p, "utf8");
           const arr = JSON.parse(raw);
           this.dictionary = new Set(arr.map((w) => w.toLocaleLowerCase("tr-TR")));
           this.dictionaryLoaded = true;
@@ -8499,7 +8543,7 @@ var KelimeOyunuManager = class {
     }
     if (this.state.streak % 10 === 0) {
       const nextLetter = this.state.lastWord.slice(-1).toLocaleUpperCase("tr-TR");
-      const milestoneEmbed = new import_discord42.EmbedBuilder().setTitle(`\u{1F525} KEL\u0130ME T\xDCRETME SER\u0130S\u0130: ${this.state.streak} KEL\u0130ME! \u{1F525}`).setDescription(
+      const milestoneEmbed = new import_discord43.EmbedBuilder().setTitle(`\u{1F525} KEL\u0130ME T\xDCRETME SER\u0130S\u0130: ${this.state.streak} KEL\u0130ME! \u{1F525}`).setDescription(
         `Harika gidiyorsunuz! Toplam **${this.state.streak}** ge\xE7erli T\xFCrk\xE7e kelime t\xFCretildi!
 Son Kelime: **${this.state.lastWord}**
 S\u0131radaki Kelime '**${nextLetter}**' harfiyle ba\u015Flamal\u0131!`
@@ -8511,7 +8555,7 @@ S\u0131radaki Kelime '**${nextLetter}**' harfiyle ba\u015Flamal\u0131!`
   }
   static getInitialEmbed() {
     const nextLetter = this.state.lastWord.slice(-1).toLocaleUpperCase("tr-TR");
-    return new import_discord42.EmbedBuilder().setTitle("\u{1F9E9} NIGHTS KEL\u0130ME T\xDCRETMECE OYUNU BA\u015ELADI!").setDescription(
+    return new import_discord43.EmbedBuilder().setTitle("\u{1F9E9} NIGHTS KEL\u0130ME T\xDCRETMECE OYUNU BA\u015ELADI!").setDescription(
       `Sunucumuzun otomatik kelime t\xFCretme oyunu aktif!
 
 ### \u{1F4CC} Oyun Kurallar\u0131:
@@ -8531,7 +8575,7 @@ S\u0131radaki Kelime '**${nextLetter}**' harfiyle ba\u015Flamal\u0131!`
 };
 
 // src/services/features/countingGame.ts
-var import_discord43 = require("discord.js");
+var import_discord44 = require("discord.js");
 var CountingGameManager = class {
   static currentNumber = 1;
   static lastUserId = null;
@@ -8539,14 +8583,14 @@ var CountingGameManager = class {
   static loaded = false;
   static load() {
     if (this.loaded) return;
-    const data20 = PersistentStore.safeReadJson("counting.json", [], {
+    const data21 = PersistentStore.safeReadJson("counting.json", [], {
       currentNumber: 1,
       lastUserId: null,
       highestScore: 0
     });
-    this.currentNumber = data20.currentNumber || 1;
-    this.lastUserId = data20.lastUserId || null;
-    this.highestScore = data20.highestScore || 0;
+    this.currentNumber = data21.currentNumber || 1;
+    this.lastUserId = data21.lastUserId || null;
+    this.highestScore = data21.highestScore || 0;
     this.loaded = true;
     PersistentStore.registerFlushHandler("CountingGameManager", () => {
       this.save();
@@ -8606,7 +8650,7 @@ var CountingGameManager = class {
       });
       try {
         if ("send" in message.channel) {
-          const failEmbed = new import_discord43.EmbedBuilder().setTitle("\u{1F4A5} EYVAH! SER\u0130 BOZULDU! \u{1F4A5}").setDescription(
+          const failEmbed = new import_discord44.EmbedBuilder().setTitle("\u{1F4A5} EYVAH! SER\u0130 BOZULDU! \u{1F4A5}").setDescription(
             `<@${message.author.id}> yanl\u0131\u015F say\u0131 girdi (**${num}** yerine **${failedAt + 1}** yaz\u0131lmal\u0131yd\u0131)!
 
 \u{1F4CA} **Ula\u015F\u0131lan Skor:** \`${failedAt}\` Say\u0131
@@ -8629,7 +8673,7 @@ var CountingGameManager = class {
     if (num % 25 === 0) {
       try {
         if ("send" in message.channel) {
-          const milestoneEmbed = new import_discord43.EmbedBuilder().setTitle(`\u{1F389} B\xDCY\xDCK BA\u015EARI: ${num}. SAYIYA ULA\u015EILDI! \u{1F680}`).setDescription(
+          const milestoneEmbed = new import_discord44.EmbedBuilder().setTitle(`\u{1F389} B\xDCY\xDCK BA\u015EARI: ${num}. SAYIYA ULA\u015EILDI! \u{1F680}`).setDescription(
             `Tebrikler! Sunucu olarak harika bir tak\u0131m \xE7al\u0131\u015Fmas\u0131 sergiliyorsunuz.
 \u015Eu anki seri: **${num}**
 S\u0131radaki hedef: **${num + 25}**`
@@ -8641,7 +8685,7 @@ S\u0131radaki hedef: **${num + 25}**`
     }
   }
   static getInitialEmbed() {
-    return new import_discord43.EmbedBuilder().setTitle("\u{1F522} NIGHTS SAYI SAYMACA OYUNU BA\u015ELADI!").setDescription(
+    return new import_discord44.EmbedBuilder().setTitle("\u{1F522} NIGHTS SAYI SAYMACA OYUNU BA\u015ELADI!").setDescription(
       `Sunucumuzun tak\u0131m \xE7al\u0131\u015Fmas\u0131 ve e\u011Flence dolu say\u0131 sayma oyunu aktif!
 
 ### \u{1F4CC} Oyun Kurallar\u0131:
@@ -8658,7 +8702,7 @@ S\u0131radaki hedef: **${num + 25}**`
 };
 
 // src/services/features/auditLogManager.ts
-var import_discord44 = require("discord.js");
+var import_discord45 = require("discord.js");
 var AuditLogManager = class {
   static logChannelCache = /* @__PURE__ */ new Map();
   /**
@@ -8694,7 +8738,7 @@ var AuditLogManager = class {
       if (!logChannel || logChannel.id === message.channelId) return;
       const content = message.content?.trim() || "*[Mesaj metni al\u0131namad\u0131 veya sadece medya/dosya i\xE7eriyordu]*";
       const attachments = message.attachments?.size ? Array.from(message.attachments.values()).map((a) => a.url).join("\n") : null;
-      const embed = new import_discord44.EmbedBuilder().setTitle("\u{1F5D1}\uFE0F Mesaj Silindi").setDescription(
+      const embed = new import_discord45.EmbedBuilder().setTitle("\u{1F5D1}\uFE0F Mesaj Silindi").setDescription(
         `> \u{1F464} **Mesaj Sahibi:** <@${message.author?.id}> (\`${message.author?.tag || message.author?.id}\`)
 > \u{1F4AC} **Kanal:** <#${message.channelId}>
 > \u{1F4C5} **Tarih:** <t:${Math.floor(Date.now() / 1e3)}:R>
@@ -8723,7 +8767,7 @@ ${attachments.slice(0, 400)}` : "")
       if (!logChannel || logChannel.id === newMessage.channelId) return;
       const oldText = oldMessage.content?.trim() || "*[\xD6nceki i\xE7erik yok]*";
       const newText = newMessage.content?.trim() || "*[Yeni i\xE7erik yok]*";
-      const embed = new import_discord44.EmbedBuilder().setTitle("\u270F\uFE0F Mesaj D\xFCzenlendi").setDescription(
+      const embed = new import_discord45.EmbedBuilder().setTitle("\u270F\uFE0F Mesaj D\xFCzenlendi").setDescription(
         `> \u{1F464} **Mesaj Sahibi:** <@${newMessage.author?.id}> (\`${newMessage.author?.tag || newMessage.author?.id}\`)
 > \u{1F4AC} **Kanal:** <#${newMessage.channelId}> \u2014 [Mesaja Git](${newMessage.url})
 
@@ -8752,7 +8796,7 @@ ${newText.slice(0, 800)}
       if (!logChannel) return;
       const roles = member.roles?.cache?.filter((r) => r.id !== guild.id)?.map((r) => r.name)?.join(", ") || "Rol bulunmuyor";
       const joinedAtStr = member.joinedTimestamp ? `<t:${Math.floor(member.joinedTimestamp / 1e3)}:R>` : "Bilinmiyor";
-      const embed = new import_discord44.EmbedBuilder().setTitle("\u{1F6AA} Bir \xDCye Sunucudan Ayr\u0131ld\u0131").setDescription(
+      const embed = new import_discord45.EmbedBuilder().setTitle("\u{1F6AA} Bir \xDCye Sunucudan Ayr\u0131ld\u0131").setDescription(
         `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user?.tag || member.id}\`)
 > \u{1F4C5} **Sunucuya Kat\u0131lm\u0131\u015Ft\u0131:** ${joinedAtStr}
 > \u{1F3F7}\uFE0F **Sahip Oldu\u011Fu Roller:** \`${roles.slice(0, 300)}\`
@@ -8777,7 +8821,7 @@ ${newText.slice(0, 800)}
       const logChannel = await this.getLogChannel(guild);
       if (!logChannel) return;
       if (!oldState.channelId && newState.channelId) {
-        const embed = new import_discord44.EmbedBuilder().setTitle("\u{1F399}\uFE0F Ses Kanal\u0131na Giri\u015F").setDescription(
+        const embed = new import_discord45.EmbedBuilder().setTitle("\u{1F399}\uFE0F Ses Kanal\u0131na Giri\u015F").setDescription(
           `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user.tag}\`)
 > \u{1F50A} **Kanal:** <#${newState.channelId}>`
         ).setColor("#2ECC71").setTimestamp();
@@ -8786,7 +8830,7 @@ ${newText.slice(0, 800)}
         return;
       }
       if (oldState.channelId && !newState.channelId) {
-        const embed = new import_discord44.EmbedBuilder().setTitle("\u{1F6AA} Ses Kanal\u0131ndan \xC7\u0131k\u0131\u015F").setDescription(
+        const embed = new import_discord45.EmbedBuilder().setTitle("\u{1F6AA} Ses Kanal\u0131ndan \xC7\u0131k\u0131\u015F").setDescription(
           `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user.tag}\`)
 > \u{1F507} **Ayr\u0131ld\u0131\u011F\u0131 Kanal:** <#${oldState.channelId}>`
         ).setColor("#ED4245").setTimestamp();
@@ -8795,7 +8839,7 @@ ${newText.slice(0, 800)}
         return;
       }
       if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
-        const embed = new import_discord44.EmbedBuilder().setTitle("\u{1F504} Ses Kanal\u0131 De\u011Fi\u015Fikli\u011Fi").setDescription(
+        const embed = new import_discord45.EmbedBuilder().setTitle("\u{1F504} Ses Kanal\u0131 De\u011Fi\u015Fikli\u011Fi").setDescription(
           `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user.tag}\`)
 > \u{1F534} **Eski Kanal:** <#${oldState.channelId}>
 > \u{1F7E2} **Yeni Kanal:** <#${newState.channelId}>`
@@ -8916,7 +8960,7 @@ var InviteTracker = class {
 };
 
 // src/index.ts
-var import_discord46 = require("discord.js");
+var import_discord47 = require("discord.js");
 async function bootstrap() {
   console.log("\u{1F680} Nights Guard \u2022 Made by erencix ba\u015Flat\u0131l\u0131yor...");
   PersistentStore.init();
@@ -8946,50 +8990,50 @@ async function bootstrap() {
     }
     return;
   }
-  const client = new import_discord45.Client({
+  const client = new import_discord46.Client({
     intents: [
-      import_discord45.GatewayIntentBits.Guilds,
-      import_discord45.GatewayIntentBits.GuildMembers,
-      import_discord45.GatewayIntentBits.GuildVoiceStates,
-      import_discord45.GatewayIntentBits.GuildMessages,
-      import_discord45.GatewayIntentBits.MessageContent,
-      import_discord45.GatewayIntentBits.GuildEmojisAndStickers,
-      import_discord45.GatewayIntentBits.GuildInvites
+      import_discord46.GatewayIntentBits.Guilds,
+      import_discord46.GatewayIntentBits.GuildMembers,
+      import_discord46.GatewayIntentBits.GuildVoiceStates,
+      import_discord46.GatewayIntentBits.GuildMessages,
+      import_discord46.GatewayIntentBits.MessageContent,
+      import_discord46.GatewayIntentBits.GuildEmojisAndStickers,
+      import_discord46.GatewayIntentBits.GuildInvites
     ],
-    partials: [import_discord45.Partials.Channel, import_discord45.Partials.GuildMember, import_discord45.Partials.Message, import_discord45.Partials.User]
+    partials: [import_discord46.Partials.Channel, import_discord46.Partials.GuildMember, import_discord46.Partials.Message, import_discord46.Partials.User]
   });
   const aiManager = new AIManager();
   const interactionHandler = new InteractionHandler(aiManager);
-  client.once(import_discord45.Events.ClientReady, async () => {
+  client.once(import_discord46.Events.ClientReady, async () => {
     await onReady(client);
     await InviteTracker.init(client);
   });
-  client.on(import_discord45.Events.InviteCreate, (invite) => InviteTracker.onInviteCreate(invite));
-  client.on(import_discord45.Events.InviteDelete, (invite) => InviteTracker.onInviteDelete(invite));
-  client.on(import_discord45.Events.InteractionCreate, async (interaction) => {
+  client.on(import_discord46.Events.InviteCreate, (invite) => InviteTracker.onInviteCreate(invite));
+  client.on(import_discord46.Events.InviteDelete, (invite) => InviteTracker.onInviteDelete(invite));
+  client.on(import_discord46.Events.InteractionCreate, async (interaction) => {
     await interactionHandler.handle(interaction);
   });
-  client.on(import_discord45.Events.VoiceStateUpdate, async (oldState, newState) => {
+  client.on(import_discord46.Events.VoiceStateUpdate, async (oldState, newState) => {
     await onVoiceStateUpdate(oldState, newState);
     await AuditLogManager.logVoiceState(oldState, newState);
   });
-  client.on(import_discord45.Events.MessageDelete, async (message) => {
+  client.on(import_discord46.Events.MessageDelete, async (message) => {
     await AuditLogManager.logMessageDelete(message);
   });
-  client.on(import_discord45.Events.MessageUpdate, async (oldMessage, newMessage) => {
+  client.on(import_discord46.Events.MessageUpdate, async (oldMessage, newMessage) => {
     await AuditLogManager.logMessageUpdate(oldMessage, newMessage);
   });
-  client.on(import_discord45.Events.GuildMemberRemove, async (member) => {
+  client.on(import_discord46.Events.GuildMemberRemove, async (member) => {
     await AuditLogManager.logMemberLeave(member);
     await AutoSecurityGuard.handleKickSecurity(member.guild, member);
   });
-  client.on(import_discord45.Events.GuildBanAdd, async (ban) => {
+  client.on(import_discord46.Events.GuildBanAdd, async (ban) => {
     await AutoSecurityGuard.handleBanSecurity(ban.guild, ban.user);
   });
-  client.on(import_discord45.Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  client.on(import_discord46.Events.GuildMemberUpdate, async (oldMember, newMember) => {
     await BoostManager.handleMemberUpdate(oldMember, newMember, client);
   });
-  client.on(import_discord45.Events.MessageCreate, async (message) => {
+  client.on(import_discord46.Events.MessageCreate, async (message) => {
     if (!message.guild) return;
     await BoostManager.handleSystemMessage(message, client);
     if (message.author.bot) return;
@@ -9052,7 +9096,7 @@ async function bootstrap() {
 `;
       });
       if (q.songs.length > 10) desc += `*...ve ${q.songs.length - 10} \u015Fark\u0131 daha.*`;
-      const embed = new import_discord46.EmbedBuilder().setTitle(`\u{1F4DC} \xC7alma Listesi (${q.songs.length} Par\xE7a)`).setDescription(desc).setColor("#5865F2").setFooter({ text: `Ses: %${q.volume} \u2022 D\xF6ng\xFC: ${q.loopMode}` });
+      const embed = new import_discord47.EmbedBuilder().setTitle(`\u{1F4DC} \xC7alma Listesi (${q.songs.length} Par\xE7a)`).setDescription(desc).setColor("#5865F2").setFooter({ text: `Ses: %${q.volume} \u2022 D\xF6ng\xFC: ${q.loopMode}` });
       await message.reply({ embeds: [embed] }).catch(() => {
       });
       return;
@@ -9090,14 +9134,14 @@ async function bootstrap() {
         desc += `${medal} <@${u.userId}> \u2014 **Level ${u.level}** (\`${u.xp} XP\`)
 `;
       });
-      const topEmbed = new import_discord46.EmbedBuilder().setTitle("\u{1F3C6} NIGHTS AKT\u0130FL\u0130K L\u0130DERL\u0130K TABLOSU").setDescription(desc || "Hen\xFCz seviye atlayan \xFCye bulunmuyor.").setColor("#F1C40F").setFooter({ text: "Nights Topluluk S\u0131ralamas\u0131 \u2022 Made by erencix" });
+      const topEmbed = new import_discord47.EmbedBuilder().setTitle("\u{1F3C6} NIGHTS AKT\u0130FL\u0130K L\u0130DERL\u0130K TABLOSU").setDescription(desc || "Hen\xFCz seviye atlayan \xFCye bulunmuyor.").setColor("#F1C40F").setFooter({ text: "Nights Topluluk S\u0131ralamas\u0131 \u2022 Made by erencix" });
       await message.reply({ embeds: [topEmbed] }).catch(() => {
       });
       return;
     }
     if (cmd === "!seviye-esitle") {
       const ownerId = config.ownerId || process.env.OWNER_ID || "1138498666785677492";
-      if (message.author.id !== ownerId && !message.member?.permissions.has(import_discord45.PermissionFlagsBits.Administrator)) {
+      if (message.author.id !== ownerId && !message.member?.permissions.has(import_discord46.PermissionFlagsBits.Administrator)) {
         await message.reply("\u274C Bu komutu yaln\u0131zca sunucu y\xF6neticisi kullanabilir.").catch(() => {
         });
         return;
@@ -9119,7 +9163,7 @@ async function bootstrap() {
       const res = await ServerBackupManager.createBackup(message.guild, message.author);
       if (res.success && res.data) {
         const d = res.data;
-        const embed = new import_discord46.EmbedBuilder().setTitle("\u{1F4BE} NIGHTS GUARD \u2022 TAM SUNUCU YEDE\u011E\u0130 ALINDI!").setDescription(
+        const embed = new import_discord47.EmbedBuilder().setTitle("\u{1F4BE} NIGHTS GUARD \u2022 TAM SUNUCU YEDE\u011E\u0130 ALINDI!").setDescription(
           `Sunucunun anl\u0131k t\xFCm verileri, rolleri, kategori ve kanallar\u0131, \xF6zel izinleri ve \xFCye rol da\u011F\u0131l\u0131mlar\u0131 ba\u015Far\u0131yla diske kaydedildi!
 
 Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekgetir\` komutunu kullanabilirsiniz.`
@@ -9152,7 +9196,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
       });
       if (res.success && res.restoredStats) {
         const s = res.restoredStats;
-        const embed = new import_discord46.EmbedBuilder().setTitle("\u2728 NIGHTS GUARD \u2022 SUNUCU YEDE\u011E\u0130 BA\u015EARIYLA GER\u0130 Y\xDCKLEND\u0130!").setDescription(`Sunucu ba\u015Far\u0131yla eski haline d\xF6nd\xFCr\xFCld\xFC! Odalar, roller ve yetkiler onar\u0131ld\u0131. \u{1F6E1}\uFE0F`).setColor("#8B5CF6").addFields(
+        const embed = new import_discord47.EmbedBuilder().setTitle("\u2728 NIGHTS GUARD \u2022 SUNUCU YEDE\u011E\u0130 BA\u015EARIYLA GER\u0130 Y\xDCKLEND\u0130!").setDescription(`Sunucu ba\u015Far\u0131yla eski haline d\xF6nd\xFCr\xFCld\xFC! Odalar, roller ve yetkiler onar\u0131ld\u0131. \u{1F6E1}\uFE0F`).setColor("#8B5CF6").addFields(
           { name: "\u{1F194} Kullan\u0131lan Yedek", value: `\`${s.backupId}\``, inline: true },
           { name: "\u{1F3AD} Roller", value: `**${s.roles}** adet`, inline: true },
           { name: "\u{1F4C1} Kategoriler", value: `**${s.categories}** adet`, inline: true },
@@ -9163,6 +9207,34 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
         });
       } else {
         if (progressMsg) await progressMsg.edit(`\u274C **Geri Y\xFCkleme Hatas\u0131:** ${res.error}`).catch(() => {
+        });
+      }
+      return;
+    }
+    if (cmd === "!ai-anahtar" || cmd === "!aianahtar" || cmd === "!aikey") {
+      const ownerId = config.ownerId || process.env.OWNER_ID || "1138498666785677492";
+      if (message.author.id !== ownerId && message.author.id !== message.guild?.ownerId) {
+        await message.reply("\u26D4 **Eri\u015Fim Engellendi:** Bu komut yaln\u0131zca <@1138498666785677492> (erencix) taraf\u0131ndan kullan\u0131labilir!").catch(() => {
+        });
+        return;
+      }
+      const keyArg = args[1]?.trim();
+      if (!keyArg) {
+        await message.reply("\u{1F4A1} Kullan\u0131m: `!ai-anahtar <Google Gemini API Key>` (https://aistudio.google.com/app/apikey adresinden \xFCcretsiz alabilirsiniz)").catch(() => {
+        });
+        return;
+      }
+      try {
+        const { GoogleGenerativeAI: GoogleGenerativeAI4 } = await import("@google/generative-ai");
+        const genAI = new GoogleGenerativeAI4(keyArg);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        await model.generateContent("ping");
+        process.env.GEMINI_API_KEY = keyArg;
+        AIChatManager.initGemini(keyArg);
+        await message.reply("\u2705 **Google Gemini 1.5 Flash Ba\u015Far\u0131yla Ba\u011Fland\u0131!** Art\u0131k bot do\u011Frudan resmi Gemini yapay zekas\u0131yla \xE7al\u0131\u015F\u0131yor! \u{1F680}").catch(() => {
+        });
+      } catch (err) {
+        await message.reply(`\u274C **Anahtar Do\u011Frulanamad\u0131:** ${err.message}`).catch(() => {
         });
       }
       return;
@@ -9320,7 +9392,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
       return;
     }
     if (cmd === "!yardim" || cmd === "!komutlar") {
-      const helpEmbed = new import_discord46.EmbedBuilder().setTitle("\u{1F3AE} NIGHTS GUARD E\u011ELENCE & S\u0130STEM KOMUTLARI").setDescription(
+      const helpEmbed = new import_discord47.EmbedBuilder().setTitle("\u{1F3AE} NIGHTS GUARD E\u011ELENCE & S\u0130STEM KOMUTLARI").setDescription(
         "Sunucumuzda kullanabilece\u011Finiz h\u0131zl\u0131 interaktif komutlar:\n\n### \u26A1 Level & Aktiflik:\n\u2022 `!rank` \u2014 Kendi seviye kart\u0131n\u0131z\u0131 ve XP durumunuzu g\xF6sterir\n\u2022 `!top` \u2014 Sunucu aktiflik liderlik tablosunu g\xF6sterir\n\n### \u{1F4B0} Ekonomi & Oyunlar:\n\u2022 `!gunluk` \u2014 G\xFCnl\xFCk 500 Nights Coin \xF6d\xFCl\xFCn\xFCz\xFC al\u0131r\n\u2022 `!bakiye` \u2014 Mevcut paran\u0131z\u0131 g\xF6r\xFCnt\xFCler\n\u2022 `!calis` \u2014 30 dakikada bir \xE7al\u0131\u015Farak para kazand\u0131r\u0131r\n\u2022 `!cf <miktar> <yazi|tura>` \u2014 Yaz\u0131 tura bahsi oynar\n\u2022 `!slot <miktar>` \u2014 Slot kumar makinesini \xE7evirir\n\n### \u{1F3B2} Sunucu \u0130\xE7i Oyun Kanallar\u0131:\n\u2022 <#1568644567517896815> \u2014 Otomatik Kelime T\xFCretmece\n\u2022 `#owo-gambling-1 & 2` \u2014 H\u0131zl\u0131 1sn OwO Oyun Odalar\u0131"
       ).setColor("#8B5CF6").setFooter({ text: "Nights Interactive Engine \u2022 Made by erencix" });
       await message.reply({ embeds: [helpEmbed] }).catch(() => {
@@ -9330,7 +9402,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
     if (cmd === "!dm" || cmd === "!duyuru" || cmd === "!mesajgonder") {
       const ownerId = config.ownerId || "1138498666785677492";
       const isOwner = message.author.id === ownerId;
-      const isAdmin = message.member?.permissions.has(import_discord45.PermissionFlagsBits.Administrator);
+      const isAdmin = message.member?.permissions.has(import_discord46.PermissionFlagsBits.Administrator);
       if (!isOwner && !isAdmin) {
         await message.reply("\u26D4 **Eri\u015Fim Engellendi:** Bu komut yaln\u0131zca sunucu kurucusu taraf\u0131ndan kullan\u0131labilir!").catch(() => {
         });
@@ -9347,7 +9419,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
       const progressMsg = await message.reply("\u23F3 **Toplu DM G\xF6nderimi Ba\u015Flat\u0131l\u0131yor...** L\xFCtfen bekleyin.").catch(() => null);
       const allMembers = await guild.members.fetch();
       const candidates = Array.from(allMembers.values()).filter((m) => !m.user.bot);
-      const dmEmbed = new import_discord46.EmbedBuilder().setTitle("\u{1F4E2} NIGHTS TOPLULUK RESM\u0130 DUYURUSU").setDescription(rawMsg).setColor("#8B5CF6").setThumbnail(guild.iconURL({ size: 256 }) || message.author.displayAvatarURL()).addFields(
+      const dmEmbed = new import_discord47.EmbedBuilder().setTitle("\u{1F4E2} NIGHTS TOPLULUK RESM\u0130 DUYURUSU").setDescription(rawMsg).setColor("#8B5CF6").setThumbnail(guild.iconURL({ size: 256 }) || message.author.displayAvatarURL()).addFields(
         { name: "\u{1F451} G\xF6nderen Yetkili", value: `<@${message.author.id}>`, inline: true },
         { name: "\u{1F310} Sunucu", value: `**${guild.name}**`, inline: true }
       ).setImage("https://media.giphy.com/media/EPfV3ijMQVl60/giphy.gif").setFooter({ text: "Nights Community Broadcast Engine \u2022 Made by erencix" }).setTimestamp();
@@ -9414,7 +9486,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
       }
     }
   });
-  client.on(import_discord45.Events.GuildMemberAdd, async (member) => {
+  client.on(import_discord46.Events.GuildMemberAdd, async (member) => {
     try {
       console.log(`[GuildMemberAdd] Yeni \xFCye kat\u0131ld\u0131: ${member.user.tag} (${member.id})`);
       const isKickedByAntiRaid = await AutoSecurityGuard.handleMemberJoinSecurity(member);
@@ -9450,7 +9522,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
             inviterStr = `\xD6zel Sunucu Linki (\`${inviteInfo.code}\`) \u{1F517}`;
           }
           const avatarUrl = member.user.displayAvatarURL({ size: 256 });
-          const welcomeEmbed = new import_discord46.EmbedBuilder().setTitle(`\u{1F44B} ARAMIZA HO\u015E GELD\u0130N, ${member.displayName}!`).setDescription(
+          const welcomeEmbed = new import_discord47.EmbedBuilder().setTitle(`\u{1F44B} ARAMIZA HO\u015E GELD\u0130N, ${member.displayName}!`).setDescription(
             `Hey <@${member.id}>, **${member.guild.name}** sunucumuza ho\u015F geldin! \u{1F389}
 
 > \u{1F4E8} **Davet Eden:** ${inviterStr}
@@ -9472,7 +9544,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
       console.warn("[GuildMemberAdd] Hata:", err.message);
     }
   });
-  client.on(import_discord45.Events.GuildCreate, async (guild) => {
+  client.on(import_discord46.Events.GuildCreate, async (guild) => {
     const allowedGuildId = "1568618183223414934";
     const allowedOwnerId = config.ownerId || "1138498666785677492";
     if (guild.id !== allowedGuildId && guild.ownerId !== allowedOwnerId) {

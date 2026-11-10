@@ -46,6 +46,7 @@ import * as gonderCmd from '../commands/gonder';
 import * as itirafCmd from '../commands/itiraf';
 import * as muzikCmd from '../commands/muzik';
 import * as yedekCmd from '../commands/yedek';
+import * as aiAnahtarCmd from '../commands/aiAnahtar';
 import { SocialManager } from '../services/features/socialManager';
 import { ConfessionManager } from '../services/features/confessionManager';
 import { MusicPlayer } from '../services/features/musicPlayer';
@@ -232,6 +233,11 @@ export class InteractionHandler {
       case 'yedek-kur':
       case 'yedekkur':
         await yedekCmd.executeYedekGetir(interaction);
+        break;
+      case 'ai-anahtar':
+      case 'aianahtar':
+      case 'ai-key':
+        await aiAnahtarCmd.execute(interaction);
         break;
       default:
         await interaction.reply({ content: 'Bilinmeyen komut.', flags: MessageFlags.Ephemeral });

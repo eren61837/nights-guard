@@ -20,6 +20,7 @@ import * as gonderCmd from '../commands/gonder';
 import * as itirafCmd from '../commands/itiraf';
 import * as muzikCmd from '../commands/muzik';
 import * as yedekCmd from '../commands/yedek';
+import * as aiAnahtarCmd from '../commands/aiAnahtar';
 import { rankData, topData, seviyeAyarlaData } from '../commands/seviye';
 import { LevelManager } from '../services/features/levelManager';
 import { VoiceLobbyManager } from '../services/features/voiceLobbyManager';
@@ -127,6 +128,9 @@ export async function onReady(client: Client): Promise<void> {
       yedekCmd.yedekAlData,
       yedekCmd.yedekGetirData,
       yedekCmd.yedekKurData,
+
+      // Yapay Zeka Anahtarı Bağlama
+      aiAnahtarCmd.data,
     ];
 
     if (client.application) {
