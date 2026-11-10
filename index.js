@@ -4492,113 +4492,172 @@ var import_discord30 = require("discord.js");
 
 // src/services/features/autoSecurityGuard.ts
 var import_discord29 = require("discord.js");
+var import_path3 = __toESM(require("path"));
+var import_fs3 = __toESM(require("fs"));
 var AutoSecurityGuard = class {
   // Reklam & Davet regexleri
-  static inviteRegex = /(discord\.(gg|io|me|li)\/.+|discordapp\.com\/invite\/.+|discord\.com\/invite\/.+|t\.me\/.+|whatsapp\.com\/chat\/.+)/i;
+  static inviteRegex = /(discord\.(gg|io|me|li)\/.+|discordapp\.com\/invite\/.+|discord\.com\/invite\/.+|t\.me\/.+|whatsapp\.com\/chat\/.+|chat\.whatsapp\.com\/.+)/i;
   // Sahte Nitro, Phishing ve Dolandırıcılık linkleri
-  static phishingRegex = /(steamcommunit[y|i]|steam-gift|free-nitro|discrod-nitro|discord-gift|dlscord|nitro-gift|airdrop.*crypto|gift-nitro|claim-nitro)/i;
+  static phishingRegex = /(steamcommunit[y|i]|steam-gift|free-nitro|discrod-nitro|discord-gift|dlscord|nitro-gift|airdrop.*crypto|gift-nitro|claim-nitro|giftcard|roblox-gift)/i;
+  // Genel URL regexi
+  static generalUrlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/i;
   // Kullanıcı spam takip tablosu
   static spamTracker = /* @__PURE__ */ new Map();
+  // Raid Takip Sistemi (Anti-Raid Shield)
+  static recentJoins = [];
+  static isRaidActive = false;
+  static raidEndTime = 0;
   /**
-   * Sadece Ailevi (Anne, Bacı, Sülale) ve Şahsa Yönelik Ağır Hakaretleri Engelleyen Filtre
-   * "amk", "siktir", "lan", "aq", "sg", "siktim" gibi genel sohbet argo/ünlemleri SERBESTTİR.
+   * Kapsamlı ve Akıllı Türkçe Küfür / Hakaret Filtresi
+   * Harf uzatmaları, araya nokta/boşluk koyma ve leetspeak varyasyonlarını yakalar.
+   * Masum kelimeler (tamam, selam, kapıcı, ekran vb.) filtreden zarar görmez.
    */
   static isProfane(rawContent) {
     if (!rawContent) return false;
     const lower = rawContent.toLowerCase();
-    const normalized = lower.replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c").replace(/0/g, "o").replace(/1/g, "i").replace(/3/g, "e").replace(/4/g, "a").replace(/@/g, "a").replace(/\$/g, "s").replace(/!/g, "i");
+    const normalized = lower.replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c").replace(/0/g, "o").replace(/1/g, "i").replace(/3/g, "e").replace(/4/g, "a").replace(/@/g, "a").replace(/\$/g, "s").replace(/!/g, "i").replace(/vv/g, "w").replace(/v/g, "u");
     const collapsed = normalized.replace(/[^a-z]/g, "").replace(/(.)\1{2,}/g, "$1$1");
     const fullyCollapsed = normalized.replace(/[^a-z]/g, "").replace(/(.)\1+/g, "$1");
-    if (/(anani|anana|ananin|anneni|annenin|anaskm|anacini)/i.test(normalized) || /(anani|anana|ananin|anneni|annenin|anaskm|anacini)/i.test(collapsed)) {
-      if (/(sik|am[iı]|sok|koy|avrat|baci|orospu|orosbu|kayayim|skm)/i.test(normalized) || /(sik|ami|sok|koy|avrat|baci|orospu|orosbu|kayayim|skm)/i.test(collapsed)) {
-        return true;
-      }
-    }
-    const severeTargetedRoots = [
-      "orospu cocug",
-      "orospu cocuk",
-      "orospu evlad",
-      "orosbu cocug",
-      "orosbu cocuk",
-      "orosbu evlad",
-      "kahpe evlad",
-      "kahbe evlad",
-      "pic kurusu",
+    const severeRoots = [
+      "orospucocug",
+      "orospucocuk",
+      "orospuevlad",
+      "orosbucocug",
+      "orosbuevlad",
+      "kahpeevlad",
+      "kahbeevlad",
+      "pickurusu",
       "bacinisi",
-      "bacini sik",
-      "bacina sok",
+      "bacinisik",
+      "bacinasok",
       "sulalenisi",
-      "sulaleni sik",
-      "sulalene koy",
-      "sulalene sok",
+      "sulalenisik",
+      "sulalenekoy",
       "ecdadini",
-      "ceddini sik",
-      "allahini sik",
-      "dinini sik",
-      "kitabini sik",
-      "seni sikerim",
-      "seni sikeyim",
-      "senin anani",
-      "senin bacini",
-      "senin sulaleni",
+      "ceddinisik",
+      "allahinisik",
+      "dininisik",
+      "kitabinisik",
+      "senisikerim",
+      "senisikeyim",
+      "seninanani",
+      "seninbacini",
+      "seninsulaleni",
       "gotveren",
-      "gotlek"
+      "gotlek",
+      "pezevenk",
+      "gavat",
+      "kavat",
+      "dassak",
+      "tasak",
+      "amcik",
+      "amcigi",
+      "yarrrak",
+      "yarrak",
+      "yarak",
+      "yarragina",
+      "siktir",
+      "siktirgit",
+      "sikeyim",
+      "siktim",
+      "sikik",
+      "siksok",
+      "aminakoy",
+      "amkoy",
+      "amkoyim",
+      "sikis",
+      "sakso",
+      "escort",
+      "eskort",
+      "fahise",
+      "jigolo",
+      "masturbasyon",
+      "porno",
+      "yavsak",
+      "kahpe",
+      "kahbe",
+      "kasar"
     ];
-    for (const root of severeTargetedRoots) {
-      const rootNorm = root.replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c");
-      const rootCollapsed = rootNorm.replace(/\s+/g, "");
-      if (normalized.includes(rootNorm) || collapsed.includes(rootCollapsed) || fullyCollapsed.includes(rootCollapsed)) {
+    for (const root of severeRoots) {
+      if (collapsed.includes(root) || fullyCollapsed.includes(root) || normalized.includes(root)) {
         return true;
       }
     }
-    const words = normalized.replace(/[^a-z0-9]/g, " ").split(/\s+/).filter(Boolean);
-    for (const w of words) {
-      const dedup = w.replace(/(.)\1+/g, "$1");
-      if (w === "oc" || dedup === "oc" || w === "o\xE7" || dedup === "o\xE7") return true;
+    const boundedWordRegexes = [
+      /(?:^|\s|[^a-z0-9])amk(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])aq(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])amq(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])sg(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])skm(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])sik(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])pic(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])pust(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])ibne(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])orospu(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])orosbu(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])dildo(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])vajina(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])penis(?:$|\s|[^a-z0-9])/i,
+      /(?:^|\s|[^a-z0-9])o[\.\,\_\*\-\s]*c(?:$|\s|[^a-z0-9])/i
+    ];
+    for (const rx of boundedWordRegexes) {
+      if (rx.test(normalized)) {
+        return true;
+      }
     }
-    if (/(?:^|\s|[^a-z0-9])o[\.\,\_\*\-\s]*c(?:$|\s|[^a-z0-9])/i.test(normalized)) {
-      return true;
+    if (/(anani|anana|ananin|anneni|annenin|anaskm|anacini|bacini|sulaleni)/i.test(normalized) || /(anani|anana|ananin|anneni|annenin|anaskm|anacini|bacini|sulaleni)/i.test(collapsed)) {
+      if (/(sik|am[i]|sok|koy|avrat|baci|orospu|orosbu|kayayim|skm)/i.test(normalized) || /(sik|ami|sok|koy|avrat|baci|orospu|orosbu|kayayim|skm)/i.test(collapsed)) {
+        return true;
+      }
     }
     return false;
   }
+  /**
+   * Mesaj Denetimi: Küfür, Spam, Link, Capslock, Medya İhlali
+   */
   static async inspect(message) {
     if (message.author.bot || !message.guild) return false;
     if (!message.content && message.attachments.size === 0) return false;
     const isStaff = Boolean(
       message.member?.permissions.has(import_discord29.PermissionFlagsBits.Administrator) || message.member?.permissions.has(import_discord29.PermissionFlagsBits.ManageMessages) || message.member?.permissions.has(import_discord29.PermissionFlagsBits.ModerateMembers) || message.guild.ownerId === message.author.id
     );
+    const isBooster = Boolean(message.member?.premiumSince);
     const content = message.content ? message.content.trim() : "";
     const chName = message.channel.name || "";
     const chId = message.channel.id;
-    const isMediaChannel = chName.includes("foto-medya") || chId === "1568644564590268641";
+    const isMediaChannel = chName.includes("foto-medya") || chName.includes("medya") || chId === "1568644564590268641";
     const isTicketChannel = chName.startsWith("bilet-") || chName.startsWith("ticket-");
+    const isGameChannel = chName.includes("owo") || chName.includes("oyun") || chName.includes("kelime") || chName.includes("sayi") || chName.includes("bot-komut") || chName.includes("kumar");
+    const isGameCommand = /^(owo|w\b|wb|wbj|wh|s\b|c\b|cf|slot|!|\.|\/)/i.test(content.trim());
     const hasAttachments = message.attachments.size > 0;
-    const hasImageLink = /(https?:\/\/[^\s]+(?:\.png|\.jpg|\.jpeg|\.webp|\.gif|\.bmp|\.svg)|cdn\.discordapp\.com\/attachments|media\.discordapp\.net\/attachments)/i.test(content);
-    if (!isMediaChannel && !isTicketChannel && (hasAttachments || hasImageLink)) {
-      if (!isStaff) {
-        try {
-          await message.delete();
-        } catch (e) {
-        }
-        try {
-          if ("send" in message.channel) {
-            const warn = await message.channel.send({
-              content: `\u{1F4F8} **${message.author.displayName}**, sunucumuzda foto\u011Fraf ve g\xF6rsel payla\u015F\u0131mlar\u0131 yaln\u0131zca <#1568644564590268641> kanal\u0131nda serbesttir!`
-            });
-            setTimeout(() => warn.delete().catch(() => {
-            }), 5e3);
-          }
-        } catch (e) {
-        }
-        return true;
+    const hasImageLink = /(https?:\/\/[^\s]+(?:\.png|\.jpg|\.jpeg|\.webp|\.gif|\.bmp|\.svg)|cdn\.discordapp\.com\/attachments|media\.discordapp\.net\/attachments)/i.test(
+      content
+    );
+    if (!isMediaChannel && !isTicketChannel && !isStaff && !isBooster && (hasAttachments || hasImageLink)) {
+      try {
+        await message.delete();
+      } catch (e) {
       }
+      try {
+        if ("send" in message.channel) {
+          const warn = await message.channel.send({
+            content: `\u{1F4F8} **${message.author.displayName}**, sunucumuzda g\xF6rsel ve medya payla\u015F\u0131mlar\u0131 yaln\u0131zca medya kanallar\u0131nda veya Booster/Yetkili \xFCyelerimize a\xE7\u0131kt\u0131r!`
+          });
+          setTimeout(() => warn.delete().catch(() => {
+          }), 4500);
+        }
+      } catch (e) {
+      }
+      return true;
     }
     const userId = message.author.id;
     let reason = "";
     let shouldTimeout = false;
+    let timeoutSeconds = 60;
     if (this.isProfane(content)) {
       reason = "K\xFCf\xFCr / Hakaret \u0130\xE7eri\u011Fi";
       shouldTimeout = !isStaff;
+      timeoutSeconds = 120;
     }
     if (!reason && isStaff) {
       return false;
@@ -4606,41 +4665,55 @@ var AutoSecurityGuard = class {
     if (!reason && this.phishingRegex.test(content)) {
       reason = "Zararl\u0131 Ba\u011Flant\u0131 / Sahte Nitro & Phishing";
       shouldTimeout = true;
+      timeoutSeconds = 600;
     } else if (!reason && this.inviteRegex.test(content)) {
       reason = "\u0130zinsiz Reklam / Discord Davet Linki";
-    } else if (!reason && message.mentions.users.size + message.mentions.roles.size > 3) {
-      reason = "A\u015F\u0131r\u0131 Etiket (Mass Mention) Korumas\u0131";
       shouldTimeout = true;
-    } else if (!reason && content.length > 15) {
+      timeoutSeconds = 300;
+    } else if (!reason && !isMediaChannel && !isTicketChannel && !isBooster && this.generalUrlRegex.test(content)) {
+      reason = "\u0130zinsiz Harici Ba\u011Flant\u0131 (Link) Payla\u015F\u0131m\u0131";
+      shouldTimeout = false;
+    } else if (!reason && message.mentions.users.size + message.mentions.roles.size > 3) {
+      reason = "A\u015F\u0131r\u0131 Etiketleme (Mass Mention)";
+      shouldTimeout = true;
+      timeoutSeconds = 300;
+    } else if (!reason && !isGameChannel) {
+      const emojiCount = (content.match(/<a?:[a-zA-Z0-9_]+:[0-9]+>|[\u{1F300}-\u{1F9FF}]/gu) || []).length;
+      if (emojiCount >= 8) {
+        reason = "A\u015F\u0131r\u0131 Emoji Kullan\u0131m\u0131 (Emoji Spam)";
+        shouldTimeout = false;
+      }
+    }
+    if (!reason && content.length > 12) {
       const letters = content.replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ]/g, "");
-      if (letters.length > 10) {
+      if (letters.length >= 10) {
         const uppercaseCount = letters.replace(/[^A-ZÇĞİÖŞÜ]/g, "").length;
-        if (uppercaseCount / letters.length > 0.85) {
+        if (uppercaseCount / letters.length >= 0.75) {
           reason = "A\u015F\u0131r\u0131 B\xFCy\xFCk Harf (Caps Lock) Kullan\u0131m\u0131";
         }
       }
     }
-    const isGameChannel = chName.includes("owo") || chName.includes("oyun") || chName.includes("kelime") || chName.includes("bot-komut") || chName.includes("kumar");
-    const isGameCommand = /^(owo|w\b|wb|wbj|wh|s\b|c\b|cf|slot|!|\.|\/)/i.test(content.trim());
     if (!reason && !isGameChannel && !isGameCommand) {
       const now = Date.now();
       const userData = this.spamTracker.get(userId) || { timestamps: [], lastMessages: [] };
       userData.timestamps = userData.timestamps.filter((t) => now - t < 3e3);
       userData.timestamps.push(now);
       userData.lastMessages.push(content.toLowerCase());
-      if (userData.lastMessages.length > 10) userData.lastMessages.shift();
+      if (userData.lastMessages.length > 8) userData.lastMessages.shift();
       const sameCount = userData.lastMessages.filter((m) => m === content.toLowerCase()).length;
-      if (userData.timestamps.length >= 8) {
-        reason = "A\u015F\u0131r\u0131 H\u0131zl\u0131 Mesaj Sald\u0131r\u0131s\u0131 (Spam Raid)";
+      if (userData.timestamps.length >= 6) {
+        reason = "A\u015F\u0131r\u0131 H\u0131zl\u0131 Mesaj G\xF6nderimi (Spam Sald\u0131r\u0131s\u0131)";
         shouldTimeout = true;
-      } else if (sameCount >= 8) {
-        reason = "A\u015F\u0131r\u0131 Mesaj Tekrarlama (Flood Raid)";
-        shouldTimeout = true;
-      } else if (userData.timestamps.length >= 5) {
-        reason = "H\u0131zl\u0131 Mesaj G\xF6nderimi";
-        shouldTimeout = false;
+        timeoutSeconds = 180;
       } else if (sameCount >= 4) {
-        reason = "Mesaj Tekrar\u0131";
+        reason = "Mesaj Tekrarlama (Flood Sald\u0131r\u0131s\u0131)";
+        shouldTimeout = true;
+        timeoutSeconds = 120;
+      } else if (userData.timestamps.length >= 4) {
+        reason = "H\u0131zl\u0131 Mesaj G\xF6nderimi (Spam)";
+        shouldTimeout = false;
+      } else if (sameCount >= 3) {
+        reason = "Mesaj Tekrar\u0131 (Flood)";
         shouldTimeout = false;
       }
       this.spamTracker.set(userId, userData);
@@ -4652,7 +4725,7 @@ var AutoSecurityGuard = class {
       }
       if (shouldTimeout && !isStaff && message.member) {
         try {
-          await message.member.timeout(60 * 1e3, `Nights Guard: ${reason}`);
+          await message.member.timeout(timeoutSeconds * 1e3, `Nights Guard G\xFCvenlik: ${reason}`);
         } catch (e) {
         }
       }
@@ -4662,14 +4735,14 @@ var AutoSecurityGuard = class {
             const warn = await message.channel.send({
               content: `\u26A0\uFE0F **${message.author.displayName}** \`[YETK\u0130L\u0130 TEST UYARISI]\`
 Mesaj\u0131n\u0131zda **${reason}** tespit edildi!
-> \u{1F6E1}\uFE0F *Yetkili oldu\u011Funuz i\xE7in timeout/ceza uygulanmad\u0131. Test ama\xE7l\u0131 koruma uyar\u0131s\u0131d\u0131r.*`
+> \u{1F6E1}\uFE0F *Yetkili oldu\u011Funuz i\xE7in ceza uygulanmad\u0131.*`
             });
             setTimeout(() => warn.delete().catch(() => {
-            }), 6e3);
+            }), 5e3);
           } else {
-            const timeoutText = shouldTimeout ? " (1 Dakika Susturuldunuz)" : "";
+            const timeoutStr = shouldTimeout ? ` (${Math.ceil(timeoutSeconds / 60)} Dakika Susturuldunuz)` : "";
             const warn = await message.channel.send({
-              content: `\u{1F6E1}\uFE0F **${message.author.displayName}**, sunucumuzda **${reason}** engellendi!${timeoutText}`
+              content: `\u{1F6E1}\uFE0F **${message.author.displayName}**, sunucumuzda **${reason}** engellendi!${timeoutStr}`
             });
             setTimeout(() => warn.delete().catch(() => {
             }), 4500);
@@ -4682,7 +4755,7 @@ Mesaj\u0131n\u0131zda **${reason}** tespit edildi!
           (c) => c.name.includes("mod-log") && c.isTextBased()
         );
         if (logChannel) {
-          const logEmbed = new import_discord29.EmbedBuilder().setTitle(isStaff ? "\u{1F9EA} [Yetkili Testi] G\xFCvenlik Filtresi Tetiklendi" : "\u{1F6A8} Nights Guard: G\xFCvenlik \u0130hlali Engellendi").setColor(isStaff ? "#F1C40F" : shouldTimeout ? "#992D22" : "#ED4245").addFields(
+          const logEmbed = new import_discord29.EmbedBuilder().setTitle(isStaff ? "\u{1F9EA} [Yetkili Testi] G\xFCvenlik Filtresi" : "\u{1F6A8} Nights Guard: G\xFCvenlik \u0130hlali Engellendi").setColor(isStaff ? "#F1C40F" : shouldTimeout ? "#992D22" : "#ED4245").addFields(
             {
               name: "\u{1F464} Kullan\u0131c\u0131",
               value: `<@${message.author.id}> (\`${message.author.tag}\`) ${isStaff ? "\u2B50 **(Yetkili / Muaf)**" : ""}`,
@@ -4692,11 +4765,11 @@ Mesaj\u0131n\u0131zda **${reason}** tespit edildi!
             { name: "\u{1F6D1} Sebep", value: `**${reason}**`, inline: true },
             {
               name: "\u2696\uFE0F Al\u0131nan Tedbir",
-              value: isStaff ? "\u26A0\uFE0F **Mesaj Silindi & Deneme Uyar\u0131s\u0131 Verildi** (Yetkili: Ceza Yok)" : shouldTimeout ? "\u{1F6D1} **Mesaj Silindi + 1 Dk Timeout**" : "\u{1F5D1}\uFE0F **Mesaj Silindi & Uyar\u0131ld\u0131**",
+              value: isStaff ? "\u26A0\uFE0F **Mesaj Silindi & Deneme Uyar\u0131s\u0131 Verildi**" : shouldTimeout ? `\u{1F6D1} **Mesaj Silindi + ${Math.ceil(timeoutSeconds / 60)} Dk Timeout**` : "\u{1F5D1}\uFE0F **Mesaj Silindi & Uyar\u0131ld\u0131**",
               inline: true
             },
             { name: "\u{1F4AC} Mesaj \u0130\xE7eri\u011Fi", value: `\`\`\`${content.slice(0, 750)}\`\`\``, inline: false }
-          ).setFooter({ text: "Nights Guard \u2022 \xDCst D\xFCzey G\xFCvenlik Kalkan\u0131" }).setTimestamp();
+          ).setFooter({ text: "Nights Guard \u2022 Ak\u0131ll\u0131 G\xFCvenlik Kalkan\u0131" }).setTimestamp();
           await logChannel.send({ embeds: [logEmbed] });
         }
       } catch (e) {
@@ -4704,6 +4777,99 @@ Mesaj\u0131n\u0131zda **${reason}** tespit edildi!
       return true;
     }
     return false;
+  }
+  /**
+   * RAID KORUMASI: Ani toplu hesap girişlerini takip eder ve kalkan açar
+   */
+  static async handleMemberJoinSecurity(member) {
+    const guild = member.guild;
+    const now = Date.now();
+    this.recentJoins = this.recentJoins.filter((j) => now - j.timestamp < 1e4);
+    this.recentJoins.push({ userId: member.id, timestamp: now });
+    if (this.recentJoins.length >= 5 && !this.isRaidActive) {
+      this.isRaidActive = true;
+      this.raidEndTime = now + 6e4;
+      console.warn(`[AntiRaid] \u{1F6A8}\u{1F6A8} RAID SALDIRISI TESP\u0130T ED\u0130LD\u0130! Sunucu kalkan\u0131 aktif! (${guild.name})`);
+      const logChannel = guild.channels.cache.find(
+        (c) => c.name.includes("mod-log") || c.name.includes("yetkili")
+      );
+      if (logChannel) {
+        const raidEmbed = new import_discord29.EmbedBuilder().setTitle("\u{1F6A8}\u{1F6A8} AC\u0130L: RAID SALDIRISI ALGILANDI! \u{1F6E1}\uFE0F").setDescription(
+          `Son 10 saniyede **${this.recentJoins.length}** hesap pe\u015F pe\u015Fe sunucuya kat\u0131ld\u0131!
+
+\u{1F512} **ALINAN AC\u0130L KORUMA \xD6NLEMLER\u0130:**
+> \u2022 **Anti-Raid Koruma Kalkan\u0131 60 saniye boyunca devrede.**
+> \u2022 Yeni olu\u015Fturulan (< 3 g\xFCnl\xFCk) sahte bot hesaplar\u0131 otomatik at\u0131lacakt\u0131r (Auto-Kick).
+> \u2022 Yetkililer l\xFCtfen sunucuyu kontrol etsin!`
+        ).setColor("#ED4245").setFooter({ text: "Nights Guard \u2022 Anti-Raid Savunma Sistemi" }).setTimestamp();
+        await logChannel.send({
+          content: "\u{1F6A8} @here **D\u0130KKAT: Sunucuya toplu raid giri\u015Fi tespit edildi!**",
+          embeds: [raidEmbed]
+        }).catch(() => {
+        });
+      }
+    }
+    if (this.isRaidActive) {
+      if (now > this.raidEndTime) {
+        this.isRaidActive = false;
+      } else {
+        const accountAgeDays = (now - member.user.createdTimestamp) / (1e3 * 60 * 60 * 24);
+        if (accountAgeDays < 3) {
+          try {
+            await member.kick("Nights Guard: Raid sald\u0131r\u0131s\u0131 s\u0131ras\u0131nda \u015F\xFCpheli yeni bot hesab\u0131 tespiti.");
+            console.log(`[AntiRaid] \u{1F97E} \u015E\xFCpheli hesap at\u0131ld\u0131: ${member.user.tag} (Hesap ya\u015F\u0131: ${accountAgeDays.toFixed(1)} g\xFCn)`);
+            return true;
+          } catch (e) {
+          }
+        }
+      }
+    }
+    return false;
+  }
+  /**
+   * YENİ ÜYEYE DM'DEN HARİKA BİR HOŞ GELDİN KARTI GÖNDERME
+   */
+  static async sendWelcomeDM(member) {
+    try {
+      const guild = member.guild;
+      const channels = await guild.channels.fetch();
+      const kurallar = channels.find((c) => c && c.name.includes("kural"));
+      const genelSohbet = channels.find((c) => c && c.name.includes("genel-sohbet") || c?.name.includes("sohbet"));
+      const kayitOnay = channels.find((c) => c && c.name.includes("kayit"));
+      const boostKanal = channels.find((c) => c && c.name.includes("server-boost") || c?.name.includes("boost"));
+      const sesBilgi = channels.find((c) => c && c.name.includes("ses-bilgi"));
+      const kurallarLink = kurallar ? `<#${kurallar.id}>` : "#kurallar";
+      const sohbetLink = genelSohbet ? `<#${genelSohbet.id}>` : "#genel-sohbet";
+      const kayitLink = kayitOnay ? `<#${kayitOnay.id}>` : "#kay\u0131t-onay";
+      const boostLink = boostKanal ? `<#${boostKanal.id}>` : "#server-boost";
+      const sesLink = sesBilgi ? `<#${sesBilgi.id}>` : "`\u2795\uFE31Oda Olu\u015Ftur`";
+      const welcomeEmbed = new import_discord29.EmbedBuilder().setTitle(`\u{1F319} ${guild.name.toUpperCase()} A\u0130LES\u0130NE HO\u015E GELD\u0130N! \u2728`).setDescription(
+        `Selam <@${member.id}> (**${member.user.username}**)! Aram\u0131za kat\u0131ld\u0131\u011F\u0131n i\xE7in \xE7ok mutluyuz. \u{1F389}
+
+Nights; kaliteli sohbetlerin, gece muhabbetlerinin, anime izleme gecelerinin ve rekabet\xE7i oyun lobilerinin bulu\u015Fma noktas\u0131d\u0131r.
+
+### \u{1F5FA}\uFE0F Sunucuda \u0130lk Ad\u0131mlar\u0131n:
+\u2022 \u{1F4DC} **Kurallar:** Sunucu huzurumuz i\xE7in l\xFCtfen ${kurallarLink} kanal\u0131na g\xF6z at.
+\u2022 \u{1F6E1}\uFE0F **Kay\u0131t:** ${kayitLink} kanal\u0131ndan kayd\u0131n\u0131 tamamlay\u0131p sunucudaki t\xFCm odalar\u0131n kilidini a\xE7abilirsin.
+\u2022 \u{1F4AC} **Sohbet:** Hemen ${sohbetLink} kanal\u0131nda bir "selam" ver, s\u0131cak toplulu\u011Fumuzla tan\u0131\u015F!
+\u2022 \u{1F399}\uFE0F **\xD6zel Ses Odalar\u0131:** ${sesLink} ile kendine \xF6zel 384 Kbps st\xFCdyo ses odan\u0131 a\xE7abilir veya sinema/oyun lobilerine kat\u0131labilirsin.
+\u2022 \u{1F48E} **Server Boost:** ${boostLink} kanal\u0131n\u0131 inceleyerek sunucumuza takviye basabilir, \xF6zel renkli rol, 10.000 Coin ve 3x \xE7ekili\u015F hakk\u0131 kazanabilirsin!
+\u2022 \u{1F3AE} **E\u011Flence & Oyunlar:** \`#kelime-oyunu\` ve \`#sayi-saymaca\` kanallar\u0131nda rekorlar k\u0131r, Nights Coin kazan!
+
+\u{1F451} *Keyifli ve unutulmaz anlar ge\xE7irmeni dileriz!*`
+      ).setColor("#8B5CF6").setThumbnail(guild.iconURL() || member.user.displayAvatarURL()).setFooter({ text: `${guild.name} Toplulu\u011Fu \u2022 Made by erencix` }).setTimestamp();
+      const bannerPath = import_path3.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
+      if (import_fs3.default.existsSync(bannerPath)) {
+        const attachment = new import_discord29.AttachmentBuilder(bannerPath, { name: "welcome_banner.png" });
+        welcomeEmbed.setImage("attachment://welcome_banner.png");
+        await member.send({ embeds: [welcomeEmbed], files: [attachment] });
+      } else {
+        await member.send({ embeds: [welcomeEmbed] });
+      }
+      console.log(`[WelcomeDM] \u{1F4E8} ${member.user.tag} kullan\u0131c\u0131s\u0131na \xF6zel kar\u015F\u0131lama DM'si ba\u015Far\u0131yla iletildi!`);
+    } catch (err) {
+      console.log(`[WelcomeDM] \u2139\uFE0F ${member.user.tag} kullan\u0131c\u0131s\u0131n\u0131n DM kutusu kapal\u0131 oldu\u011Fu i\xE7in mesaj g\xF6nderilemedi.`);
+    }
   }
 };
 
@@ -4895,8 +5061,8 @@ var import_discord33 = require("discord.js");
 var import_voice = require("@discordjs/voice");
 var import_discord32 = require("discord.js");
 var import_child_process = require("child_process");
-var import_path3 = __toESM(require("path"));
-var import_fs3 = __toESM(require("fs"));
+var import_path4 = __toESM(require("path"));
+var import_fs4 = __toESM(require("fs"));
 var yts = require("yt-search");
 var MusicPlayer = class _MusicPlayer {
   static queues = /* @__PURE__ */ new Map();
@@ -4912,7 +5078,7 @@ var MusicPlayer = class _MusicPlayer {
           }
           if (res.statusCode !== 200) return reject(new Error("HTTP " + res.statusCode));
           const gunzip = zlib2.createGunzip();
-          const file = import_fs3.default.createWriteStream(dest);
+          const file = import_fs4.default.createWriteStream(dest);
           res.pipe(gunzip).pipe(file);
           file.on("finish", () => file.close(() => resolve()));
           file.on("error", reject);
@@ -4926,7 +5092,7 @@ var MusicPlayer = class _MusicPlayer {
             return downloadRaw(res.headers.location, dest).then(resolve).catch(reject);
           }
           if (res.statusCode !== 200) return reject(new Error("HTTP " + res.statusCode));
-          const file = import_fs3.default.createWriteStream(dest);
+          const file = import_fs4.default.createWriteStream(dest);
           res.pipe(file);
           file.on("finish", () => file.close(() => resolve()));
           file.on("error", reject);
@@ -4934,25 +5100,25 @@ var MusicPlayer = class _MusicPlayer {
       });
     };
     try {
-      if (!import_fs3.default.existsSync("ffmpeg")) {
+      if (!import_fs4.default.existsSync("ffmpeg")) {
         console.log("[MusicPlayer] \u{1F427} Linux ortam\u0131 tespit edildi, ffmpeg indiriliyor...");
         await downloadGz("https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-linux-x64.gz", "ffmpeg");
-        import_fs3.default.chmodSync("ffmpeg", 493);
+        import_fs4.default.chmodSync("ffmpeg", 493);
         console.log("[MusicPlayer] \u2705 Linux ffmpeg haz\u0131r!");
       } else {
         try {
-          import_fs3.default.chmodSync("ffmpeg", 493);
+          import_fs4.default.chmodSync("ffmpeg", 493);
         } catch (e) {
         }
       }
-      if (!import_fs3.default.existsSync("yt-dlp")) {
+      if (!import_fs4.default.existsSync("yt-dlp")) {
         console.log("[MusicPlayer] \u{1F427} Linux ortam\u0131 tespit edildi, yt-dlp indiriliyor...");
         await downloadRaw("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp", "yt-dlp");
-        import_fs3.default.chmodSync("yt-dlp", 493);
+        import_fs4.default.chmodSync("yt-dlp", 493);
         console.log("[MusicPlayer] \u2705 Linux yt-dlp haz\u0131r!");
       } else {
         try {
-          import_fs3.default.chmodSync("yt-dlp", 493);
+          import_fs4.default.chmodSync("yt-dlp", 493);
         } catch (e) {
         }
       }
@@ -4962,17 +5128,17 @@ var MusicPlayer = class _MusicPlayer {
   }
   static getBinaries() {
     const isWin = process.platform === "win32";
-    let ytdlp = isWin ? import_path3.default.resolve("yt-dlp.exe") : import_path3.default.resolve("yt-dlp");
-    let ffmpeg = isWin ? import_path3.default.resolve("ffmpeg.exe") : import_path3.default.resolve("ffmpeg");
-    if (!import_fs3.default.existsSync(ytdlp)) ytdlp = isWin ? "yt-dlp.exe" : "yt-dlp";
-    if (!import_fs3.default.existsSync(ffmpeg)) ffmpeg = isWin ? "ffmpeg.exe" : "ffmpeg";
+    let ytdlp = isWin ? import_path4.default.resolve("yt-dlp.exe") : import_path4.default.resolve("yt-dlp");
+    let ffmpeg = isWin ? import_path4.default.resolve("ffmpeg.exe") : import_path4.default.resolve("ffmpeg");
+    if (!import_fs4.default.existsSync(ytdlp)) ytdlp = isWin ? "yt-dlp.exe" : "yt-dlp";
+    if (!import_fs4.default.existsSync(ffmpeg)) ffmpeg = isWin ? "ffmpeg.exe" : "ffmpeg";
     if (!isWin) {
       try {
-        import_fs3.default.chmodSync(ytdlp, 493);
+        import_fs4.default.chmodSync(ytdlp, 493);
       } catch (e) {
       }
       try {
-        import_fs3.default.chmodSync(ffmpeg, 493);
+        import_fs4.default.chmodSync(ffmpeg, 493);
       } catch (e) {
       }
     }
@@ -6696,8 +6862,8 @@ var VoiceSetupManager = class {
 
 // src/services/features/boostManager.ts
 var import_discord37 = require("discord.js");
-var import_path4 = __toESM(require("path"));
-var import_fs4 = __toESM(require("fs"));
+var import_path5 = __toESM(require("path"));
+var import_fs5 = __toESM(require("fs"));
 var BoostManager = class {
   static ran = false;
   static async init(client) {
@@ -6771,8 +6937,8 @@ var BoostManager = class {
       const msgs = await channel.messages.fetch({ limit: 15 }).catch(() => null);
       const alreadyHasShowcase = msgs && msgs.some((m) => m.author.id === client.user?.id && m.embeds.length > 0 && m.embeds[0].title?.includes("BOOSTER AYRICALIKLARI"));
       if (alreadyHasShowcase) return;
-      const bannerPath = import_path4.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
-      const hasBanner = import_fs4.default.existsSync(bannerPath);
+      const bannerPath = import_path5.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
+      const hasBanner = import_fs5.default.existsSync(bannerPath);
       const embed = new import_discord37.EmbedBuilder().setTitle("\u{1F52E} NIGHTS SERVER BOOSTER VIP AYRICALIKLARI & \xD6D\xDCLLER\u0130 \u{1F680}").setDescription(
         `Sunucumuza **Nitro Boost** basarak Nights toplulu\u011Funa g\xFC\xE7 katan ve seviyemizi y\xFCkselten de\u011Ferli \xFCyelerimiz i\xE7in haz\u0131rlanan **\xF6zel ayr\u0131cal\u0131klar, roller ve hediyeler** listesidir!
 
@@ -6830,8 +6996,8 @@ var BoostManager = class {
       (c) => c.type === import_discord37.ChannelType.GuildText && (c.name.includes("server-boost") || c.name.includes("boost"))
     );
     if (!boostChannel) return;
-    const bannerPath = import_path4.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
-    const hasBanner = import_fs4.default.existsSync(bannerPath);
+    const bannerPath = import_path5.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
+    const hasBanner = import_fs5.default.existsSync(bannerPath);
     const boostCount = guild.premiumSubscriptionCount || 1;
     const boostTier = guild.premiumTier;
     const celebrationEmbed = new import_discord37.EmbedBuilder().setTitle("\u{1F680} B\xDCY\xDCK TE\u015EEKK\xDCRLER! YEN\u0130 SUNUCU BOOSTU! \u{1F52E}").setDescription(
@@ -6994,8 +7160,8 @@ async function onVoiceStateUpdate(oldState, newState) {
 
 // src/services/features/kelimeOyunu.ts
 var import_discord39 = require("discord.js");
-var import_fs5 = __toESM(require("fs"));
-var import_path5 = __toESM(require("path"));
+var import_fs6 = __toESM(require("fs"));
+var import_path6 = __toESM(require("path"));
 var KelimeOyunuManager = class {
   static state = {
     lastWord: "ELMA",
@@ -7111,13 +7277,13 @@ var KelimeOyunuManager = class {
     if (this.dictionaryLoaded) return;
     try {
       const candidates = [
-        import_path5.default.resolve(process.cwd(), "assets/clean_turkish_words.json"),
-        import_path5.default.resolve(__dirname, "../../../assets/clean_turkish_words.json"),
-        import_path5.default.resolve(__dirname, "../../assets/clean_turkish_words.json")
+        import_path6.default.resolve(process.cwd(), "assets/clean_turkish_words.json"),
+        import_path6.default.resolve(__dirname, "../../../assets/clean_turkish_words.json"),
+        import_path6.default.resolve(__dirname, "../../assets/clean_turkish_words.json")
       ];
       for (const p of candidates) {
-        if (import_fs5.default.existsSync(p)) {
-          const raw = import_fs5.default.readFileSync(p, "utf8");
+        if (import_fs6.default.existsSync(p)) {
+          const raw = import_fs6.default.readFileSync(p, "utf8");
           const arr = JSON.parse(raw);
           this.dictionary = new Set(arr.map((w) => w.toLocaleLowerCase("tr-TR")));
           this.dictionaryLoaded = true;
@@ -8194,6 +8360,8 @@ async function bootstrap() {
   client.on(import_discord42.Events.GuildMemberAdd, async (member) => {
     try {
       console.log(`[GuildMemberAdd] Yeni \xFCye kat\u0131ld\u0131: ${member.user.tag} (${member.id})`);
+      const isKickedByAntiRaid = await AutoSecurityGuard.handleMemberJoinSecurity(member);
+      if (isKickedByAntiRaid) return;
       if (member.user.bot) {
         const roles = await member.guild.roles.fetch();
         const botRole = roles.find(
@@ -8209,6 +8377,7 @@ async function bootstrap() {
           console.log(`\u{1F916} Yeni bot sunucuya kat\u0131ld\u0131; Bot ve Onayl\u0131 rolleri verildi: ${member.user.tag}`);
         }
       } else {
+        await AutoSecurityGuard.sendWelcomeDM(member);
         const channels = await member.guild.channels.fetch();
         const welcomeCh = channels.find(
           (c) => c && c.name.includes("hos-geldin") && c.isTextBased()

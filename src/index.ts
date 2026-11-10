@@ -547,10 +547,14 @@ async function bootstrap() {
     }
   });
 
-  // Otomatik Bot Rolü Verme & Zengin Hoş Geldin Mesajı
+  // Otomatik Bot Rolü Verme, Raid Koruması, Hoş Geldin DM ve Kanal Mesajı
   client.on(Events.GuildMemberAdd, async (member) => {
     try {
       console.log(`[GuildMemberAdd] Yeni üye katıldı: ${member.user.tag} (${member.id})`);
+
+      // 0. Anti-Raid Güvenlik Kalkanı Denetimi
+      const isKickedByAntiRaid = await AutoSecurityGuard.handleMemberJoinSecurity(member);
+      if (isKickedByAntiRaid) return; // Şüpheli raid botu atıldı, devam etme!
 
       if (member.user.bot) {
         const roles = await member.guild.roles.fetch();
@@ -566,7 +570,10 @@ async function bootstrap() {
           console.log(`🤖 Yeni bot sunucuya katıldı; Bot ve Onaylı rolleri verildi: ${member.user.tag}`);
         }
       } else {
-        // İnsan kullanıcılar için #hos-geldin kanalına karşılama mesajı & Davetçi Tespiti
+        // 1. Yeni Üyeye Özel Harika VIP Hoş Geldin DM'si Gönder
+        await AutoSecurityGuard.sendWelcomeDM(member);
+
+        // 2. İnsan kullanıcılar için #hos-geldin kanalına karşılama mesajı & Davetçi Tespiti
         const channels = await member.guild.channels.fetch();
         const welcomeCh = channels.find(
           (c: any) => c && c.name.includes('hos-geldin') && c.isTextBased()
