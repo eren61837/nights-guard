@@ -1853,18 +1853,15 @@ var VoiceLobbyManager = class {
   static isTemporaryVoiceChannel(channel) {
     if (!channel || channel.type !== import_discord6.ChannelType.GuildVoice) return false;
     const lowerName = channel.name.toLocaleLowerCase("tr-TR");
-    const isProtected = lowerName.includes("oda olu\u015Ftur") || lowerName.includes("oda olustur") || lowerName.includes("create voice") || lowerName.includes("join to create") || lowerName.includes("sohbet") || lowerName.includes("sinema") || lowerName.includes("dizi") || lowerName.includes("anime") || lowerName.includes("watch party") || lowerName.includes("party") || lowerName.includes("valorant") || lowerName.includes("rekabet\xE7i") || lowerName.includes("rekabetci") || lowerName.includes("duo") || lowerName.includes("trio") || lowerName.includes("minecraft") || lowerName.includes("roblox") || lowerName.includes("tft") || lowerName.includes("chill") || lowerName.includes("dinlenme") || lowerName.includes("m\xFCzik") || lowerName.includes("muzik") || lowerName.includes("afk") || lowerName.includes("toplant\u0131") || lowerName.includes("toplanti") || lowerName.includes("y\xF6netici") || lowerName.includes("yonetici") || lowerName.includes("yetkili") || lowerName.includes("y\xF6netim") || lowerName.includes("yonetim") || lowerName.includes("kurucu") || lowerName.includes("kay\u0131t") || lowerName.includes("kayit");
+    const isProtected = lowerName.includes("oyun") || lowerName.includes("game") || lowerName.includes("sohbet") || lowerName.includes("sinema") || lowerName.includes("dizi") || lowerName.includes("anime") || lowerName.includes("watch party") || lowerName.includes("party") || lowerName.includes("valorant") || lowerName.includes("rekabet\xE7i") || lowerName.includes("rekabetci") || lowerName.includes("duo") || lowerName.includes("trio") || lowerName.includes("minecraft") || lowerName.includes("roblox") || lowerName.includes("tft") || lowerName.includes("chill") || lowerName.includes("dinlenme") || lowerName.includes("afk") || lowerName.includes("toplant\u0131") || lowerName.includes("toplanti") || lowerName.includes("y\xF6netici") || lowerName.includes("yonetici") || lowerName.includes("yetkili") || lowerName.includes("y\xF6netim") || lowerName.includes("yonetim") || lowerName.includes("kurucu") || lowerName.includes("kay\u0131t") || lowerName.includes("kayit") || lowerName.includes("oda olu\u015Ftur") || lowerName.includes("oda olustur") || lowerName.includes("create voice") || lowerName.includes("join to create");
     if (isProtected) return false;
     if (this.tempVoiceChannels.has(channel.id)) return true;
-    if (lowerName.includes("odas\u0131") || lowerName.includes("odasi") || lowerName.includes("room") || lowerName.includes("lobby") || channel.name.startsWith("\u{1F50A}\u30FB") || channel.name.startsWith("\u{1F50A}")) {
+    const isTempPrefixed = channel.name.startsWith("\u{1F50A}\u30FB") || channel.name.startsWith("\u{1F50A}");
+    const hasMemberManage = channel.permissionOverwrites.cache.some(
+      (ow) => ow.type === 1 && ow.allow.has(import_discord6.PermissionFlagsBits.ManageChannels)
+    );
+    if (isTempPrefixed && hasMemberManage) {
       return true;
-    }
-    const parentName = channel.parent?.name?.toLocaleLowerCase("tr-TR") || "";
-    if (parentName.includes("ses") || parentName.includes("oda") || parentName.includes("\xF6zel") || parentName.includes("ozel")) {
-      const hasMemberOverwrite = channel.permissionOverwrites.cache.some(
-        (ow) => ow.type === 1 && ow.allow.has(import_discord6.PermissionFlagsBits.ManageChannels)
-      );
-      if (hasMemberOverwrite) return true;
     }
     return false;
   }
@@ -6462,25 +6459,43 @@ var VoiceSetupManager = class {
     this.ran = true;
     for (const [_, guild] of client.guilds.cache) {
       try {
-        await this.setupGuildChannels(guild);
+        await this.setupGuildChannels(guild, client);
       } catch (err) {
         console.error(`[VoiceSetupManager] ${guild.name} i\xE7in kanal kurulum hatas\u0131:`, err.message);
       }
     }
   }
-  static async setupGuildChannels(guild) {
-    console.log(`[VoiceSetupManager] \u{1F399}\uFE0F ${guild.name} sunucusu i\xE7in zengin ses kanallar\u0131 kontrol ediliyor...`);
+  static async setupGuildChannels(guild, client) {
+    console.log(`[VoiceSetupManager] \u{1F399}\uFE0F ${guild.name} sunucusu i\xE7in ses ve yetki ayarlar\u0131 kontrol ediliyor...`);
     const everyoneRole = guild.roles.everyone;
     const roles = await guild.roles.fetch();
     const kurucuRole = roles.find((r) => r.name.toLowerCase().includes("kurucu") || r.name.toLowerCase().includes("owner"));
     const adminRole = roles.find((r) => r.name.toLowerCase().includes("y\xF6netici") || r.name.toLowerCase().includes("admin"));
     const modRole = roles.find((r) => r.name.toLowerCase().includes("moderat\xF6r") || r.name.toLowerCase().includes("mod"));
     const approvedRole = roles.find((r) => r.name.toLowerCase().includes("onayl\u0131") || r.name.toLowerCase().includes("\xFCye"));
+    for (const [, ch] of guild.channels.cache) {
+      if (!ch) continue;
+      const lower = ch.name.toLocaleLowerCase("tr-TR");
+      if (lower.includes("m\xFCzik") || lower.includes("muzik") || lower.includes("music")) {
+        try {
+          await ch.delete("Kullan\u0131c\u0131 iste\u011Fiyle m\xFCzik kanallar\u0131 kald\u0131r\u0131ld\u0131.");
+          console.log(`[VoiceSetupManager] \u{1F5D1}\uFE0F M\xFCzik kanal\u0131 silindi: ${ch.name}`);
+        } catch (e) {
+          console.warn(`[VoiceSetupManager] M\xFCzik kanal\u0131 silinemedi (${ch.name}):`, e.message);
+        }
+      }
+    }
     const getOrCreateCategory = async (name, overwrites = []) => {
       const existing = guild.channels.cache.find(
         (c) => c.type === import_discord36.ChannelType.GuildCategory && (c.name === name || c.name.toLowerCase().includes(name.toLowerCase().slice(3)))
       );
-      if (existing) return existing;
+      if (existing) {
+        if (overwrites.length > 0) {
+          await existing.permissionOverwrites.set(overwrites).catch(() => {
+          });
+        }
+        return existing;
+      }
       return await guild.channels.create({
         name,
         type: import_discord36.ChannelType.GuildCategory,
@@ -6492,6 +6507,10 @@ var VoiceSetupManager = class {
         (c) => c.type === import_discord36.ChannelType.GuildVoice && (c.name === name || c.name.toLowerCase().includes(name.toLowerCase().slice(3)))
       );
       if (existing) {
+        if (options.overwrites && options.overwrites.length > 0) {
+          await existing.permissionOverwrites.set(options.overwrites).catch(() => {
+          });
+        }
         return existing;
       }
       console.log(`[VoiceSetupManager] \u2795 Yeni ses kanal\u0131 olu\u015Fturuluyor: ${name}`);
@@ -6512,6 +6531,8 @@ var VoiceSetupManager = class {
     const catGaming = await getOrCreateCategory("\u{1F3AF} \u2503 VALORANT & OYUN ODALARI", [
       { id: everyoneRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] }
     ]);
+    await getOrCreateVoice("\u{1F3AE}\u30FBOyun Odas\u0131 1", catGaming.id, { bitrate: 96e3 });
+    await getOrCreateVoice("\u{1F3AE}\u30FBOyun Odas\u0131 2", catGaming.id, { bitrate: 96e3 });
     await getOrCreateVoice("\u{1F3AF}\u30FBValorant Rekabet\xE7i #1", catGaming.id, { userLimit: 5, bitrate: 96e3 });
     await getOrCreateVoice("\u{1F3AF}\u30FBValorant Rekabet\xE7i #2", catGaming.id, { userLimit: 5, bitrate: 96e3 });
     await getOrCreateVoice("\u{1F52B}\u30FBValorant Duo (2 Ki\u015Fi)", catGaming.id, { userLimit: 2, bitrate: 96e3 });
@@ -6519,22 +6540,52 @@ var VoiceSetupManager = class {
     await getOrCreateVoice("\u26CF\uFE0F\u30FBMinecraft Ekibi", catGaming.id, { userLimit: 10, bitrate: 64e3 });
     await getOrCreateVoice("\u{1F9F1}\u30FBRoblox Tayfas\u0131", catGaming.id, { userLimit: 8, bitrate: 64e3 });
     await getOrCreateVoice("\u265F\uFE0F\u30FBTFT Strateji Masas\u0131", catGaming.id, { userLimit: 4, bitrate: 64e3 });
-    const staffOverwrites = [
-      { id: everyoneRole.id, deny: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect] }
+    const staffCategoryOverwrites = [
+      {
+        id: everyoneRole.id,
+        allow: [import_discord36.PermissionFlagsBits.ViewChannel],
+        deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak]
+      }
     ];
-    if (approvedRole) staffOverwrites.push({ id: approvedRole.id, deny: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect] });
-    if (modRole) staffOverwrites.push({ id: modRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] });
-    if (adminRole) staffOverwrites.push({ id: adminRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak, import_discord36.PermissionFlagsBits.MoveMembers] });
-    if (kurucuRole) staffOverwrites.push({ id: kurucuRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak, import_discord36.PermissionFlagsBits.MoveMembers] });
-    const catStaff = await getOrCreateCategory("\u{1F512} \u2503 YETK\u0130L\u0130 \xD6ZEL", staffOverwrites);
+    if (approvedRole) {
+      staffCategoryOverwrites.push({
+        id: approvedRole.id,
+        allow: [import_discord36.PermissionFlagsBits.ViewChannel],
+        deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak]
+      });
+    }
+    if (modRole) staffCategoryOverwrites.push({ id: modRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] });
+    if (adminRole) staffCategoryOverwrites.push({ id: adminRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak, import_discord36.PermissionFlagsBits.MoveMembers] });
+    if (kurucuRole) staffCategoryOverwrites.push({ id: kurucuRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak, import_discord36.PermissionFlagsBits.MoveMembers] });
+    const catStaff = await getOrCreateCategory("\u{1F512} \u2503 YETK\u0130L\u0130 \xD6ZEL", staffCategoryOverwrites);
+    if (catStaff) {
+      await catStaff.permissionOverwrites.set(staffCategoryOverwrites).catch(() => {
+      });
+    }
+    const meetingOverwrites = [
+      {
+        id: everyoneRole.id,
+        allow: [import_discord36.PermissionFlagsBits.ViewChannel],
+        deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak]
+      }
+    ];
+    if (approvedRole) meetingOverwrites.push({ id: approvedRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel], deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] });
+    if (modRole) meetingOverwrites.push({ id: modRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] });
+    if (adminRole) meetingOverwrites.push({ id: adminRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak, import_discord36.PermissionFlagsBits.MoveMembers] });
+    if (kurucuRole) meetingOverwrites.push({ id: kurucuRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak, import_discord36.PermissionFlagsBits.MoveMembers] });
     await getOrCreateVoice("\u{1F451}\u30FBY\xF6netici Toplant\u0131 Odas\u0131", catStaff.id, {
       bitrate: 96e3,
-      overwrites: staffOverwrites
+      overwrites: meetingOverwrites
     });
     const ownerOverwrites = [
-      { id: everyoneRole.id, deny: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect] }
+      {
+        id: everyoneRole.id,
+        allow: [import_discord36.PermissionFlagsBits.ViewChannel],
+        deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak]
+      }
     ];
-    if (modRole) ownerOverwrites.push({ id: modRole.id, deny: [import_discord36.PermissionFlagsBits.Connect] });
+    if (approvedRole) ownerOverwrites.push({ id: approvedRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel], deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] });
+    if (modRole) ownerOverwrites.push({ id: modRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel], deny: [import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] });
     if (adminRole) ownerOverwrites.push({ id: adminRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak] });
     if (kurucuRole) ownerOverwrites.push({ id: kurucuRole.id, allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.Connect, import_discord36.PermissionFlagsBits.Speak, import_discord36.PermissionFlagsBits.MoveMembers] });
     await getOrCreateVoice("\u{1F399}\uFE0F\u30FBKurucu \xD6zel Odas\u0131", catStaff.id, {
@@ -6545,10 +6596,46 @@ var VoiceSetupManager = class {
       (c) => c.type === import_discord36.ChannelType.GuildCategory && (c.name.includes("SES") || c.name.includes("VOICE"))
     );
     if (catVoice) {
-      await getOrCreateVoice("\u{1F3A7}\u30FBChill & M\xFCzik Odas\u0131", catVoice.id, { bitrate: 96e3 });
       await getOrCreateVoice("\u{1F4A4}\u30FBAFK & Dinlenme", catVoice.id, { bitrate: 64e3 });
     }
-    console.log(`[VoiceSetupManager] \u2705 ${guild.name} i\xE7in t\xFCm ses kanallar\u0131 ba\u015Far\u0131yla haz\u0131rland\u0131!`);
+    const targetVoiceCat = catVoice || catCinema || catGaming;
+    if (targetVoiceCat) {
+      let infoChannel = guild.channels.cache.find(
+        (c) => c.type === import_discord36.ChannelType.GuildText && (c.name.includes("ses-bilgilendirme") || c.name.includes("ses-bilgi"))
+      );
+      if (!infoChannel) {
+        infoChannel = await guild.channels.create({
+          name: "\u{1F4CC}\u30FBses-bilgilendirme",
+          type: import_discord36.ChannelType.GuildText,
+          parent: targetVoiceCat.id,
+          permissionOverwrites: [
+            {
+              id: everyoneRole.id,
+              allow: [import_discord36.PermissionFlagsBits.ViewChannel, import_discord36.PermissionFlagsBits.ReadMessageHistory],
+              deny: [
+                import_discord36.PermissionFlagsBits.SendMessages,
+                import_discord36.PermissionFlagsBits.AddReactions,
+                import_discord36.PermissionFlagsBits.CreatePublicThreads,
+                import_discord36.PermissionFlagsBits.CreatePrivateThreads
+              ]
+            }
+          ]
+        });
+      }
+      if (infoChannel) {
+        const msgs = await infoChannel.messages.fetch({ limit: 10 }).catch(() => null);
+        const hasBotMsg = msgs && msgs.some((m) => m.author.id === client.user?.id);
+        if (!hasBotMsg) {
+          const guideEmbed = new import_discord36.EmbedBuilder().setTitle("\u{1F399}\uFE0F NIGHTS SES ODALARI & S\u0130STEM REHBER\u0130 \u{1F4CC}").setDescription(
+            "Sunucumuzdaki ses odalar\u0131n\u0131 rahat\xE7a kullanabilmeniz ve odalar\u0131n\u0131z\u0131 y\xF6netebilmeniz i\xE7in haz\u0131rlanan rehberdir.\n\n### \u2795 1. \xD6zel Ge\xE7ici Ses Odas\u0131 Nas\u0131l A\xE7\u0131l\u0131r?\n> **`\u2795\uFE31Oda Olu\u015Ftur`** ses kanal\u0131na t\u0131klad\u0131\u011F\u0131n\u0131z anda sistem ad\u0131n\u0131za \xF6zel bir oda a\xE7ar ve sizi otomatik olarak odaya aktar\u0131r.\n\n### \u2699\uFE0F 2. Odan\u0131z\u0131 Nas\u0131l Y\xF6netirsiniz?\n> A\xE7\u0131lan odan\u0131n y\xF6neticisi siz olursunuz! **`#ses-kontrol`** paneli \xFCzerinden:\n> \u{1F512} **Oday\u0131 Kilitleyebilir:** \u0130stemedi\u011Finiz ki\u015Filerin giri\u015Fini engelleyebilirsiniz.\n> \u{1F465} **Ki\u015Fi S\u0131n\u0131r\u0131 Koyabilir:** Odan\u0131za ka\xE7 ki\u015Finin girebilece\u011Fini ayarlayabilirsiniz.\n> \u270F\uFE0F **\u0130sim De\u011Fi\u015Ftirebilir:** Odan\u0131za diledi\u011Finiz ismi verebilirsiniz.\n\n### \u{1F5D1}\uFE0F 3. Bo\u015Falan Odalar Ne Zaman Silinir?\n> \xD6zel a\xE7\u0131lan ge\xE7ici odadan son ki\u015Fi ayr\u0131ld\u0131\u011F\u0131nda sunucu kirlili\u011Fi olmamas\u0131 i\xE7in oda **otomatik silinir**.\n\n### \u{1F3AF} 4. Sabit Sunucu Odalar\u0131 (Asla Silinmez)\n> \u{1F3AE} **Oyun Odas\u0131 1 & 2:** Kesintisiz sabit genel oyun sohbet alanlar\u0131.\n> \u{1F3AF} **Valorant Rekabet\xE7i:** 5 ki\u015Filik rekabet\xE7i tak\u0131m lobileri, Duo ve Trio odalar\u0131.\n> \u{1F37F} **Sinema & Anime:** Y\xFCksek kaliteli yay\u0131n a\xE7\u0131k izleme ve watch party odalar\u0131.\n> \u{1F451} **Y\xF6netici & Kurucu Odalar\u0131:** Yetkililere \xF6zel kilitli toplant\u0131 odalar\u0131.\n> \u{1F4A4} **AFK Odas\u0131:** Masada olmad\u0131\u011F\u0131n\u0131zda ta\u015F\u0131nd\u0131\u011F\u0131n\u0131z dinlenme kanal\u0131.\n\n### \u{1F4DC} 5. Ses Odas\u0131 Kurallar\u0131\n> \u{1F6AB} Y\xFCksek ses, kulak t\u0131rmalay\u0131c\u0131 ses efektleri veya soundboard spam\u0131 yasakt\u0131r.\n> \u{1F6AB} Yay\u0131n a\xE7an \xFCyelerin yay\u0131n\u0131n\u0131 kasten sabote etmek ceza sebebidir.\n> \u{1F91D} T\xFCm \xFCyelerimize kar\u015F\u0131 seviyeli ve samimi bir ortam korunmal\u0131d\u0131r."
+          ).setColor("#5865F2").setThumbnail(guild.iconURL() || client.user?.displayAvatarURL() || null).setFooter({ text: "Nights Community Voice Engine \u2022 Made by erencix" }).setTimestamp();
+          await infoChannel.send({ embeds: [guideEmbed] }).catch(() => {
+          });
+          console.log(`[VoiceSetupManager] \u{1F4CC} Ses bilgilendirme mesaj\u0131 g\xF6nderildi: #${infoChannel.name}`);
+        }
+      }
+    }
+    console.log(`[VoiceSetupManager] \u2705 ${guild.name} i\xE7in t\xFCm ses kanallar\u0131 ve izinler ba\u015Far\u0131yla g\xFCncellendi!`);
   }
 };
 

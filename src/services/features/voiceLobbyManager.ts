@@ -13,10 +13,8 @@ export class VoiceLobbyManager {
     // 1. Asla silinmemesi gereken kalıcı/korumalı kanallar
     const lowerName = channel.name.toLocaleLowerCase('tr-TR');
     const isProtected =
-      lowerName.includes('oda oluştur') ||
-      lowerName.includes('oda olustur') ||
-      lowerName.includes('create voice') ||
-      lowerName.includes('join to create') ||
+      lowerName.includes('oyun') ||
+      lowerName.includes('game') ||
       lowerName.includes('sohbet') ||
       lowerName.includes('sinema') ||
       lowerName.includes('dizi') ||
@@ -33,8 +31,6 @@ export class VoiceLobbyManager {
       lowerName.includes('tft') ||
       lowerName.includes('chill') ||
       lowerName.includes('dinlenme') ||
-      lowerName.includes('müzik') ||
-      lowerName.includes('muzik') ||
       lowerName.includes('afk') ||
       lowerName.includes('toplantı') ||
       lowerName.includes('toplanti') ||
@@ -45,38 +41,26 @@ export class VoiceLobbyManager {
       lowerName.includes('yonetim') ||
       lowerName.includes('kurucu') ||
       lowerName.includes('kayıt') ||
-      lowerName.includes('kayit');
+      lowerName.includes('kayit') ||
+      lowerName.includes('oda oluştur') ||
+      lowerName.includes('oda olustur') ||
+      lowerName.includes('create voice') ||
+      lowerName.includes('join to create');
 
     if (isProtected) return false;
 
     // 2. Hafızadaki geçici kanallar listesinde mi?
     if (this.tempVoiceChannels.has(channel.id)) return true;
 
-    // 3. İsimde geçici oda belirteçleri var mı?
-    if (
-      lowerName.includes('odası') ||
-      lowerName.includes('odasi') ||
-      lowerName.includes('room') ||
-      lowerName.includes('lobby') ||
-      channel.name.startsWith('🔊・') ||
-      channel.name.startsWith('🔊')
-    ) {
-      return true;
-    }
+    // 3. Geçici kanal SADECE bot tarafından '🔊' ile açılmış ve bir üyeye özel ManageChannels verilmişse geçicidir
+    // Bu sayede adminlerin kurduğu sabit kanallar (Oyun Odası 1, 2 vb.) ASLA geçici sayılmaz ve SİLİNMEZ!
+    const isTempPrefixed = channel.name.startsWith('🔊・') || channel.name.startsWith('🔊');
+    const hasMemberManage = channel.permissionOverwrites.cache.some(
+      (ow) => ow.type === 1 && ow.allow.has(PermissionFlagsBits.ManageChannels)
+    );
 
-    // 4. Kategori & Özel Yetki Kontrolü:
-    // Eğer oda "SES ODALARI" kategorisindeyse ve bir üyeye özel ManageChannels izni atanmışsa geçicidir
-    const parentName = channel.parent?.name?.toLocaleLowerCase('tr-TR') || '';
-    if (
-      parentName.includes('ses') ||
-      parentName.includes('oda') ||
-      parentName.includes('özel') ||
-      parentName.includes('ozel')
-    ) {
-      const hasMemberOverwrite = channel.permissionOverwrites.cache.some(
-        (ow) => ow.type === 1 && ow.allow.has(PermissionFlagsBits.ManageChannels)
-      );
-      if (hasMemberOverwrite) return true;
+    if (isTempPrefixed && hasMemberManage) {
+      return true;
     }
 
     return false;
