@@ -17,3 +17,7 @@ src/prayt_extracted/
 praytsmp/
 .DS_Store
 Thumbs.db
+data/
+*.bak
+*.tmp.*
+

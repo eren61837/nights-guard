@@ -10,8 +10,7 @@ import {
   ChannelType,
   PermissionFlagsBits,
 } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
+import { PersistentStore } from '../storage/persistentStore';
 import { AutoSecurityGuard } from './autoSecurityGuard';
 
 interface ConfessionData {
@@ -30,7 +29,6 @@ interface ConfessionStore {
 }
 
 export class ConfessionManager {
-  private static filePath = path.resolve('assets/confessions.json');
   private static store: ConfessionStore = {
     counter: 0,
     confessions: {},
@@ -39,25 +37,21 @@ export class ConfessionManager {
 
   private static load() {
     if (this.loaded) return;
-    try {
-      if (fs.existsSync(this.filePath)) {
-        const raw = fs.readFileSync(this.filePath, 'utf-8');
-        this.store = JSON.parse(raw);
-      }
-    } catch {
-      this.store = { counter: 0, confessions: {} };
-    }
+    this.store = PersistentStore.safeReadJson<ConfessionStore>(
+      'confessions.json',
+      ['assets/confessions.json'],
+      { counter: 0, confessions: {} }
+    );
     this.loaded = true;
+
+    PersistentStore.registerFlushHandler('ConfessionManager', () => {
+      this.save();
+    });
   }
 
   private static save() {
-    try {
-      const dir = path.dirname(this.filePath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(this.filePath, JSON.stringify(this.store, null, 2), 'utf-8');
-    } catch (e: any) {
-      console.warn('[ConfessionManager] Kaydetme hatası:', e.message);
-    }
+    if (!this.loaded) return;
+    PersistentStore.atomicSaveJson('confessions.json', this.store);
   }
 
   public static async getConfessionChannel(guild: Guild): Promise<TextChannel | null> {

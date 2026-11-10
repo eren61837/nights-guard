@@ -1,5 +1,6 @@
 import { Message, EmbedBuilder } from 'discord.js';
 import { AutoSecurityGuard } from './autoSecurityGuard';
+import { PersistentStore } from '../storage/persistentStore';
 import fs from 'fs';
 import path from 'path';
 
@@ -7,6 +8,14 @@ export interface KelimeGameState {
   lastWord: string;
   lastUserId: string | null;
   usedWords: Set<string>;
+  streak: number;
+  channelId: string | null;
+}
+
+interface SerializedKelimeState {
+  lastWord: string;
+  lastUserId: string | null;
+  usedWords: string[];
   streak: number;
   channelId: string | null;
 }
@@ -19,6 +28,40 @@ export class KelimeOyunuManager {
     streak: 1,
     channelId: null,
   };
+  private static stateLoaded = false;
+
+  public static loadState(): void {
+    if (this.stateLoaded) return;
+    const raw = PersistentStore.safeReadJson<SerializedKelimeState>('kelimeOyunu.json', [], {
+      lastWord: 'ELMA',
+      lastUserId: null,
+      usedWords: ['elma'],
+      streak: 1,
+      channelId: null,
+    });
+    this.state.lastWord = raw.lastWord || 'ELMA';
+    this.state.lastUserId = raw.lastUserId || null;
+    this.state.usedWords = new Set<string>(raw.usedWords || ['elma']);
+    this.state.streak = raw.streak || 1;
+    this.state.channelId = raw.channelId || null;
+    this.stateLoaded = true;
+
+    PersistentStore.registerFlushHandler('KelimeOyunuManager', () => {
+      this.saveState();
+    });
+  }
+
+  public static saveState(): void {
+    if (!this.stateLoaded) return;
+    const serialized: SerializedKelimeState = {
+      lastWord: this.state.lastWord,
+      lastUserId: this.state.lastUserId,
+      usedWords: Array.from(this.state.usedWords),
+      streak: this.state.streak,
+      channelId: this.state.channelId,
+    };
+    PersistentStore.atomicSaveJson('kelimeOyunu.json', serialized);
+  }
 
   private static dictionary: Set<string> = new Set<string>();
   private static dictionaryLoaded = false;
@@ -119,6 +162,7 @@ export class KelimeOyunuManager {
     const channelName = (message.channel as any).name || '';
     if (!channelName.includes('kelime-oyunu')) return;
 
+    this.loadState();
     this.initDictionary();
 
     const text = message.content.trim();
@@ -198,6 +242,7 @@ export class KelimeOyunuManager {
     this.state.lastWord = wordUpper;
     this.state.lastUserId = message.author.id;
     this.state.streak++;
+    this.saveState();
 
     // Onaylanmış reaksiyon ekle
     try {

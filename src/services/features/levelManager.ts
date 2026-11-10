@@ -1,6 +1,5 @@
 import { Message, EmbedBuilder, GuildMember, Guild, Client, VoiceBasedChannel, TextChannel } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
+import { PersistentStore } from '../storage/persistentStore';
 
 export interface UserLevelData {
   xp: number;
@@ -24,36 +23,34 @@ export const LEVEL_REWARD_ROLES: LevelRewardConfig[] = [
   { level: 50, name: '👑・Level 50 | Efsane', roleId: '1568680226324484167', color: '#E056FD' },
 ];
 
-const DATA_FILE = path.resolve('assets/levelData.json');
-
 export class LevelManager {
   private static userLevels = new Map<string, UserLevelData>();
   private static loaded = false;
 
-  private static load() {
+  public static load(): void {
     if (this.loaded) return;
-    try {
-      if (fs.existsSync(DATA_FILE)) {
-        const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-        const parsed = JSON.parse(raw);
-        for (const [k, v] of Object.entries(parsed)) {
-          this.userLevels.set(k, v as UserLevelData);
-        }
-      }
-    } catch (e) {}
+    const raw = PersistentStore.safeReadJson<Record<string, UserLevelData>>(
+      'levels.json',
+      ['assets/levelData.json'],
+      {}
+    );
+    for (const [k, v] of Object.entries(raw)) {
+      this.userLevels.set(k, v);
+    }
     this.loaded = true;
+
+    PersistentStore.registerFlushHandler('LevelManager', () => {
+      this.save();
+    });
   }
 
-  private static save() {
-    try {
-      const dir = path.dirname(DATA_FILE);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      const obj: Record<string, UserLevelData> = {};
-      for (const [k, v] of this.userLevels.entries()) {
-        obj[k] = v;
-      }
-      fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2), 'utf-8');
-    } catch (e) {}
+  public static save(): void {
+    if (!this.loaded) return;
+    const obj: Record<string, UserLevelData> = {};
+    for (const [k, v] of this.userLevels.entries()) {
+      obj[k] = v;
+    }
+    PersistentStore.atomicSaveJson('levels.json', obj);
   }
 
   public static getRequiredXp(level: number): number {

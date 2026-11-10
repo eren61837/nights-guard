@@ -33,7 +33,7 @@ __export(index_exports, {
   bootstrap: () => bootstrap
 });
 module.exports = __toCommonJS(index_exports);
-var import_discord40 = require("discord.js");
+var import_discord41 = require("discord.js");
 
 // src/config.ts
 var import_dotenv = __toESM(require("dotenv"));
@@ -3466,8 +3466,163 @@ var import_discord20 = require("discord.js");
 
 // src/services/features/levelManager.ts
 var import_discord19 = require("discord.js");
+
+// src/services/storage/persistentStore.ts
 var import_fs2 = __toESM(require("fs"));
 var import_path2 = __toESM(require("path"));
+var PersistentStore = class {
+  static dataDir = import_path2.default.resolve(process.cwd(), "data");
+  static backupDir = import_path2.default.resolve(process.cwd(), "data/backups");
+  static flushHandlers = /* @__PURE__ */ new Map();
+  static initialized = false;
+  static flushTimer = null;
+  static init() {
+    if (this.initialized) return;
+    this.initialized = true;
+    try {
+      if (!import_fs2.default.existsSync(this.dataDir)) {
+        import_fs2.default.mkdirSync(this.dataDir, { recursive: true });
+      }
+      if (!import_fs2.default.existsSync(this.backupDir)) {
+        import_fs2.default.mkdirSync(this.backupDir, { recursive: true });
+      }
+      console.log(`[PersistentStore] \u{1F4C2} G\xFCvenli kal\u0131c\u0131 veri deposu haz\u0131r: ${this.dataDir}`);
+    } catch (err) {
+      console.error("[PersistentStore] Dizin olu\u015Fturma hatas\u0131:", err.message);
+    }
+    this.flushTimer = setInterval(() => {
+      this.flushAll();
+    }, 3e4);
+    if (this.flushTimer.unref) {
+      this.flushTimer.unref();
+    }
+    const gracefulExit = (signal) => {
+      console.log(`[PersistentStore] \u{1F6D1} ${signal} sinyali al\u0131nd\u0131. T\xFCm veriler diske kaydediliyor...`);
+      this.flushAll();
+      process.exit(0);
+    };
+    process.once("SIGINT", () => gracefulExit("SIGINT"));
+    process.once("SIGTERM", () => gracefulExit("SIGTERM"));
+    process.once("beforeExit", () => {
+      this.flushAll();
+    });
+  }
+  static registerFlushHandler(name, handler) {
+    this.flushHandlers.set(name, handler);
+  }
+  static flushAll() {
+    for (const [name, handler] of this.flushHandlers.entries()) {
+      try {
+        handler();
+      } catch (err) {
+        console.error(`[PersistentStore] ${name} kaydedilirken hata:`, err.message);
+      }
+    }
+  }
+  /**
+   * Atomik dosya kaydetme:
+   * 1. Önce .tmp dosyasına yazar.
+   * 2. Boyutunu doğrular.
+   * 3. Hedef dosya varsa .bak olarak yedeğini alır.
+   * 4. .tmp dosyasını hedef dosyaya atomik olarak taşır.
+   */
+  static atomicSaveJson(filename, data20) {
+    this.init();
+    const targetPath = import_path2.default.resolve(this.dataDir, filename);
+    const tmpPath = import_path2.default.resolve(this.dataDir, `${filename}.tmp.${Date.now()}`);
+    const bakPath = import_path2.default.resolve(this.dataDir, `${filename}.bak`);
+    try {
+      const content = JSON.stringify(data20, null, 2);
+      import_fs2.default.writeFileSync(tmpPath, content, "utf-8");
+      const stats = import_fs2.default.statSync(tmpPath);
+      if (stats.size === 0) {
+        try {
+          import_fs2.default.unlinkSync(tmpPath);
+        } catch {
+        }
+        return false;
+      }
+      if (import_fs2.default.existsSync(targetPath)) {
+        try {
+          import_fs2.default.copyFileSync(targetPath, bakPath);
+        } catch {
+        }
+      }
+      try {
+        import_fs2.default.renameSync(tmpPath, targetPath);
+      } catch {
+        import_fs2.default.copyFileSync(tmpPath, targetPath);
+        try {
+          import_fs2.default.unlinkSync(tmpPath);
+        } catch {
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error(`[PersistentStore] ${filename} kaydedilemedi:`, err.message);
+      try {
+        if (import_fs2.default.existsSync(tmpPath)) import_fs2.default.unlinkSync(tmpPath);
+      } catch {
+      }
+      return false;
+    }
+  }
+  /**
+   * Güvenli veri okuma ve çok kademeli kurtarma:
+   * 1. data/${filename} dosyası okunur.
+   * 2. Bozuk veya boşsa data/${filename}.bak yedeğinden geri yüklenir.
+   * 3. İkisi de yoksa fallbackPaths (eski assets/ dosyaları) aranır ve data/ klasörüne otomatik taşınır.
+   * 4. Hiçbiri yoksa defaultVal döner.
+   */
+  static safeReadJson(filename, fallbackCandidates = [], defaultVal) {
+    this.init();
+    const targetPath = import_path2.default.resolve(this.dataDir, filename);
+    const bakPath = import_path2.default.resolve(this.dataDir, `${filename}.bak`);
+    if (import_fs2.default.existsSync(targetPath)) {
+      try {
+        const raw = import_fs2.default.readFileSync(targetPath, "utf-8").trim();
+        if (raw.length > 0) {
+          const parsed = JSON.parse(raw);
+          return parsed;
+        }
+      } catch (err) {
+        console.warn(`[PersistentStore] \u26A0\uFE0F ${filename} bozuk bulundu, yedekten kurtar\u0131l\u0131yor...`);
+      }
+    }
+    if (import_fs2.default.existsSync(bakPath)) {
+      try {
+        const raw = import_fs2.default.readFileSync(bakPath, "utf-8").trim();
+        if (raw.length > 0) {
+          const parsed = JSON.parse(raw);
+          console.log(`[PersistentStore] \u2705 ${filename} yedek dosyas\u0131ndan (.bak) ba\u015Far\u0131yla kurtar\u0131ld\u0131!`);
+          this.atomicSaveJson(filename, parsed);
+          return parsed;
+        }
+      } catch (err) {
+        console.warn(`[PersistentStore] \u26A0\uFE0F ${filename}.bak da bozuk \xE7\u0131kt\u0131.`);
+      }
+    }
+    for (const fb of fallbackCandidates) {
+      const resolvedFb = import_path2.default.isAbsolute(fb) ? fb : import_path2.default.resolve(process.cwd(), fb);
+      if (import_fs2.default.existsSync(resolvedFb)) {
+        try {
+          const raw = import_fs2.default.readFileSync(resolvedFb, "utf-8").trim();
+          if (raw.length > 0) {
+            const parsed = JSON.parse(raw);
+            console.log(`[PersistentStore] \u{1F4E6} Eski veri bulundu (${fb}), ${filename} konumuna migrate ediliyor!`);
+            this.atomicSaveJson(filename, parsed);
+            return parsed;
+          }
+        } catch {
+        }
+      }
+    }
+    this.atomicSaveJson(filename, defaultVal);
+    return defaultVal;
+  }
+};
+
+// src/services/features/levelManager.ts
 var LEVEL_REWARD_ROLES = [
   { level: 5, name: "\u{1F949}\u30FBLevel 5 | \xC7aylak", roleId: "1568680202807156888", color: "#CD7F32" },
   { level: 10, name: "\u{1F948}\u30FBLevel 10 | Aktif \xDCye", roleId: "1568680215872278680", color: "#C0C0C0" },
@@ -3475,35 +3630,31 @@ var LEVEL_REWARD_ROLES = [
   { level: 30, name: "\u{1F48E}\u30FBLevel 30 | Elmas", roleId: "1568680222495084746", color: "#00E5FF" },
   { level: 50, name: "\u{1F451}\u30FBLevel 50 | Efsane", roleId: "1568680226324484167", color: "#E056FD" }
 ];
-var DATA_FILE = import_path2.default.resolve("assets/levelData.json");
 var LevelManager = class {
   static userLevels = /* @__PURE__ */ new Map();
   static loaded = false;
   static load() {
     if (this.loaded) return;
-    try {
-      if (import_fs2.default.existsSync(DATA_FILE)) {
-        const raw = import_fs2.default.readFileSync(DATA_FILE, "utf-8");
-        const parsed = JSON.parse(raw);
-        for (const [k, v] of Object.entries(parsed)) {
-          this.userLevels.set(k, v);
-        }
-      }
-    } catch (e) {
+    const raw = PersistentStore.safeReadJson(
+      "levels.json",
+      ["assets/levelData.json"],
+      {}
+    );
+    for (const [k, v] of Object.entries(raw)) {
+      this.userLevels.set(k, v);
     }
     this.loaded = true;
+    PersistentStore.registerFlushHandler("LevelManager", () => {
+      this.save();
+    });
   }
   static save() {
-    try {
-      const dir = import_path2.default.dirname(DATA_FILE);
-      if (!import_fs2.default.existsSync(dir)) import_fs2.default.mkdirSync(dir, { recursive: true });
-      const obj = {};
-      for (const [k, v] of this.userLevels.entries()) {
-        obj[k] = v;
-      }
-      import_fs2.default.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2), "utf-8");
-    } catch (e) {
+    if (!this.loaded) return;
+    const obj = {};
+    for (const [k, v] of this.userLevels.entries()) {
+      obj[k] = v;
     }
+    PersistentStore.atomicSaveJson("levels.json", obj);
   }
   static getRequiredXp(level) {
     return (level + 1) * 120 + 50;
@@ -3905,23 +4056,49 @@ var import_discord25 = require("discord.js");
 var import_discord24 = require("discord.js");
 var AfkManager = class {
   static afkUsers = /* @__PURE__ */ new Map();
+  static loaded = false;
+  static load() {
+    if (this.loaded) return;
+    const raw = PersistentStore.safeReadJson("afk.json", [], {});
+    for (const [k, v] of Object.entries(raw)) {
+      this.afkUsers.set(k, v);
+    }
+    this.loaded = true;
+    PersistentStore.registerFlushHandler("AfkManager", () => {
+      this.save();
+    });
+  }
+  static save() {
+    if (!this.loaded) return;
+    const obj = {};
+    for (const [k, v] of this.afkUsers.entries()) {
+      obj[k] = v;
+    }
+    PersistentStore.atomicSaveJson("afk.json", obj);
+  }
   static setAfk(userId, reason) {
+    this.load();
     this.afkUsers.set(userId, {
       userId,
       reason: reason || "Belirtilmedi",
       timestamp: Date.now()
     });
+    this.save();
   }
   static isAfk(userId) {
+    this.load();
     return this.afkUsers.has(userId);
   }
   static getAfk(userId) {
+    this.load();
     return this.afkUsers.get(userId);
   }
   static removeAfk(userId) {
+    this.load();
     const data20 = this.afkUsers.get(userId);
     if (data20) {
       this.afkUsers.delete(userId);
+      this.save();
     }
     return data20;
   }
@@ -4044,37 +4221,31 @@ async function execute16(interaction) {
 var import_discord27 = require("discord.js");
 
 // src/services/features/economyManager.ts
-var import_fs3 = __toESM(require("fs"));
-var import_path3 = __toESM(require("path"));
-var DATA_FILE2 = import_path3.default.resolve("assets/economyData.json");
 var EconomyManager = class {
   static userEconomy = /* @__PURE__ */ new Map();
   static loaded = false;
   static load() {
     if (this.loaded) return;
-    try {
-      if (import_fs3.default.existsSync(DATA_FILE2)) {
-        const raw = import_fs3.default.readFileSync(DATA_FILE2, "utf-8");
-        const parsed = JSON.parse(raw);
-        for (const [k, v] of Object.entries(parsed)) {
-          this.userEconomy.set(k, v);
-        }
-      }
-    } catch (e) {
+    const raw = PersistentStore.safeReadJson(
+      "economy.json",
+      ["assets/economyData.json"],
+      {}
+    );
+    for (const [k, v] of Object.entries(raw)) {
+      this.userEconomy.set(k, v);
     }
     this.loaded = true;
+    PersistentStore.registerFlushHandler("EconomyManager", () => {
+      this.save();
+    });
   }
   static save() {
-    try {
-      const dir = import_path3.default.dirname(DATA_FILE2);
-      if (!import_fs3.default.existsSync(dir)) import_fs3.default.mkdirSync(dir, { recursive: true });
-      const obj = {};
-      for (const [k, v] of this.userEconomy.entries()) {
-        obj[k] = v;
-      }
-      import_fs3.default.writeFileSync(DATA_FILE2, JSON.stringify(obj, null, 2), "utf-8");
-    } catch (e) {
+    if (!this.loaded) return;
+    const obj = {};
+    for (const [k, v] of this.userEconomy.entries()) {
+      obj[k] = v;
     }
+    PersistentStore.atomicSaveJson("economy.json", obj);
   }
   static getUser(userId) {
     this.load();
@@ -4291,8 +4462,6 @@ var import_discord31 = require("discord.js");
 
 // src/services/features/confessionManager.ts
 var import_discord30 = require("discord.js");
-var import_fs4 = __toESM(require("fs"));
-var import_path4 = __toESM(require("path"));
 
 // src/services/features/autoSecurityGuard.ts
 var import_discord29 = require("discord.js");
@@ -4513,7 +4682,6 @@ Mesaj\u0131n\u0131zda **${reason}** tespit edildi!
 
 // src/services/features/confessionManager.ts
 var ConfessionManager = class {
-  static filePath = import_path4.default.resolve("assets/confessions.json");
   static store = {
     counter: 0,
     confessions: {}
@@ -4521,24 +4689,19 @@ var ConfessionManager = class {
   static loaded = false;
   static load() {
     if (this.loaded) return;
-    try {
-      if (import_fs4.default.existsSync(this.filePath)) {
-        const raw = import_fs4.default.readFileSync(this.filePath, "utf-8");
-        this.store = JSON.parse(raw);
-      }
-    } catch {
-      this.store = { counter: 0, confessions: {} };
-    }
+    this.store = PersistentStore.safeReadJson(
+      "confessions.json",
+      ["assets/confessions.json"],
+      { counter: 0, confessions: {} }
+    );
     this.loaded = true;
+    PersistentStore.registerFlushHandler("ConfessionManager", () => {
+      this.save();
+    });
   }
   static save() {
-    try {
-      const dir = import_path4.default.dirname(this.filePath);
-      if (!import_fs4.default.existsSync(dir)) import_fs4.default.mkdirSync(dir, { recursive: true });
-      import_fs4.default.writeFileSync(this.filePath, JSON.stringify(this.store, null, 2), "utf-8");
-    } catch (e) {
-      console.warn("[ConfessionManager] Kaydetme hatas\u0131:", e.message);
-    }
+    if (!this.loaded) return;
+    PersistentStore.atomicSaveJson("confessions.json", this.store);
   }
   static async getConfessionChannel(guild) {
     try {
@@ -4705,8 +4868,8 @@ var import_discord33 = require("discord.js");
 var import_voice = require("@discordjs/voice");
 var import_discord32 = require("discord.js");
 var import_child_process = require("child_process");
-var import_path5 = __toESM(require("path"));
-var import_fs5 = __toESM(require("fs"));
+var import_path3 = __toESM(require("path"));
+var import_fs3 = __toESM(require("fs"));
 var yts = require("yt-search");
 var MusicPlayer = class _MusicPlayer {
   static queues = /* @__PURE__ */ new Map();
@@ -4722,7 +4885,7 @@ var MusicPlayer = class _MusicPlayer {
           }
           if (res.statusCode !== 200) return reject(new Error("HTTP " + res.statusCode));
           const gunzip = zlib2.createGunzip();
-          const file = import_fs5.default.createWriteStream(dest);
+          const file = import_fs3.default.createWriteStream(dest);
           res.pipe(gunzip).pipe(file);
           file.on("finish", () => file.close(() => resolve()));
           file.on("error", reject);
@@ -4736,7 +4899,7 @@ var MusicPlayer = class _MusicPlayer {
             return downloadRaw(res.headers.location, dest).then(resolve).catch(reject);
           }
           if (res.statusCode !== 200) return reject(new Error("HTTP " + res.statusCode));
-          const file = import_fs5.default.createWriteStream(dest);
+          const file = import_fs3.default.createWriteStream(dest);
           res.pipe(file);
           file.on("finish", () => file.close(() => resolve()));
           file.on("error", reject);
@@ -4744,25 +4907,25 @@ var MusicPlayer = class _MusicPlayer {
       });
     };
     try {
-      if (!import_fs5.default.existsSync("ffmpeg")) {
+      if (!import_fs3.default.existsSync("ffmpeg")) {
         console.log("[MusicPlayer] \u{1F427} Linux ortam\u0131 tespit edildi, ffmpeg indiriliyor...");
         await downloadGz("https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-linux-x64.gz", "ffmpeg");
-        import_fs5.default.chmodSync("ffmpeg", 493);
+        import_fs3.default.chmodSync("ffmpeg", 493);
         console.log("[MusicPlayer] \u2705 Linux ffmpeg haz\u0131r!");
       } else {
         try {
-          import_fs5.default.chmodSync("ffmpeg", 493);
+          import_fs3.default.chmodSync("ffmpeg", 493);
         } catch (e) {
         }
       }
-      if (!import_fs5.default.existsSync("yt-dlp")) {
+      if (!import_fs3.default.existsSync("yt-dlp")) {
         console.log("[MusicPlayer] \u{1F427} Linux ortam\u0131 tespit edildi, yt-dlp indiriliyor...");
         await downloadRaw("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp", "yt-dlp");
-        import_fs5.default.chmodSync("yt-dlp", 493);
+        import_fs3.default.chmodSync("yt-dlp", 493);
         console.log("[MusicPlayer] \u2705 Linux yt-dlp haz\u0131r!");
       } else {
         try {
-          import_fs5.default.chmodSync("yt-dlp", 493);
+          import_fs3.default.chmodSync("yt-dlp", 493);
         } catch (e) {
         }
       }
@@ -4772,17 +4935,17 @@ var MusicPlayer = class _MusicPlayer {
   }
   static getBinaries() {
     const isWin = process.platform === "win32";
-    let ytdlp = isWin ? import_path5.default.resolve("yt-dlp.exe") : import_path5.default.resolve("yt-dlp");
-    let ffmpeg = isWin ? import_path5.default.resolve("ffmpeg.exe") : import_path5.default.resolve("ffmpeg");
-    if (!import_fs5.default.existsSync(ytdlp)) ytdlp = isWin ? "yt-dlp.exe" : "yt-dlp";
-    if (!import_fs5.default.existsSync(ffmpeg)) ffmpeg = isWin ? "ffmpeg.exe" : "ffmpeg";
+    let ytdlp = isWin ? import_path3.default.resolve("yt-dlp.exe") : import_path3.default.resolve("yt-dlp");
+    let ffmpeg = isWin ? import_path3.default.resolve("ffmpeg.exe") : import_path3.default.resolve("ffmpeg");
+    if (!import_fs3.default.existsSync(ytdlp)) ytdlp = isWin ? "yt-dlp.exe" : "yt-dlp";
+    if (!import_fs3.default.existsSync(ffmpeg)) ffmpeg = isWin ? "ffmpeg.exe" : "ffmpeg";
     if (!isWin) {
       try {
-        import_fs5.default.chmodSync(ytdlp, 493);
+        import_fs3.default.chmodSync(ytdlp, 493);
       } catch (e) {
       }
       try {
-        import_fs5.default.chmodSync(ffmpeg, 493);
+        import_fs3.default.chmodSync(ffmpeg, 493);
       } catch (e) {
       }
     }
@@ -5543,33 +5706,25 @@ async function executeSes(interaction) {
 
 // src/services/features/socialManager.ts
 var import_discord34 = require("discord.js");
-var import_fs6 = __toESM(require("fs"));
-var import_path6 = __toESM(require("path"));
 var SocialManager = class {
-  static filePath = import_path6.default.join(__dirname, "../../../assets/marriages.json");
   static marriages = [];
   static pendingProposals = /* @__PURE__ */ new Map();
+  static loaded = false;
   static load() {
-    try {
-      if (import_fs6.default.existsSync(this.filePath)) {
-        const raw = import_fs6.default.readFileSync(this.filePath, "utf-8");
-        this.marriages = JSON.parse(raw);
-      } else {
-        this.marriages = [];
-        this.save();
-      }
-    } catch {
-      this.marriages = [];
-    }
+    if (this.loaded) return;
+    this.marriages = PersistentStore.safeReadJson(
+      "marriages.json",
+      ["assets/marriages.json"],
+      []
+    );
+    this.loaded = true;
+    PersistentStore.registerFlushHandler("SocialManager", () => {
+      this.save();
+    });
   }
   static save() {
-    try {
-      const dir = import_path6.default.dirname(this.filePath);
-      if (!import_fs6.default.existsSync(dir)) import_fs6.default.mkdirSync(dir, { recursive: true });
-      import_fs6.default.writeFileSync(this.filePath, JSON.stringify(this.marriages, null, 2), "utf-8");
-    } catch (e) {
-      console.warn("[SocialManager] Kay\u0131t hatas\u0131:", e.message);
-    }
+    if (!this.loaded) return;
+    PersistentStore.atomicSaveJson("marriages.json", this.marriages);
   }
   static getMarriage(userId) {
     this.load();
@@ -6495,8 +6650,8 @@ async function onVoiceStateUpdate(oldState, newState) {
 
 // src/services/features/kelimeOyunu.ts
 var import_discord38 = require("discord.js");
-var import_fs7 = __toESM(require("fs"));
-var import_path7 = __toESM(require("path"));
+var import_fs4 = __toESM(require("fs"));
+var import_path4 = __toESM(require("path"));
 var KelimeOyunuManager = class {
   static state = {
     lastWord: "ELMA",
@@ -6505,6 +6660,37 @@ var KelimeOyunuManager = class {
     streak: 1,
     channelId: null
   };
+  static stateLoaded = false;
+  static loadState() {
+    if (this.stateLoaded) return;
+    const raw = PersistentStore.safeReadJson("kelimeOyunu.json", [], {
+      lastWord: "ELMA",
+      lastUserId: null,
+      usedWords: ["elma"],
+      streak: 1,
+      channelId: null
+    });
+    this.state.lastWord = raw.lastWord || "ELMA";
+    this.state.lastUserId = raw.lastUserId || null;
+    this.state.usedWords = new Set(raw.usedWords || ["elma"]);
+    this.state.streak = raw.streak || 1;
+    this.state.channelId = raw.channelId || null;
+    this.stateLoaded = true;
+    PersistentStore.registerFlushHandler("KelimeOyunuManager", () => {
+      this.saveState();
+    });
+  }
+  static saveState() {
+    if (!this.stateLoaded) return;
+    const serialized = {
+      lastWord: this.state.lastWord,
+      lastUserId: this.state.lastUserId,
+      usedWords: Array.from(this.state.usedWords),
+      streak: this.state.streak,
+      channelId: this.state.channelId
+    };
+    PersistentStore.atomicSaveJson("kelimeOyunu.json", serialized);
+  }
   static dictionary = /* @__PURE__ */ new Set();
   static dictionaryLoaded = false;
   static forbiddenRoots = [
@@ -6581,13 +6767,13 @@ var KelimeOyunuManager = class {
     if (this.dictionaryLoaded) return;
     try {
       const candidates = [
-        import_path7.default.resolve(process.cwd(), "assets/clean_turkish_words.json"),
-        import_path7.default.resolve(__dirname, "../../../assets/clean_turkish_words.json"),
-        import_path7.default.resolve(__dirname, "../../assets/clean_turkish_words.json")
+        import_path4.default.resolve(process.cwd(), "assets/clean_turkish_words.json"),
+        import_path4.default.resolve(__dirname, "../../../assets/clean_turkish_words.json"),
+        import_path4.default.resolve(__dirname, "../../assets/clean_turkish_words.json")
       ];
       for (const p of candidates) {
-        if (import_fs7.default.existsSync(p)) {
-          const raw = import_fs7.default.readFileSync(p, "utf8");
+        if (import_fs4.default.existsSync(p)) {
+          const raw = import_fs4.default.readFileSync(p, "utf8");
           const arr = JSON.parse(raw);
           this.dictionary = new Set(arr.map((w) => w.toLocaleLowerCase("tr-TR")));
           this.dictionaryLoaded = true;
@@ -6635,6 +6821,7 @@ var KelimeOyunuManager = class {
     if (message.author.bot || !message.guild) return;
     const channelName = message.channel.name || "";
     if (!channelName.includes("kelime-oyunu")) return;
+    this.loadState();
     this.initDictionary();
     const text = message.content.trim();
     if (this.isSexualOrProfane(text)) {
@@ -6703,6 +6890,7 @@ var KelimeOyunuManager = class {
     this.state.lastWord = wordUpper;
     this.state.lastUserId = message.author.id;
     this.state.streak++;
+    this.saveState();
     try {
       await message.react("\u2705");
     } catch (e) {
@@ -6740,8 +6928,135 @@ S\u0131radaki Kelime '**${nextLetter}**' harfiyle ba\u015Flamal\u0131!`
   }
 };
 
-// src/services/features/auditLogManager.ts
+// src/services/features/countingGame.ts
 var import_discord39 = require("discord.js");
+var CountingGameManager = class {
+  static currentNumber = 1;
+  static lastUserId = null;
+  static highestScore = 0;
+  static loaded = false;
+  static load() {
+    if (this.loaded) return;
+    const data20 = PersistentStore.safeReadJson("counting.json", [], {
+      currentNumber: 1,
+      lastUserId: null,
+      highestScore: 0
+    });
+    this.currentNumber = data20.currentNumber || 1;
+    this.lastUserId = data20.lastUserId || null;
+    this.highestScore = data20.highestScore || 0;
+    this.loaded = true;
+    PersistentStore.registerFlushHandler("CountingGameManager", () => {
+      this.save();
+    });
+  }
+  static save() {
+    if (!this.loaded) return;
+    PersistentStore.atomicSaveJson("counting.json", {
+      currentNumber: this.currentNumber,
+      lastUserId: this.lastUserId,
+      highestScore: this.highestScore
+    });
+  }
+  static async handleMessage(message) {
+    if (message.author.bot || !message.guild) return;
+    this.load();
+    const channelName = message.channel.name || "";
+    if (!channelName.includes("sayi-saymaca")) return;
+    const text = message.content.trim();
+    const num = parseInt(text, 10);
+    if (isNaN(num) || text !== num.toString()) {
+      await message.delete().catch(() => {
+      });
+      try {
+        if ("send" in message.channel) {
+          const warn = await message.channel.send({
+            content: `\u26A0\uFE0F <@${message.author.id}>, buras\u0131 say\u0131 saymaca kanal\u0131d\u0131r! Yaln\u0131zca s\u0131radaki say\u0131y\u0131 (**${this.currentNumber}**) yaz\u0131n\u0131z.`
+          });
+          setTimeout(() => warn.delete().catch(() => {
+          }), 3500);
+        }
+      } catch (e) {
+      }
+      return;
+    }
+    if (this.lastUserId === message.author.id) {
+      await message.delete().catch(() => {
+      });
+      try {
+        if ("send" in message.channel) {
+          const warn = await message.channel.send({
+            content: `\u26A0\uFE0F <@${message.author.id}>, art arda iki say\u0131 yazamazs\u0131n\u0131z! Ba\u015Fka bir \xFCyenin yazmas\u0131n\u0131 bekleyin.`
+          });
+          setTimeout(() => warn.delete().catch(() => {
+          }), 3500);
+        }
+      } catch (e) {
+      }
+      return;
+    }
+    if (num !== this.currentNumber) {
+      const failedAt = this.currentNumber - 1;
+      this.currentNumber = 1;
+      this.lastUserId = null;
+      this.save();
+      await message.react("\u274C").catch(() => {
+      });
+      try {
+        if ("send" in message.channel) {
+          const failEmbed = new import_discord39.EmbedBuilder().setTitle("\u{1F4A5} EYVAH! SER\u0130 BOZULDU! \u{1F4A5}").setDescription(
+            `<@${message.author.id}> yanl\u0131\u015F say\u0131 girdi (**${num}** yerine **${failedAt + 1}** yaz\u0131lmal\u0131yd\u0131)!
+
+\u{1F4CA} **Ula\u015F\u0131lan Skor:** \`${failedAt}\` Say\u0131
+\u{1F3C6} **Rekor:** \`${this.highestScore}\` Say\u0131
+
+\u{1F504} *Oyun s\u0131f\u0131rland\u0131! S\u0131radaki say\u0131: **1***`
+          ).setColor("#ED4245").setFooter({ text: "Nights Say\u0131 Saymaca Oyunu" });
+          await message.channel.send({ embeds: [failEmbed] });
+        }
+      } catch (e) {
+      }
+      return;
+    }
+    this.currentNumber++;
+    this.lastUserId = message.author.id;
+    if (num > this.highestScore) this.highestScore = num;
+    this.save();
+    await message.react("\u2705").catch(() => {
+    });
+    if (num % 25 === 0) {
+      try {
+        if ("send" in message.channel) {
+          const milestoneEmbed = new import_discord39.EmbedBuilder().setTitle(`\u{1F389} B\xDCY\xDCK BA\u015EARI: ${num}. SAYIYA ULA\u015EILDI! \u{1F680}`).setDescription(
+            `Tebrikler! Sunucu olarak harika bir tak\u0131m \xE7al\u0131\u015Fmas\u0131 sergiliyorsunuz.
+\u015Eu anki seri: **${num}**
+S\u0131radaki hedef: **${num + 25}**`
+          ).setColor("#2ECC71").setFooter({ text: "Nights Community Games" });
+          await message.channel.send({ embeds: [milestoneEmbed] });
+        }
+      } catch (e) {
+      }
+    }
+  }
+  static getInitialEmbed() {
+    return new import_discord39.EmbedBuilder().setTitle("\u{1F522} NIGHTS SAYI SAYMACA OYUNU BA\u015ELADI!").setDescription(
+      `Sunucumuzun tak\u0131m \xE7al\u0131\u015Fmas\u0131 ve e\u011Flence dolu say\u0131 sayma oyunu aktif!
+
+### \u{1F4CC} Oyun Kurallar\u0131:
+1\uFE0F\u20E3 S\u0131radaki say\u0131y\u0131 eksiksiz olarak yaz\u0131n\u0131z *(1, 2, 3...)*.
+2\uFE0F\u20E3 Ayn\u0131 ki\u015Fi **art arda iki say\u0131** yazamaz.
+3\uFE0F\u20E3 Yanl\u0131\u015F bir say\u0131 yaz\u0131l\u0131rsa seri **s\u0131f\u0131rlan\u0131r** ve 1'den ba\u015Ftan ba\u015Flar.
+4\uFE0F\u20E3 Say\u0131 d\u0131\u015F\u0131ndaki sohbet mesajlar\u0131 otomatik temizlenir.
+
+\u{1F3C1} **Ba\u015Flang\u0131\xE7:** S\u0131radaki Say\u0131: **1**
+
+\u{1F525} *Hadi ilk say\u0131y\u0131 yazarak rekor k\u0131rmaya ba\u015Flay\u0131n!*`
+    ).setColor("#3498DB").setFooter({ text: "Nights Guard Oyun Motoru \u2022 Made by erencix" });
+  }
+};
+
+// src/services/features/auditLogManager.ts
+var import_discord40 = require("discord.js");
 var AuditLogManager = class {
   static logChannelCache = /* @__PURE__ */ new Map();
   /**
@@ -6777,7 +7092,7 @@ var AuditLogManager = class {
       if (!logChannel || logChannel.id === message.channelId) return;
       const content = message.content?.trim() || "*[Mesaj metni al\u0131namad\u0131 veya sadece medya/dosya i\xE7eriyordu]*";
       const attachments = message.attachments?.size ? Array.from(message.attachments.values()).map((a) => a.url).join("\n") : null;
-      const embed = new import_discord39.EmbedBuilder().setTitle("\u{1F5D1}\uFE0F Mesaj Silindi").setDescription(
+      const embed = new import_discord40.EmbedBuilder().setTitle("\u{1F5D1}\uFE0F Mesaj Silindi").setDescription(
         `> \u{1F464} **Mesaj Sahibi:** <@${message.author?.id}> (\`${message.author?.tag || message.author?.id}\`)
 > \u{1F4AC} **Kanal:** <#${message.channelId}>
 > \u{1F4C5} **Tarih:** <t:${Math.floor(Date.now() / 1e3)}:R>
@@ -6806,7 +7121,7 @@ ${attachments.slice(0, 400)}` : "")
       if (!logChannel || logChannel.id === newMessage.channelId) return;
       const oldText = oldMessage.content?.trim() || "*[\xD6nceki i\xE7erik yok]*";
       const newText = newMessage.content?.trim() || "*[Yeni i\xE7erik yok]*";
-      const embed = new import_discord39.EmbedBuilder().setTitle("\u270F\uFE0F Mesaj D\xFCzenlendi").setDescription(
+      const embed = new import_discord40.EmbedBuilder().setTitle("\u270F\uFE0F Mesaj D\xFCzenlendi").setDescription(
         `> \u{1F464} **Mesaj Sahibi:** <@${newMessage.author?.id}> (\`${newMessage.author?.tag || newMessage.author?.id}\`)
 > \u{1F4AC} **Kanal:** <#${newMessage.channelId}> \u2014 [Mesaja Git](${newMessage.url})
 
@@ -6835,7 +7150,7 @@ ${newText.slice(0, 800)}
       if (!logChannel) return;
       const roles = member.roles?.cache?.filter((r) => r.id !== guild.id)?.map((r) => r.name)?.join(", ") || "Rol bulunmuyor";
       const joinedAtStr = member.joinedTimestamp ? `<t:${Math.floor(member.joinedTimestamp / 1e3)}:R>` : "Bilinmiyor";
-      const embed = new import_discord39.EmbedBuilder().setTitle("\u{1F6AA} Bir \xDCye Sunucudan Ayr\u0131ld\u0131").setDescription(
+      const embed = new import_discord40.EmbedBuilder().setTitle("\u{1F6AA} Bir \xDCye Sunucudan Ayr\u0131ld\u0131").setDescription(
         `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user?.tag || member.id}\`)
 > \u{1F4C5} **Sunucuya Kat\u0131lm\u0131\u015Ft\u0131:** ${joinedAtStr}
 > \u{1F3F7}\uFE0F **Sahip Oldu\u011Fu Roller:** \`${roles.slice(0, 300)}\`
@@ -6860,7 +7175,7 @@ ${newText.slice(0, 800)}
       const logChannel = await this.getLogChannel(guild);
       if (!logChannel) return;
       if (!oldState.channelId && newState.channelId) {
-        const embed = new import_discord39.EmbedBuilder().setTitle("\u{1F399}\uFE0F Ses Kanal\u0131na Giri\u015F").setDescription(
+        const embed = new import_discord40.EmbedBuilder().setTitle("\u{1F399}\uFE0F Ses Kanal\u0131na Giri\u015F").setDescription(
           `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user.tag}\`)
 > \u{1F50A} **Kanal:** <#${newState.channelId}>`
         ).setColor("#2ECC71").setTimestamp();
@@ -6869,7 +7184,7 @@ ${newText.slice(0, 800)}
         return;
       }
       if (oldState.channelId && !newState.channelId) {
-        const embed = new import_discord39.EmbedBuilder().setTitle("\u{1F6AA} Ses Kanal\u0131ndan \xC7\u0131k\u0131\u015F").setDescription(
+        const embed = new import_discord40.EmbedBuilder().setTitle("\u{1F6AA} Ses Kanal\u0131ndan \xC7\u0131k\u0131\u015F").setDescription(
           `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user.tag}\`)
 > \u{1F507} **Ayr\u0131ld\u0131\u011F\u0131 Kanal:** <#${oldState.channelId}>`
         ).setColor("#ED4245").setTimestamp();
@@ -6878,7 +7193,7 @@ ${newText.slice(0, 800)}
         return;
       }
       if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
-        const embed = new import_discord39.EmbedBuilder().setTitle("\u{1F504} Ses Kanal\u0131 De\u011Fi\u015Fikli\u011Fi").setDescription(
+        const embed = new import_discord40.EmbedBuilder().setTitle("\u{1F504} Ses Kanal\u0131 De\u011Fi\u015Fikli\u011Fi").setDescription(
           `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user.tag}\`)
 > \u{1F534} **Eski Kanal:** <#${oldState.channelId}>
 > \u{1F7E2} **Yeni Kanal:** <#${newState.channelId}>`
@@ -7096,9 +7411,14 @@ var InviteTracker = class {
 };
 
 // src/index.ts
-var import_discord41 = require("discord.js");
+var import_discord42 = require("discord.js");
 async function bootstrap() {
   console.log("\u{1F680} Nights Guard \u2022 Made by erencix ba\u015Flat\u0131l\u0131yor...");
+  PersistentStore.init();
+  LevelManager.load();
+  EconomyManager.load();
+  SocialManager.load();
+  KelimeOyunuManager.loadState();
   const validation = validateConfig();
   if (validation.warnings.length > 0) {
     validation.warnings.forEach((w) => console.warn(`\u26A0\uFE0F [UYARI]: ${w}`));
@@ -7121,43 +7441,43 @@ async function bootstrap() {
     }
     return;
   }
-  const client = new import_discord40.Client({
+  const client = new import_discord41.Client({
     intents: [
-      import_discord40.GatewayIntentBits.Guilds,
-      import_discord40.GatewayIntentBits.GuildMembers,
-      import_discord40.GatewayIntentBits.GuildVoiceStates,
-      import_discord40.GatewayIntentBits.GuildMessages,
-      import_discord40.GatewayIntentBits.MessageContent,
-      import_discord40.GatewayIntentBits.GuildEmojisAndStickers,
-      import_discord40.GatewayIntentBits.GuildInvites
+      import_discord41.GatewayIntentBits.Guilds,
+      import_discord41.GatewayIntentBits.GuildMembers,
+      import_discord41.GatewayIntentBits.GuildVoiceStates,
+      import_discord41.GatewayIntentBits.GuildMessages,
+      import_discord41.GatewayIntentBits.MessageContent,
+      import_discord41.GatewayIntentBits.GuildEmojisAndStickers,
+      import_discord41.GatewayIntentBits.GuildInvites
     ],
-    partials: [import_discord40.Partials.Channel, import_discord40.Partials.GuildMember, import_discord40.Partials.Message, import_discord40.Partials.User]
+    partials: [import_discord41.Partials.Channel, import_discord41.Partials.GuildMember, import_discord41.Partials.Message, import_discord41.Partials.User]
   });
   const aiManager = new AIManager();
   const interactionHandler = new InteractionHandler(aiManager);
-  client.once(import_discord40.Events.ClientReady, async () => {
+  client.once(import_discord41.Events.ClientReady, async () => {
     await onReady(client);
     await InviteTracker.init(client);
   });
-  client.on(import_discord40.Events.InviteCreate, (invite) => InviteTracker.onInviteCreate(invite));
-  client.on(import_discord40.Events.InviteDelete, (invite) => InviteTracker.onInviteDelete(invite));
-  client.on(import_discord40.Events.InteractionCreate, async (interaction) => {
+  client.on(import_discord41.Events.InviteCreate, (invite) => InviteTracker.onInviteCreate(invite));
+  client.on(import_discord41.Events.InviteDelete, (invite) => InviteTracker.onInviteDelete(invite));
+  client.on(import_discord41.Events.InteractionCreate, async (interaction) => {
     await interactionHandler.handle(interaction);
   });
-  client.on(import_discord40.Events.VoiceStateUpdate, async (oldState, newState) => {
+  client.on(import_discord41.Events.VoiceStateUpdate, async (oldState, newState) => {
     await onVoiceStateUpdate(oldState, newState);
     await AuditLogManager.logVoiceState(oldState, newState);
   });
-  client.on(import_discord40.Events.MessageDelete, async (message) => {
+  client.on(import_discord41.Events.MessageDelete, async (message) => {
     await AuditLogManager.logMessageDelete(message);
   });
-  client.on(import_discord40.Events.MessageUpdate, async (oldMessage, newMessage) => {
+  client.on(import_discord41.Events.MessageUpdate, async (oldMessage, newMessage) => {
     await AuditLogManager.logMessageUpdate(oldMessage, newMessage);
   });
-  client.on(import_discord40.Events.GuildMemberRemove, async (member) => {
+  client.on(import_discord41.Events.GuildMemberRemove, async (member) => {
     await AuditLogManager.logMemberLeave(member);
   });
-  client.on(import_discord40.Events.MessageCreate, async (message) => {
+  client.on(import_discord41.Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
     const blocked = await AutoSecurityGuard.inspect(message);
     if (blocked) return;
@@ -7166,6 +7486,10 @@ async function bootstrap() {
     const chName = message.channel.name || "";
     if (chName.includes("kelime-oyunu")) {
       await KelimeOyunuManager.handleMessage(message);
+      return;
+    }
+    if (chName.includes("sayi-saymaca")) {
+      await CountingGameManager.handleMessage(message);
       return;
     }
     await AfkManager.handleMessage(message);
@@ -7214,7 +7538,7 @@ async function bootstrap() {
 `;
       });
       if (q.songs.length > 10) desc += `*...ve ${q.songs.length - 10} \u015Fark\u0131 daha.*`;
-      const embed = new import_discord41.EmbedBuilder().setTitle(`\u{1F4DC} \xC7alma Listesi (${q.songs.length} Par\xE7a)`).setDescription(desc).setColor("#5865F2").setFooter({ text: `Ses: %${q.volume} \u2022 D\xF6ng\xFC: ${q.loopMode}` });
+      const embed = new import_discord42.EmbedBuilder().setTitle(`\u{1F4DC} \xC7alma Listesi (${q.songs.length} Par\xE7a)`).setDescription(desc).setColor("#5865F2").setFooter({ text: `Ses: %${q.volume} \u2022 D\xF6ng\xFC: ${q.loopMode}` });
       await message.reply({ embeds: [embed] }).catch(() => {
       });
       return;
@@ -7252,14 +7576,14 @@ async function bootstrap() {
         desc += `${medal} <@${u.userId}> \u2014 **Level ${u.level}** (\`${u.xp} XP\`)
 `;
       });
-      const topEmbed = new import_discord41.EmbedBuilder().setTitle("\u{1F3C6} NIGHTS AKT\u0130FL\u0130K L\u0130DERL\u0130K TABLOSU").setDescription(desc || "Hen\xFCz seviye atlayan \xFCye bulunmuyor.").setColor("#F1C40F").setFooter({ text: "Nights Topluluk S\u0131ralamas\u0131 \u2022 Made by erencix" });
+      const topEmbed = new import_discord42.EmbedBuilder().setTitle("\u{1F3C6} NIGHTS AKT\u0130FL\u0130K L\u0130DERL\u0130K TABLOSU").setDescription(desc || "Hen\xFCz seviye atlayan \xFCye bulunmuyor.").setColor("#F1C40F").setFooter({ text: "Nights Topluluk S\u0131ralamas\u0131 \u2022 Made by erencix" });
       await message.reply({ embeds: [topEmbed] }).catch(() => {
       });
       return;
     }
     if (cmd === "!seviye-esitle") {
       const ownerId = config.ownerId || process.env.OWNER_ID || "1138498666785677492";
-      if (message.author.id !== ownerId && !message.member?.permissions.has(import_discord40.PermissionFlagsBits.Administrator)) {
+      if (message.author.id !== ownerId && !message.member?.permissions.has(import_discord41.PermissionFlagsBits.Administrator)) {
         await message.reply("\u274C Bu komutu yaln\u0131zca sunucu y\xF6neticisi kullanabilir.").catch(() => {
         });
         return;
@@ -7422,7 +7746,7 @@ async function bootstrap() {
       return;
     }
     if (cmd === "!yardim" || cmd === "!komutlar") {
-      const helpEmbed = new import_discord41.EmbedBuilder().setTitle("\u{1F3AE} NIGHTS GUARD E\u011ELENCE & S\u0130STEM KOMUTLARI").setDescription(
+      const helpEmbed = new import_discord42.EmbedBuilder().setTitle("\u{1F3AE} NIGHTS GUARD E\u011ELENCE & S\u0130STEM KOMUTLARI").setDescription(
         "Sunucumuzda kullanabilece\u011Finiz h\u0131zl\u0131 interaktif komutlar:\n\n### \u26A1 Level & Aktiflik:\n\u2022 `!rank` \u2014 Kendi seviye kart\u0131n\u0131z\u0131 ve XP durumunuzu g\xF6sterir\n\u2022 `!top` \u2014 Sunucu aktiflik liderlik tablosunu g\xF6sterir\n\n### \u{1F4B0} Ekonomi & Oyunlar:\n\u2022 `!gunluk` \u2014 G\xFCnl\xFCk 500 Nights Coin \xF6d\xFCl\xFCn\xFCz\xFC al\u0131r\n\u2022 `!bakiye` \u2014 Mevcut paran\u0131z\u0131 g\xF6r\xFCnt\xFCler\n\u2022 `!calis` \u2014 30 dakikada bir \xE7al\u0131\u015Farak para kazand\u0131r\u0131r\n\u2022 `!cf <miktar> <yazi|tura>` \u2014 Yaz\u0131 tura bahsi oynar\n\u2022 `!slot <miktar>` \u2014 Slot kumar makinesini \xE7evirir\n\n### \u{1F3B2} Sunucu \u0130\xE7i Oyun Kanallar\u0131:\n\u2022 <#1568644567517896815> \u2014 Otomatik Kelime T\xFCretmece\n\u2022 `#owo-gambling-1 & 2` \u2014 H\u0131zl\u0131 1sn OwO Oyun Odalar\u0131"
       ).setColor("#8B5CF6").setFooter({ text: "Nights Interactive Engine \u2022 Made by erencix" });
       await message.reply({ embeds: [helpEmbed] }).catch(() => {
@@ -7432,7 +7756,7 @@ async function bootstrap() {
     if (cmd === "!dm" || cmd === "!duyuru" || cmd === "!mesajgonder") {
       const ownerId = config.ownerId || "1138498666785677492";
       const isOwner = message.author.id === ownerId;
-      const isAdmin = message.member?.permissions.has(import_discord40.PermissionFlagsBits.Administrator);
+      const isAdmin = message.member?.permissions.has(import_discord41.PermissionFlagsBits.Administrator);
       if (!isOwner && !isAdmin) {
         await message.reply("\u26D4 **Eri\u015Fim Engellendi:** Bu komut yaln\u0131zca sunucu kurucusu taraf\u0131ndan kullan\u0131labilir!").catch(() => {
         });
@@ -7449,7 +7773,7 @@ async function bootstrap() {
       const progressMsg = await message.reply("\u23F3 **Toplu DM G\xF6nderimi Ba\u015Flat\u0131l\u0131yor...** L\xFCtfen bekleyin.").catch(() => null);
       const allMembers = await guild.members.fetch();
       const candidates = Array.from(allMembers.values()).filter((m) => !m.user.bot);
-      const dmEmbed = new import_discord41.EmbedBuilder().setTitle("\u{1F4E2} NIGHTS TOPLULUK RESM\u0130 DUYURUSU").setDescription(rawMsg).setColor("#8B5CF6").setThumbnail(guild.iconURL({ size: 256 }) || message.author.displayAvatarURL()).addFields(
+      const dmEmbed = new import_discord42.EmbedBuilder().setTitle("\u{1F4E2} NIGHTS TOPLULUK RESM\u0130 DUYURUSU").setDescription(rawMsg).setColor("#8B5CF6").setThumbnail(guild.iconURL({ size: 256 }) || message.author.displayAvatarURL()).addFields(
         { name: "\u{1F451} G\xF6nderen Yetkili", value: `<@${message.author.id}>`, inline: true },
         { name: "\u{1F310} Sunucu", value: `**${guild.name}**`, inline: true }
       ).setImage("https://media.giphy.com/media/EPfV3ijMQVl60/giphy.gif").setFooter({ text: "Nights Community Broadcast Engine \u2022 Made by erencix" }).setTimestamp();
@@ -7516,7 +7840,7 @@ async function bootstrap() {
       }
     }
   });
-  client.on(import_discord40.Events.GuildMemberAdd, async (member) => {
+  client.on(import_discord41.Events.GuildMemberAdd, async (member) => {
     try {
       console.log(`[GuildMemberAdd] Yeni \xFCye kat\u0131ld\u0131: ${member.user.tag} (${member.id})`);
       if (member.user.bot) {
@@ -7549,7 +7873,7 @@ async function bootstrap() {
             inviterStr = `\xD6zel Sunucu Linki (\`${inviteInfo.code}\`) \u{1F517}`;
           }
           const avatarUrl = member.user.displayAvatarURL({ size: 256 });
-          const welcomeEmbed = new import_discord41.EmbedBuilder().setTitle(`\u{1F44B} ARAMIZA HO\u015E GELD\u0130N, ${member.displayName}!`).setDescription(
+          const welcomeEmbed = new import_discord42.EmbedBuilder().setTitle(`\u{1F44B} ARAMIZA HO\u015E GELD\u0130N, ${member.displayName}!`).setDescription(
             `Hey <@${member.id}>, **${member.guild.name}** sunucumuza ho\u015F geldin! \u{1F389}
 
 > \u{1F4E8} **Davet Eden:** ${inviterStr}
@@ -7571,7 +7895,7 @@ async function bootstrap() {
       console.warn("[GuildMemberAdd] Hata:", err.message);
     }
   });
-  client.on(import_discord40.Events.GuildCreate, async (guild) => {
+  client.on(import_discord41.Events.GuildCreate, async (guild) => {
     const allowedGuildId = "1568618183223414934";
     const allowedOwnerId = config.ownerId || "1138498666785677492";
     if (guild.id !== allowedGuildId && guild.ownerId !== allowedOwnerId) {

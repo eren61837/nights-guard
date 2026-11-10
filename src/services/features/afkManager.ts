@@ -1,4 +1,5 @@
 import { Message, EmbedBuilder } from 'discord.js';
+import { PersistentStore } from '../storage/persistentStore';
 
 export interface AfkData {
   userId: string;
@@ -8,27 +9,56 @@ export interface AfkData {
 
 export class AfkManager {
   private static afkUsers = new Map<string, AfkData>();
+  private static loaded = false;
+
+  private static load(): void {
+    if (this.loaded) return;
+    const raw = PersistentStore.safeReadJson<Record<string, AfkData>>('afk.json', [], {});
+    for (const [k, v] of Object.entries(raw)) {
+      this.afkUsers.set(k, v);
+    }
+    this.loaded = true;
+
+    PersistentStore.registerFlushHandler('AfkManager', () => {
+      this.save();
+    });
+  }
+
+  private static save(): void {
+    if (!this.loaded) return;
+    const obj: Record<string, AfkData> = {};
+    for (const [k, v] of this.afkUsers.entries()) {
+      obj[k] = v;
+    }
+    PersistentStore.atomicSaveJson('afk.json', obj);
+  }
 
   public static setAfk(userId: string, reason: string): void {
+    this.load();
     this.afkUsers.set(userId, {
       userId,
       reason: reason || 'Belirtilmedi',
       timestamp: Date.now(),
     });
+    this.save();
   }
 
   public static isAfk(userId: string): boolean {
+    this.load();
     return this.afkUsers.has(userId);
   }
 
   public static getAfk(userId: string): AfkData | undefined {
+    this.load();
     return this.afkUsers.get(userId);
   }
 
   public static removeAfk(userId: string): AfkData | undefined {
+    this.load();
     const data = this.afkUsers.get(userId);
     if (data) {
       this.afkUsers.delete(userId);
+      this.save();
     }
     return data;
   }

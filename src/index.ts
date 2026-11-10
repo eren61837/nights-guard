@@ -12,6 +12,7 @@ import { onReady } from './events/ready';
 import { onVoiceStateUpdate } from './events/voiceStateUpdate';
 import { DashboardServer } from './services/web/dashboardServer';
 import { KelimeOyunuManager } from './services/features/kelimeOyunu';
+import { CountingGameManager } from './services/features/countingGame';
 import { AutoSecurityGuard } from './services/features/autoSecurityGuard';
 import { LevelManager } from './services/features/levelManager';
 import { EconomyManager } from './services/features/economyManager';
@@ -21,10 +22,18 @@ import { AIChatManager } from './services/features/aiChatManager';
 import { SocialManager } from './services/features/socialManager';
 import { InviteTracker } from './services/features/inviteTracker';
 import { MusicPlayer } from './services/features/musicPlayer';
+import { PersistentStore } from './services/storage/persistentStore';
 import { EmbedBuilder, TextChannel } from 'discord.js';
 
 async function bootstrap() {
   console.log('🚀 Nights Guard • Made by erencix başlatılıyor...');
+
+  // Kalıcı Güvenli Veri Depolama Motorunu Başlat
+  PersistentStore.init();
+  LevelManager.load();
+  EconomyManager.load();
+  SocialManager.load();
+  KelimeOyunuManager.loadState();
 
   const validation = validateConfig();
   if (validation.warnings.length > 0) {
@@ -116,6 +125,12 @@ async function bootstrap() {
     const chName = (message.channel as any).name || '';
     if (chName.includes('kelime-oyunu')) {
       await KelimeOyunuManager.handleMessage(message);
+      return;
+    }
+
+    // 2.1. Sayı Saymaca Oyunu
+    if (chName.includes('sayi-saymaca')) {
+      await CountingGameManager.handleMessage(message);
       return;
     }
 

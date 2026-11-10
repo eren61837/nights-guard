@@ -7,8 +7,7 @@ import {
   Message,
   ButtonInteraction,
 } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
+import { PersistentStore } from '../storage/persistentStore';
 
 export interface MarriageRecord {
   user1: string;
@@ -17,32 +16,27 @@ export interface MarriageRecord {
 }
 
 export class SocialManager {
-  private static filePath = path.join(__dirname, '../../../assets/marriages.json');
   private static marriages: MarriageRecord[] = [];
   private static pendingProposals = new Map<string, { senderId: string; targetId: string; expiresAt: number }>();
+  private static loaded = false;
 
   public static load(): void {
-    try {
-      if (fs.existsSync(this.filePath)) {
-        const raw = fs.readFileSync(this.filePath, 'utf-8');
-        this.marriages = JSON.parse(raw);
-      } else {
-        this.marriages = [];
-        this.save();
-      }
-    } catch {
-      this.marriages = [];
-    }
+    if (this.loaded) return;
+    this.marriages = PersistentStore.safeReadJson<MarriageRecord[]>(
+      'marriages.json',
+      ['assets/marriages.json'],
+      []
+    );
+    this.loaded = true;
+
+    PersistentStore.registerFlushHandler('SocialManager', () => {
+      this.save();
+    });
   }
 
   private static save(): void {
-    try {
-      const dir = path.dirname(this.filePath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(this.filePath, JSON.stringify(this.marriages, null, 2), 'utf-8');
-    } catch (e: any) {
-      console.warn('[SocialManager] Kayıt hatası:', e.message);
-    }
+    if (!this.loaded) return;
+    PersistentStore.atomicSaveJson('marriages.json', this.marriages);
   }
 
   public static getMarriage(userId: string): { partnerId: string; marriedAt: number; days: number } | null {

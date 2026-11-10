@@ -1,6 +1,5 @@
 import { EmbedBuilder, User } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
+import { PersistentStore } from '../storage/persistentStore';
 
 interface UserEconomyData {
   coins: number;
@@ -8,36 +7,34 @@ interface UserEconomyData {
   lastWork: number;
 }
 
-const DATA_FILE = path.resolve('assets/economyData.json');
-
 export class EconomyManager {
   private static userEconomy = new Map<string, UserEconomyData>();
   private static loaded = false;
 
-  private static load() {
+  public static load(): void {
     if (this.loaded) return;
-    try {
-      if (fs.existsSync(DATA_FILE)) {
-        const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-        const parsed = JSON.parse(raw);
-        for (const [k, v] of Object.entries(parsed)) {
-          this.userEconomy.set(k, v as UserEconomyData);
-        }
-      }
-    } catch (e) {}
+    const raw = PersistentStore.safeReadJson<Record<string, UserEconomyData>>(
+      'economy.json',
+      ['assets/economyData.json'],
+      {}
+    );
+    for (const [k, v] of Object.entries(raw)) {
+      this.userEconomy.set(k, v);
+    }
     this.loaded = true;
+
+    PersistentStore.registerFlushHandler('EconomyManager', () => {
+      this.save();
+    });
   }
 
-  private static save() {
-    try {
-      const dir = path.dirname(DATA_FILE);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      const obj: Record<string, UserEconomyData> = {};
-      for (const [k, v] of this.userEconomy.entries()) {
-        obj[k] = v;
-      }
-      fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2), 'utf-8');
-    } catch (e) {}
+  public static save(): void {
+    if (!this.loaded) return;
+    const obj: Record<string, UserEconomyData> = {};
+    for (const [k, v] of this.userEconomy.entries()) {
+      obj[k] = v;
+    }
+    PersistentStore.atomicSaveJson('economy.json', obj);
   }
 
   private static getUser(userId: string): UserEconomyData {

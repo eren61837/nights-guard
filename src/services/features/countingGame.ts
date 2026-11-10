@@ -1,12 +1,48 @@
 import { Message, EmbedBuilder } from 'discord.js';
+import { PersistentStore } from '../storage/persistentStore';
+
+interface CountingState {
+  currentNumber: number;
+  lastUserId: string | null;
+  highestScore: number;
+}
 
 export class CountingGameManager {
   private static currentNumber: number = 1;
   private static lastUserId: string | null = null;
   private static highestScore: number = 0;
+  private static loaded = false;
+
+  private static load(): void {
+    if (this.loaded) return;
+    const data = PersistentStore.safeReadJson<CountingState>('counting.json', [], {
+      currentNumber: 1,
+      lastUserId: null,
+      highestScore: 0,
+    });
+    this.currentNumber = data.currentNumber || 1;
+    this.lastUserId = data.lastUserId || null;
+    this.highestScore = data.highestScore || 0;
+    this.loaded = true;
+
+    PersistentStore.registerFlushHandler('CountingGameManager', () => {
+      this.save();
+    });
+  }
+
+  private static save(): void {
+    if (!this.loaded) return;
+    PersistentStore.atomicSaveJson('counting.json', {
+      currentNumber: this.currentNumber,
+      lastUserId: this.lastUserId,
+      highestScore: this.highestScore,
+    });
+  }
 
   public static async handleMessage(message: Message): Promise<void> {
     if (message.author.bot || !message.guild) return;
+
+    this.load();
 
     const channelName = (message.channel as any).name || '';
     if (!channelName.includes('sayi-saymaca')) return;
@@ -47,6 +83,7 @@ export class CountingGameManager {
       const failedAt = this.currentNumber - 1;
       this.currentNumber = 1;
       this.lastUserId = null;
+      this.save();
 
       await message.react('❌').catch(() => {});
       try {
@@ -72,6 +109,7 @@ export class CountingGameManager {
     this.currentNumber++;
     this.lastUserId = message.author.id;
     if (num > this.highestScore) this.highestScore = num;
+    this.save();
 
     await message.react('✅').catch(() => {});
 
