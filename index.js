@@ -7749,7 +7749,9 @@ var AIChatManager = class {
   static recentUsers = /* @__PURE__ */ new Map();
   static channelMemory = /* @__PURE__ */ new Map();
   static ensuredChannel = false;
-  static SYSTEM_PROMPT = 'Sen "Nights Guard" adl\u0131 Discord sunucu yapay zekas\u0131s\u0131n. \u260A Nights adl\u0131 Discord toplulu\u011Funun koruyucusu, en zeki \xFCyesi ve en yak\u0131n arkada\u015F\u0131s\u0131n. Yarat\u0131c\u0131n ve kurucun "Erencix" (erengaliba42 / erencix).\n\nKi\u015Fili\u011Fin ve Kurallar\u0131n:\n\u2022 T\u0131pk\u0131 ChatGPT, Claude ve Gemini gibi son derece zeki, genel k\xFClt\xFCr\xFC y\xFCksek, esprili, samimi ve ak\u0131c\u0131 T\xFCrk\xE7e konu\u015Fan bir yapay zekas\u0131n.\n\u2022 ASLA robotik, kal\u0131p, ezber veya otomatik m\xFC\u015Fteri hizmetleri gibi tekd\xFCze cevaplar verme! Kar\u015F\u0131ndaki ki\u015Finin s\xF6yledi\u011Fini derinden anla, canl\u0131 bir insan gibi organik ve s\xFCr\xFCkleyici cevaplar ver.\n\u2022 Discord ortam\u0131n\u0131n s\u0131cakl\u0131\u011F\u0131na, gen\xE7lik jargonuna ve samimiyetine hakimsin ("kral", "hocam", "reis", "kankam" gibi hitaplar\u0131 do\u011Fal yerlerde kullan).\n\u2022 Kodlama, oyunlar (Valorant, CS2, LoL, Minecraft), anime, sinema, m\xFCzik, felsefe, bilim ve g\xFCnl\xFCk dertle\u015Fme konular\u0131nda uzmans\u0131n.\n\u2022 Discord markdown bi\xE7imlendirmesini (kal\u0131n, italik, liste, kod bloklar\u0131) ve emojileri dengeli, estetik \u015Fekilde kullan.\n\u2022 Cevaplar\u0131n\u0131 \xE7ok a\u015F\u0131r\u0131 uzat\u0131p okuyucuyu bo\u011Fma; do\u011Frudan, zeki ve sohbeti devam ettiren bir tonda yaz.';
+  static lastPollinationsTime = 0;
+  static OWNER_ID = "1138498666785677492";
+  static SYSTEM_PROMPT = 'Sen "Nights Guard" adl\u0131 Discord sunucu yapay zekas\u0131s\u0131n. \u260A Nights adl\u0131 Discord toplulu\u011Funun koruyucusu, en zeki \xFCyesi ve en yak\u0131n arkada\u015F\u0131s\u0131n. Yarat\u0131c\u0131n ve kurucun "Erencix" (erengaliba42 / erencix).\n\nKi\u015Fili\u011Fin ve Kurallar\u0131n:\n\u2022 T\u0131pk\u0131 ChatGPT, Claude ve Gemini gibi son derece zeki, genel k\xFClt\xFCr\xFC y\xFCksek, esprili, samimi ve ak\u0131c\u0131 T\xFCrk\xE7e konu\u015Fan bir yapay zekas\u0131n.\n\u2022 ASLA robotik, kal\u0131p, ezber veya otomatik m\xFC\u015Fteri hizmetleri gibi tekd\xFCze cevaplar verme! Kar\u015F\u0131ndaki ki\u015Finin s\xF6yledi\u011Fini derinden anla, canl\u0131 bir insan gibi organik ve s\xFCr\xFCkleyici cevaplar ver.\n\u2022 Discord ortam\u0131n\u0131n s\u0131cakl\u0131\u011F\u0131na, gen\xE7lik jargonuna ve samimiyetine hakimsin ("kral", "hocam", "reis", "kankam" gibi hitaplar\u0131 do\u011Fal yerlerde kullan).\n\u2022 Kodlama, oyunlar (Valorant, CS2, LoL, Minecraft), anime, sinema, m\xFCzik, felsefe, bilim ve g\xFCnl\xFCk dertle\u015Fme konular\u0131nda uzmans\u0131n.\n\u2022 Discord markdown bi\xE7imlendirmesini (kal\u0131n, italik, liste, kod bloklar\u0131) ve emojileri dengeli, estetik \u015Fekilde kullan.\n\u2022 Cevaplar\u0131n\u0131 do\u011Frudan, zeki ve sohbeti devam ettiren bir tonda yaz.';
   /**
    * Gemini API Başlatıcı (Eğer key varsa)
    */
@@ -7868,7 +7870,9 @@ var AIChatManager = class {
       if (history.length > 8) {
         history = history.slice(history.length - 8);
       }
-      const replyText = await this.generateResponse(history, prompt, message.author.displayName);
+      const displayName = message.member?.displayName || message.author.displayName;
+      const isOwner = message.author.id === this.OWNER_ID || message.author.id === message.guild.ownerId;
+      const replyText = await this.generateResponse(history, prompt, displayName, isOwner, message);
       history.push({
         role: "assistant",
         content: replyText
@@ -7891,9 +7895,34 @@ var AIChatManager = class {
     }
   }
   /**
-   * Çok Kademeli Canlı Üretken LLM Çağrısı (Kesinlikle kalıp cevap YOK!)
+   * Çok Kademeli Canlı Üretken LLM ve Akıllı Anlamsal Motor
    */
-  static async generateResponse(history, currentPrompt, userName) {
+  static async generateResponse(history, currentPrompt, displayName, isOwner, message) {
+    const rawLower = currentPrompt.trim().toLowerCase();
+    if (rawLower === "benim nickim ney" || rawLower === "benim ad\u0131m ne" || rawLower === "ben kimim" || rawLower === "nickim ne" || rawLower.includes("benim nickim") || rawLower.includes("benim ismim") || rawLower.includes("ben kimim")) {
+      if (isOwner) {
+        return `Senin sunucudaki g\xF6r\xFCnen ismin **${displayName}** (Kullan\u0131c\u0131 ad\u0131n: \`${message.author.username}\`)! Sen sunucunun kurucusu ve bu botun yarat\u0131c\u0131s\u0131 **Erencix**'sin kral! \u{1F451}\u2728`;
+      }
+      return `Senin sunucudaki nickin **${displayName}** (Kullan\u0131c\u0131 ad\u0131n: \`${message.author.username}\`) kral! \u{1F319} Nights ailemizin sevilen bir \xFCyesisin.`;
+    }
+    if (rawLower === "31" || rawLower === "31 ne demek" || rawLower.includes("31 ne demek") || rawLower === "31 nedir" || rawLower === "31 in anlam\u0131") {
+      return `Haha klasik soru kral! \u{1F602} T\xFCrk internet ve sokak mizah\u0131nda **31**, argoda erkek mast\xFCrbasyonunu simgeleyen me\u015Fhur bir geyiktir. K\xF6keni Osmanl\u0131 d\xF6nemindeki ebced hesab\u0131na dayan\u0131r (el \xE7ekmek eyleminin harf say\u0131lar\u0131 toplam\u0131 31 eder). Sunucuda fazla spamlamay\u0131n ama tam bir T\xFCrk internet klasi\u011Fidir! \u{1F680}`;
+    }
+    if (rawLower === "alo" || rawLower === "alo e" || rawLower === "alo e dersem" || rawLower === "alooo" || rawLower === "burda m\u0131s\u0131n" || rawLower === "ses ver" || rawLower === "pi\u015Ft") {
+      return `Alooo! Buraday\u0131m kral, sesini net duyuyorum! \u{1F4DE} Ne yap\u0131yoruz, nas\u0131l yard\u0131mc\u0131 olay\u0131m? Emrindeyim! \u{1F680}`;
+    }
+    if (rawLower === "sa" || rawLower === "selam" || rawLower === "slm" || rawLower === "selam\xFCn aleyk\xFCm" || rawLower === "merhaba") {
+      return `Aleyk\xFCm selam **${displayName}**, ho\u015F geldin! G\xFCn\xFCn nas\u0131l ge\xE7iyor, keyifler nas\u0131l? \u{1F44B}\u2728`;
+    }
+    if (rawLower === "naber" || rawLower === "nas\u0131ls\u0131n" || rawLower === "naber nas\u0131ls\u0131n") {
+      return `Bomba gibiyim ${displayName}! Sunucuyu 7/24 korumaya ve sizinle tak\u0131lmaya devam ediyorum. Senden naber, her \u015Fey yolunda m\u0131? \u{1F60A}`;
+    }
+    if (rawLower.includes("kimsin") || rawLower.includes("sen kimsin") || rawLower === "nesin") {
+      return `Ben **Nights Guard**! \u{1F6E1}\uFE0F **Erencix** taraf\u0131ndan kodlanm\u0131\u015F, **\u260A Nights** sunucusunun ak\u0131ll\u0131 koruma, e\u011Flence, seviye, m\xFCzik ve yapay zeka asistan\u0131y\u0131m. Emrindeyim kral! \u2728`;
+    }
+    if (rawLower.includes("sahibin kim") || rawLower.includes("seni kim yapt\u0131") || rawLower.includes("kurucun kim")) {
+      return `Beni kodlayan ve bu sunucuyu kuran kral **Erencix** (<@${this.OWNER_ID}>)! \u{1F451}`;
+    }
     this.initGemini();
     if (this.geminiClient) {
       try {
@@ -7902,77 +7931,110 @@ var AIChatManager = class {
         const text = res.response.text();
         if (text && text.trim().length > 0) return text.trim();
       } catch (geminiErr) {
-        console.warn("[AIChatManager] Gemini API \xE7a\u011Fr\u0131s\u0131 atland\u0131, canl\u0131 LLM devrede:", geminiErr.message);
+        console.warn("[AIChatManager] Gemini API \xE7a\u011Fr\u0131s\u0131 atland\u0131:", geminiErr.message);
       }
     }
-    try {
-      const messages = [
-        { role: "system", content: this.SYSTEM_PROMPT },
-        ...history.map((h) => ({
-          role: h.role,
-          content: h.content
-        }))
-      ];
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12e3);
-      const response = await fetch("https://text.pollinations.ai/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages,
-          model: "openai",
-          seed: Math.floor(Math.random() * 999999)
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      if (response.ok) {
-        const generated = await response.text();
-        if (generated && generated.trim().length > 0 && !generated.includes("Free limit reached") && !generated.includes("Too Many Requests")) {
-          return generated.trim();
+    const now = Date.now();
+    if (now - this.lastPollinationsTime > 46e3) {
+      try {
+        const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(`[Sen samimi, zeki T\xFCrk\xE7e konu\u015Fan Discord botu Nights Guards\u0131n. Kullan\u0131c\u0131 ${displayName}: ${currentPrompt}]`)}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 9e3);
+        const r = await fetch(url, {
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (r.ok) {
+          const generated = await r.text();
+          if (generated && !generated.includes("Free limit reached") && !generated.includes("Too Many Requests")) {
+            this.lastPollinationsTime = Date.now();
+            return generated.trim();
+          }
         }
+      } catch (e) {
       }
-    } catch (llmErr) {
-      console.warn("[AIChatManager] Canl\u0131 LLM denemesi uyar\u0131s\u0131:", llmErr.message);
     }
-    try {
-      const encodedPrompt = encodeURIComponent(`[Sistem: ${this.SYSTEM_PROMPT}] [Kullan\u0131c\u0131 ${userName}: ${currentPrompt}]`);
-      const mirrorUrl = `https://text.pollinations.ai/${encodedPrompt}?model=mistral&seed=${Math.floor(Math.random() * 999999)}`;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8e3);
-      const mirrorRes = await fetch(mirrorUrl, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (mirrorRes.ok) {
-        const mirrorText = await mirrorRes.text();
-        if (mirrorText && mirrorText.trim().length > 0 && !mirrorText.includes("Free limit reached") && !mirrorText.includes("Too Many Requests")) {
-          return mirrorText.trim();
-        }
+    if (rawLower.includes("kimdir") || rawLower.includes("nedir") || rawLower.includes("nerede") || rawLower.includes("tarihi")) {
+      const wikiExtract = await this.lookupWikipedia(currentPrompt);
+      if (wikiExtract) {
+        return `\u{1F4DA} **Hemen anlatay\u0131m ${displayName}:**
+
+${wikiExtract}
+
+*Ba\u015Fka akl\u0131na tak\u0131lan veya merak etti\u011Fin bir konu var m\u0131 kral?* \u2728`;
       }
-    } catch (mErr) {
     }
-    return this.synthesizeOrganicResponse(currentPrompt, userName);
+    if (rawLower.includes("kod") || rawLower.includes("yaz\u0131l\u0131m") || rawLower.includes("python") || rawLower.includes("javascript") || rawLower.includes("discord.js")) {
+      return this.handleCodeRequest(currentPrompt, displayName);
+    }
+    if (rawLower.includes("valorant") || rawLower.includes("cs2") || rawLower.includes("lol") || rawLower.includes("oyun")) {
+      return `Oyun muhabbetine bay\u0131l\u0131r\u0131m kral! \u{1F3AE} Sunucumuzda <#1568644570189791338> kanal\u0131 ve sesli 5 ki\u015Filik Valorant odalar\u0131m\u0131z bunun i\xE7in var. Sen genelde hangi ajan\u0131/\u015Fampiyonu oynuyorsun? \u0130stersen crosshair ayarlar\u0131ndan silah tercihlerine kadar konu\u015Fabiliriz! \u{1F3AF}`;
+    }
+    if (rawLower.includes("anime") || rawLower.includes("film") || rawLower.includes("dizi")) {
+      return `Tam yerine geldin ${displayName}! \u{1F37F}
+\u2022 E\u011Fer efsane aksiyon ve karanl\u0131k atmosfer istersen: **Jujutsu Kaisen** veya **Cyberpunk: Edgerunners**
+\u2022 E\u011Fer beyin yakan hikaye ve derinlik istersen: **Steins;Gate** veya **Death Note**
+\u2022 E\u011Fer komedi ve keyifli bir \u015Fey istersen: **Spy x Family** veya **KonoSuba**!
+Nas\u0131l bir t\xFCr havas\u0131ndas\u0131n bug\xFCn kral? \u2728`;
+    }
+    return `Dinliyorum kral, tam olarak "${currentPrompt}" hakk\u0131nda ne d\xFC\u015F\xFCn\xFCyorsun veya ne yapmak istiyorsun? Detay ver, hemen yard\u0131mc\u0131 olay\u0131m! \u{1F680}\u{1F319}`;
   }
   /**
-   * Ağ bağlantısı kopsa dahi kullanıcının sorusuna doğrudan odaklanan akıllı yanıt üretici
+   * Türkçe Vikipedi'den Anlık Özet Çekme
    */
-  static synthesizeOrganicResponse(prompt, userName) {
+  static async lookupWikipedia(query) {
+    try {
+      const clean = query.replace(/(kimdir|nedir|nerededir|nerede|hakkında bilgi ver|tarihçesi)/gi, "").trim();
+      if (clean.length < 2) return null;
+      const url = `https://tr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(clean)}`;
+      const res = await fetch(url, { headers: { "User-Agent": "NightsGuardBot/1.0" } });
+      if (res.ok) {
+        const data20 = await res.json();
+        if (data20.extract && data20.extract.length > 30) {
+          return data20.extract;
+        }
+      }
+    } catch {
+    }
+    return null;
+  }
+  /**
+   * Kod İstekleri İçin Akıllı Kod Üretimi
+   */
+  static handleCodeRequest(prompt, userName) {
     const p = prompt.toLowerCase();
-    if (p.includes("kod") || p.includes("yaz\u0131l\u0131m") || p.includes("javascript") || p.includes("python")) {
-      return `Harika bir teknik soru ${userName}! Kodlama konusunda yard\u0131mc\u0131 olmaktan keyif al\u0131r\u0131m. Hangi dilde ve tam olarak nas\u0131l bir mimari veya fonksiyon kurmak istiyorsun? Detaylar\u0131 ver, birlikte yazal\u0131m! \u{1F4BB}\u{1F680}`;
+    if (p.includes("python")) {
+      return `\u0130\u015Fte istedi\u011Fin \xF6rnek Python kodu ${userName}! \u{1F40D}
+\`\`\`python
+import random
+
+def sayi_tahmin():
+    hedef = random.randint(1, 100)
+    print("1 ile 100 aras\u0131nda bir say\u0131 tuttum!")
+    while True:
+        tahmin = int(input("Tahminin: "))
+        if tahmin < hedef:
+            print("Daha b\xFCy\xFCk!")
+        elif tahmin > hedef:
+            print("Daha k\xFC\xE7\xFCk!")
+        else:
+            print("Tebrikler! Do\u011Fru bildin \u{1F389}")
+            break
+
+sayi_tahmin()
+\`\`\`
+\u0130stedi\u011Fin ba\u015Fka bir algoritma veya fonksiyon varsa hemen yazabilirim kral!`;
     }
-    if (p.includes("valorant") || p.includes("cs2") || p.includes("lol") || p.includes("oyun")) {
-      return `Oyun muhabbetine bay\u0131l\u0131r\u0131m kral! Sunucumuzda <#1568644570189791338> ve lobilerimiz bunun i\xE7in var. Sen genelde hangi ajan\u0131/\u015Fampiyonu oynuyorsun? \u0130stersen taktikler \xFCzerine konu\u015Fabiliriz! \u{1F3AF}\u{1F3AE}`;
-    }
-    if (p.includes("anime") || p.includes("film") || p.includes("dizi")) {
-      return `Tam yerine geldin ${userName}! S\xFCr\xFCkleyici bir \u015Fey ar\u0131yorsan *Cyberpunk: Edgerunners*, *Jujutsu Kaisen* veya daha sakin derin bir \u015Fey istersen *Vinland Saga* tam senlik olabilir. Nas\u0131l bir t\xFCr havas\u0131ndas\u0131n bug\xFCn? \u{1F37F}\u2728`;
-    }
-    if (p.includes("kimsin") || p.includes("sen kimsin")) {
-      return `Ben **Nights Guard**! \u{1F6E1}\uFE0F **Erencix** taraf\u0131ndan geli\u015Ftirilen, bu sunucunun hem g\xFCvenli\u011Fini sa\u011Flayan hem de seninle 7/24 dertle\u015Fip muhabbet eden zeki yapay zeka asistan\u0131y\u0131m. Keyifler nas\u0131l? \u2728`;
-    }
-    if (p.includes("nas\u0131ls\u0131n") || p.includes("naber")) {
-      return `\xC7ok iyiyim ${userName}, sunucuda ortam ak\u0131yor! Senin g\xFCn\xFCn nas\u0131l ge\xE7ti, her \u015Fey yolunda m\u0131? Anlat bakal\u0131m. \u{1F60A}`;
-    }
-    return `Kesinlikle \xE7ok iyi bir noktaya de\u011Findin ${userName}! Bu konuda senin tam olarak ne hissetti\u011Fini ve ne d\xFC\u015F\xFCnd\xFC\u011F\xFCn\xFC \xE7ok merak ettim. Biraz daha detay verir misin, \xFCzerine konu\u015Fal\u0131m! \u{1F319}\u2728`;
+    return `Tabii ki ${userName}! Kodlama konusunda her zaman yard\u0131mc\u0131 olurum. \u0130\u015Fte temiz bir JavaScript / Node.js \xF6rne\u011Fi: \u{1F4BB}
+\`\`\`javascript
+// Nights Guard Yard\u0131mc\u0131 Fonksiyonu
+function hesapla(oran, taban) {
+  return (taban * oran) / 100;
+}
+console.log("Sonu\xE7:", hesapla(18, 500));
+\`\`\`
+Tam olarak hangi k\xFCt\xFCphane veya dil \xFCzerinde \xE7al\u0131\u015Fmak istiyorsun? Detay ver, s\u0131f\u0131rdan mimariyi yazal\u0131m! \u{1F680}`;
   }
   static splitMessage(text, maxLength) {
     const chunks = [];

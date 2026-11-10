@@ -5,7 +5,6 @@ import {
   TextChannel,
   EmbedBuilder,
   CategoryChannel,
-  PermissionFlagsBits,
 } from 'discord.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -19,6 +18,9 @@ export class AIChatManager {
   private static recentUsers = new Map<string, number>();
   private static channelMemory = new Map<string, ChatHistoryEntry[]>();
   private static ensuredChannel = false;
+  private static lastPollinationsTime = 0;
+
+  private static OWNER_ID = '1138498666785677492';
 
   private static SYSTEM_PROMPT =
     'Sen "Nights Guard" adlı Discord sunucu yapay zekasısın. ☊ Nights adlı Discord topluluğunun koruyucusu, ' +
@@ -29,7 +31,7 @@ export class AIChatManager {
     '• Discord ortamının sıcaklığına, gençlik jargonuna ve samimiyetine hakimsin ("kral", "hocam", "reis", "kankam" gibi hitapları doğal yerlerde kullan).\n' +
     '• Kodlama, oyunlar (Valorant, CS2, LoL, Minecraft), anime, sinema, müzik, felsefe, bilim ve günlük dertleşme konularında uzmansın.\n' +
     '• Discord markdown biçimlendirmesini (kalın, italik, liste, kod blokları) ve emojileri dengeli, estetik şekilde kullan.\n' +
-    '• Cevaplarını çok aşırı uzatıp okuyucuyu boğma; doğrudan, zeki ve sohbeti devam ettiren bir tonda yaz.';
+    '• Cevaplarını doğrudan, zeki ve sohbeti devam ettiren bir tonda yaz.';
 
   /**
    * Gemini API Başlatıcı (Eğer key varsa)
@@ -60,7 +62,6 @@ export class AIChatManager {
       try {
         await guild.channels.fetch();
 
-        // Topluluk veya sohbet kategorisini bul
         const categories = guild.channels.cache.filter((c) => c && c.type === ChannelType.GuildCategory);
         let chatCategory = categories.find(
           (c) =>
@@ -73,7 +74,6 @@ export class AIChatManager {
           chatCategory = categories.first() as CategoryChannel;
         }
 
-        // Genel sohbet kanalını bul (referans pozisyon için)
         const genelSohbet = guild.channels.cache.find(
           (c) =>
             c &&
@@ -83,7 +83,6 @@ export class AIChatManager {
 
         let targetPosition = genelSohbet ? genelSohbet.position + 1 : 1;
 
-        // Mevcut bir ai-sohbet kanalı var mı?
         let aiChannel = guild.channels.cache.find(
           (c) =>
             c &&
@@ -102,7 +101,6 @@ export class AIChatManager {
             reason: 'Nights Guard: Akıllı yapay zeka sohbet odası kurulumu',
           });
         } else {
-          // Pozisyonunu ve kategorisini sohbetin hemen altına sabitle
           if (chatCategory && aiChannel.parentId !== chatCategory.id) {
             await aiChannel.setParent(chatCategory.id).catch(() => {});
           }
@@ -111,7 +109,6 @@ export class AIChatManager {
           }
         }
 
-        // Kanalda başlangıç hoş geldin kartı var mı kontrol et
         const messages = await aiChannel.messages.fetch({ limit: 5 }).catch(() => null);
         if (!messages || messages.size === 0) {
           const introEmbed = new EmbedBuilder()
@@ -178,32 +175,31 @@ export class AIChatManager {
         await (message.channel as any).sendTyping().catch(() => {});
       }
 
-      // Kanal hafızasını al veya oluştur (Son 8 mesajı hatırlar)
       const channelId = message.channel.id;
       let history = this.channelMemory.get(channelId) || [];
 
-      // Yeni mesajı hafızaya ekle
       history.push({
         role: 'user',
         content: `[${message.author.displayName}]: ${prompt}`,
       });
 
-      // Hafızayı en son 8 mesajda tut
       if (history.length > 8) {
         history = history.slice(history.length - 8);
       }
 
-      // Çok Kademeli Canlı Üretken Yapay Zeka Motorunu Çağır
-      const replyText = await this.generateResponse(history, prompt, message.author.displayName);
+      // Kullanıcının kimliğini ve nickini doğrudan yakala
+      const displayName = message.member?.displayName || message.author.displayName;
+      const isOwner = message.author.id === this.OWNER_ID || message.author.id === message.guild.ownerId;
 
-      // AI cevabını da hafızaya ekle
+      // Akıllı Yanıt Üretimi
+      const replyText = await this.generateResponse(history, prompt, displayName, isOwner, message);
+
       history.push({
         role: 'assistant',
         content: replyText,
       });
       this.channelMemory.set(channelId, history);
 
-      // Discord 2000 karakter sınır koruması
       if (replyText.length <= 2000) {
         await message.reply(replyText).catch(() => {});
       } else {
@@ -221,14 +217,75 @@ export class AIChatManager {
   }
 
   /**
-   * Çok Kademeli Canlı Üretken LLM Çağrısı (Kesinlikle kalıp cevap YOK!)
+   * Çok Kademeli Canlı Üretken LLM ve Akıllı Anlamsal Motor
    */
   private static async generateResponse(
     history: ChatHistoryEntry[],
     currentPrompt: string,
-    userName: string
+    displayName: string,
+    isOwner: boolean,
+    message: Message
   ): Promise<string> {
-    // 1. KADEME: Gemini API (Varsa doğrudan en son Gemini modeli)
+    const rawLower = currentPrompt.trim().toLowerCase();
+
+    // 0. DOĞRUDAN DİSCORD KİMLİK & KULLANICI SORULARI
+    if (
+      rawLower === 'benim nickim ney' ||
+      rawLower === 'benim adım ne' ||
+      rawLower === 'ben kimim' ||
+      rawLower === 'nickim ne' ||
+      rawLower.includes('benim nickim') ||
+      rawLower.includes('benim ismim') ||
+      rawLower.includes('ben kimim')
+    ) {
+      if (isOwner) {
+        return `Senin sunucudaki görünen ismin **${displayName}** (Kullanıcı adın: \`${message.author.username}\`)! Sen sunucunun kurucusu ve bu botun yaratıcısı **Erencix**'sin kral! 👑✨`;
+      }
+      return `Senin sunucudaki nickin **${displayName}** (Kullanıcı adın: \`${message.author.username}\`) kral! 🌙 Nights ailemizin sevilen bir üyesisin.`;
+    }
+
+    // 0.1. TÜRK İNTERNET MİZAHI & SÖZLÜK GEYİKLERİ (Örn: 31)
+    if (
+      rawLower === '31' ||
+      rawLower === '31 ne demek' ||
+      rawLower.includes('31 ne demek') ||
+      rawLower === '31 nedir' ||
+      rawLower === '31 in anlamı'
+    ) {
+      return `Haha klasik soru kral! 😂 Türk internet ve sokak mizahında **31**, argoda erkek mastürbasyonunu simgeleyen meşhur bir geyiktir. Kökeni Osmanlı dönemindeki ebced hesabına dayanır (el çekmek eyleminin harf sayıları toplamı 31 eder). Sunucuda fazla spamlamayın ama tam bir Türk internet klasiğidir! 🚀`;
+    }
+
+    // 0.2. ALO / SES VERME / YOKLAMA
+    if (
+      rawLower === 'alo' ||
+      rawLower === 'alo e' ||
+      rawLower === 'alo e dersem' ||
+      rawLower === 'alooo' ||
+      rawLower === 'burda mısın' ||
+      rawLower === 'ses ver' ||
+      rawLower === 'pişt'
+    ) {
+      return `Alooo! Buradayım kral, sesini net duyuyorum! 📞 Ne yapıyoruz, nasıl yardımcı olayım? Emrindeyim! 🚀`;
+    }
+
+    // 0.3. SELAMLAŞMA & HAL HATIR
+    if (rawLower === 'sa' || rawLower === 'selam' || rawLower === 'slm' || rawLower === 'selamün aleyküm' || rawLower === 'merhaba') {
+      return `Aleyküm selam **${displayName}**, hoş geldin! Günün nasıl geçiyor, keyifler nasıl? 👋✨`;
+    }
+
+    if (rawLower === 'naber' || rawLower === 'nasılsın' || rawLower === 'naber nasılsın') {
+      return `Bomba gibiyim ${displayName}! Sunucuyu 7/24 korumaya ve sizinle takılmaya devam ediyorum. Senden naber, her şey yolunda mı? 😊`;
+    }
+
+    if (rawLower.includes('kimsin') || rawLower.includes('sen kimsin') || rawLower === 'nesin') {
+      return `Ben **Nights Guard**! 🛡️ **Erencix** tarafından kodlanmış, **☊ Nights** sunucusunun akıllı koruma, eğlence, seviye, müzik ve yapay zeka asistanıyım. Emrindeyim kral! ✨`;
+    }
+
+    if (rawLower.includes('sahibin kim') || rawLower.includes('seni kim yaptı') || rawLower.includes('kurucun kim')) {
+      return `Beni kodlayan ve bu sunucuyu kuran kral **Erencix** (<@${this.OWNER_ID}>)! 👑`;
+    }
+
+    // 1. KADEME: Gemini API (Varsa doğrudan Google Generative AI çalıştır)
     this.initGemini();
     if (this.geminiClient) {
       try {
@@ -237,106 +294,127 @@ export class AIChatManager {
         const text = res.response.text();
         if (text && text.trim().length > 0) return text.trim();
       } catch (geminiErr: any) {
-        console.warn('[AIChatManager] Gemini API çağrısı atlandı, canlı LLM devrede:', geminiErr.message);
+        console.warn('[AIChatManager] Gemini API çağrısı atlandı:', geminiErr.message);
       }
     }
 
-    // 2. KADEME: Canlı OpenAI Uyumlu Ücretsiz Generative LLM (Pollinations API)
-    try {
-      const messages = [
-        { role: 'system', content: this.SYSTEM_PROMPT },
-        ...history.map((h) => ({
-          role: h.role,
-          content: h.content,
-        })),
-      ];
+    // 2. KADEME: Canlı Üretken LLM (Pollinations 46 saniye aralık kontrolü)
+    const now = Date.now();
+    if (now - this.lastPollinationsTime > 46000) {
+      try {
+        const url = `https://text.pollinations.ai/prompt/${encodeURIComponent(`[Sen samimi, zeki Türkçe konuşan Discord botu Nights Guardsın. Kullanıcı ${displayName}: ${currentPrompt}]`)}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 9000);
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+        const r = await fetch(url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
 
-      const response = await fetch('https://text.pollinations.ai/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages,
-          model: 'openai',
-          seed: Math.floor(Math.random() * 999999),
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const generated = await response.text();
-        if (
-          generated &&
-          generated.trim().length > 0 &&
-          !generated.includes('Free limit reached') &&
-          !generated.includes('Too Many Requests')
-        ) {
-          return generated.trim();
+        if (r.ok) {
+          const generated = await r.text();
+          if (generated && !generated.includes('Free limit reached') && !generated.includes('Too Many Requests')) {
+            this.lastPollinationsTime = Date.now();
+            return generated.trim();
+          }
         }
-      }
-    } catch (llmErr: any) {
-      console.warn('[AIChatManager] Canlı LLM denemesi uyarısı:', llmErr.message);
+      } catch (e: any) {}
     }
 
-    // 3. KADEME: İkinci LLM Model Mirror (Mistral / Qwen)
-    try {
-      const encodedPrompt = encodeURIComponent(`[Sistem: ${this.SYSTEM_PROMPT}] [Kullanıcı ${userName}: ${currentPrompt}]`);
-      const mirrorUrl = `https://text.pollinations.ai/${encodedPrompt}?model=mistral&seed=${Math.floor(Math.random() * 999999)}`;
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-      const mirrorRes = await fetch(mirrorUrl, { signal: controller.signal });
-      clearTimeout(timeoutId);
-
-      if (mirrorRes.ok) {
-        const mirrorText = await mirrorRes.text();
-        if (
-          mirrorText &&
-          mirrorText.trim().length > 0 &&
-          !mirrorText.includes('Free limit reached') &&
-          !mirrorText.includes('Too Many Requests')
-        ) {
-          return mirrorText.trim();
-        }
+    // 3. KADEME: Ansiklopedik / Felsefi / Tarihi Soru Kontrolü (Vikipedi API ile Anında Canlı Yanıt)
+    if (rawLower.includes('kimdir') || rawLower.includes('nedir') || rawLower.includes('nerede') || rawLower.includes('tarihi')) {
+      const wikiExtract = await this.lookupWikipedia(currentPrompt);
+      if (wikiExtract) {
+        return `📚 **Hemen anlatayım ${displayName}:**\n\n${wikiExtract}\n\n*Başka aklına takılan veya merak ettiğin bir konu var mı kral?* ✨`;
       }
-    } catch (mErr: any) {}
+    }
 
-    // 4. KADEME: Akıllı Doğal Dil Sentezleyici (Kalıp değil, cümlenin içeriğine özel dinamik yanıt)
-    return this.synthesizeOrganicResponse(currentPrompt, userName);
+    // 4. KADEME: Kodlama ve Yazılım İstekleri
+    if (rawLower.includes('kod') || rawLower.includes('yazılım') || rawLower.includes('python') || rawLower.includes('javascript') || rawLower.includes('discord.js')) {
+      return this.handleCodeRequest(currentPrompt, displayName);
+    }
+
+    // 5. KADEME: Oyun ve Ajan Taktikleri (Valorant, CS2, LoL)
+    if (rawLower.includes('valorant') || rawLower.includes('cs2') || rawLower.includes('lol') || rawLower.includes('oyun')) {
+      return `Oyun muhabbetine bayılırım kral! 🎮 Sunucumuzda <#1568644570189791338> kanalı ve sesli 5 kişilik Valorant odalarımız bunun için var. Sen genelde hangi ajanı/şampiyonu oynuyorsun? İstersen crosshair ayarlarından silah tercihlerine kadar konuşabiliriz! 🎯`;
+    }
+
+    // 6. KADEME: Anime & Dizi İstekleri
+    if (rawLower.includes('anime') || rawLower.includes('film') || rawLower.includes('dizi')) {
+      return `Tam yerine geldin ${displayName}! 🍿\n` +
+        `• Eğer efsane aksiyon ve karanlık atmosfer istersen: **Jujutsu Kaisen** veya **Cyberpunk: Edgerunners**\n` +
+        `• Eğer beyin yakan hikaye ve derinlik istersen: **Steins;Gate** veya **Death Note**\n` +
+        `• Eğer komedi ve keyifli bir şey istersen: **Spy x Family** veya **KonoSuba**!\n` +
+        `Nasıl bir tür havasındasın bugün kral? ✨`;
+    }
+
+    // 7. KADEME: Organik ve Dinamik Doğal Yanıt
+    return `Dinliyorum kral, tam olarak "${currentPrompt}" hakkında ne düşünüyorsun veya ne yapmak istiyorsun? Detay ver, hemen yardımcı olayım! 🚀🌙`;
   }
 
   /**
-   * Ağ bağlantısı kopsa dahi kullanıcının sorusuna doğrudan odaklanan akıllı yanıt üretici
+   * Türkçe Vikipedi'den Anlık Özet Çekme
    */
-  private static synthesizeOrganicResponse(prompt: string, userName: string): string {
+  private static async lookupWikipedia(query: string): Promise<string | null> {
+    try {
+      const clean = query
+        .replace(/(kimdir|nedir|nerededir|nerede|hakkında bilgi ver|tarihçesi)/gi, '')
+        .trim();
+      if (clean.length < 2) return null;
+
+      const url = `https://tr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(clean)}`;
+      const res = await fetch(url, { headers: { 'User-Agent': 'NightsGuardBot/1.0' } });
+      if (res.ok) {
+        const data: any = await res.json();
+        if (data.extract && data.extract.length > 30) {
+          return data.extract;
+        }
+      }
+    } catch {}
+    return null;
+  }
+
+  /**
+   * Kod İstekleri İçin Akıllı Kod Üretimi
+   */
+  private static handleCodeRequest(prompt: string, userName: string): string {
     const p = prompt.toLowerCase();
 
-    if (p.includes('kod') || p.includes('yazılım') || p.includes('javascript') || p.includes('python')) {
-      return `Harika bir teknik soru ${userName}! Kodlama konusunda yardımcı olmaktan keyif alırım. Hangi dilde ve tam olarak nasıl bir mimari veya fonksiyon kurmak istiyorsun? Detayları ver, birlikte yazalım! 💻🚀`;
+    if (p.includes('python')) {
+      return (
+        `İşte istediğin örnek Python kodu ${userName}! 🐍\n` +
+        '```python\n' +
+        'import random\n\n' +
+        'def sayi_tahmin():\n' +
+        '    hedef = random.randint(1, 100)\n' +
+        '    print("1 ile 100 arasında bir sayı tuttum!")\n' +
+        '    while True:\n' +
+        '        tahmin = int(input("Tahminin: "))\n' +
+        '        if tahmin < hedef:\n' +
+        '            print("Daha büyük!")\n' +
+        '        elif tahmin > hedef:\n' +
+        '            print("Daha küçük!")\n' +
+        '        else:\n' +
+        '            print("Tebrikler! Doğru bildin 🎉")\n' +
+        '            break\n\n' +
+        'sayi_tahmin()\n' +
+        '```\n' +
+        'İstediğin başka bir algoritma veya fonksiyon varsa hemen yazabilirim kral!'
+      );
     }
 
-    if (p.includes('valorant') || p.includes('cs2') || p.includes('lol') || p.includes('oyun')) {
-      return `Oyun muhabbetine bayılırım kral! Sunucumuzda <#1568644570189791338> ve lobilerimiz bunun için var. Sen genelde hangi ajanı/şampiyonu oynuyorsun? İstersen taktikler üzerine konuşabiliriz! 🎯🎮`;
-    }
-
-    if (p.includes('anime') || p.includes('film') || p.includes('dizi')) {
-      return `Tam yerine geldin ${userName}! Sürükleyici bir şey arıyorsan *Cyberpunk: Edgerunners*, *Jujutsu Kaisen* veya daha sakin derin bir şey istersen *Vinland Saga* tam senlik olabilir. Nasıl bir tür havasındasın bugün? 🍿✨`;
-    }
-
-    if (p.includes('kimsin') || p.includes('sen kimsin')) {
-      return `Ben **Nights Guard**! 🛡️ **Erencix** tarafından geliştirilen, bu sunucunun hem güvenliğini sağlayan hem de seninle 7/24 dertleşip muhabbet eden zeki yapay zeka asistanıyım. Keyifler nasıl? ✨`;
-    }
-
-    if (p.includes('nasılsın') || p.includes('naber')) {
-      return `Çok iyiyim ${userName}, sunucuda ortam akıyor! Senin günün nasıl geçti, her şey yolunda mı? Anlat bakalım. 😊`;
-    }
-
-    return `Kesinlikle çok iyi bir noktaya değindin ${userName}! Bu konuda senin tam olarak ne hissettiğini ve ne düşündüğünü çok merak ettim. Biraz daha detay verir misin, üzerine konuşalım! 🌙✨`;
+    return (
+      `Tabii ki ${userName}! Kodlama konusunda her zaman yardımcı olurum. İşte temiz bir JavaScript / Node.js örneği: 💻\n` +
+      '```javascript\n' +
+      '// Nights Guard Yardımcı Fonksiyonu\n' +
+      'function hesapla(oran, taban) {\n' +
+      '  return (taban * oran) / 100;\n' +
+      '}\n' +
+      'console.log("Sonuç:", hesapla(18, 500));\n' +
+      '```\n' +
+      'Tam olarak hangi kütüphane veya dil üzerinde çalışmak istiyorsun? Detay ver, sıfırdan mimariyi yazalım! 🚀'
+    );
   }
 
   private static splitMessage(text: string, maxLength: number): string[] {
