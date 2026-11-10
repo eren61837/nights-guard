@@ -93,8 +93,8 @@ export class InteractionHandler {
           if (interaction.isRepliable()) {
             await interaction.reply({
               content: `⛔ **Erişim Engellendi:** Bu komut yalnızca sunucu yöneticileri veya bot sahibi (<@${ownerId}>) tarafından kullanılabilir!`,
-              ephemeral: true,
-            });
+              flags: MessageFlags.Ephemeral,
+            }).catch(() => {});
           }
           return;
         }

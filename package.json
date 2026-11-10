@@ -4,7 +4,7 @@
   "description": "Nights Guard - Advanced Community, Security, AI & Economy Discord Bot",
   "main": "index.js",
   "scripts": {
-    "build": "echo Pre-built ready",
+    "build": "npx esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=index.js --external:discord.js --external:@discordjs/voice --external:tweetnacl --external:opusscript --external:yt-search --external:axios --external:dotenv --external:openai --external:@google/generative-ai",
     "compile": "tsc",
     "start": "node index.js",
     "dev": "node index.js",

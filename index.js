@@ -4780,13 +4780,11 @@ var MusicPlayer = class _MusicPlayer {
       return new Promise((resolve, reject) => {
         const args = isSoundCloud ? ["-f", "bestaudio/b/best", "-g", "--no-playlist", target] : [
           "-f",
-          "ba/b[height<=360]/b/18/bestaudio",
+          "ba/bestaudio/b[height<=360]/best",
           "-g",
           "--no-playlist",
           "--default-search",
           "ytsearch",
-          "--extractor-args",
-          "youtube:player_client=android",
           target
         ];
         const proc = (0, import_child_process.spawn)(ytdlp, args);
@@ -4809,7 +4807,7 @@ var MusicPlayer = class _MusicPlayer {
           } catch (e) {
           }
           reject(new Error("Ses kayna\u011F\u0131 zaman a\u015F\u0131m\u0131na u\u011Frad\u0131"));
-        }, 12e3);
+        }, 9e3);
       });
     };
     return new Promise(async (resolve, reject) => {
@@ -5679,7 +5677,8 @@ var InteractionHandler = class {
           if (interaction.isRepliable()) {
             await interaction.reply({
               content: `\u26D4 **Eri\u015Fim Engellendi:** Bu komut yaln\u0131zca sunucu y\xF6neticileri veya bot sahibi (<@${ownerId}>) taraf\u0131ndan kullan\u0131labilir!`,
-              ephemeral: true
+              flags: import_discord34.MessageFlags.Ephemeral
+            }).catch(() => {
             });
           }
           return;
@@ -6336,6 +6335,8 @@ async function onVoiceStateUpdate(oldState, newState) {
 
 // src/services/features/kelimeOyunu.ts
 var import_discord37 = require("discord.js");
+var import_fs7 = __toESM(require("fs"));
+var import_path7 = __toESM(require("path"));
 var KelimeOyunuManager = class {
   static state = {
     lastWord: "ELMA",
@@ -6344,6 +6345,114 @@ var KelimeOyunuManager = class {
     streak: 1,
     channelId: null
   };
+  static dictionary = /* @__PURE__ */ new Set();
+  static dictionaryLoaded = false;
+  static forbiddenRoots = [
+    // Cinsel Terimler & NSFW
+    "seks",
+    "sex",
+    "porno",
+    "porn",
+    "vajina",
+    "penis",
+    "sikis",
+    "amcik",
+    "yarrak",
+    "yarak",
+    "tasak",
+    "dassak",
+    "dildo",
+    "masturbasyon",
+    "orgazm",
+    "ereksiyon",
+    "fantezi",
+    "kondom",
+    "prezervatif",
+    "klitoris",
+    "anal",
+    "oral",
+    "bosalma",
+    "bosal",
+    "escort",
+    "eskort",
+    "fahise",
+    "jigolo",
+    "meme",
+    "memeler",
+    "fetis",
+    "cinsel",
+    "cima",
+    "iliski",
+    "sevis",
+    // Küfür & Ağır Argo
+    "sik",
+    "siktir",
+    "sikeyim",
+    "siktim",
+    "sikik",
+    "siksok",
+    "sokam",
+    "sokayim",
+    "skm",
+    "amk",
+    "aq",
+    "amq",
+    "amina",
+    "aminakoyayim",
+    "amkoyim",
+    "orospu",
+    "orosbu",
+    "kahpe",
+    "kasar",
+    "pic",
+    "pust",
+    "pezevenk",
+    "gavat",
+    "kavat",
+    "got",
+    "gotveren",
+    "gotlek",
+    "ibne",
+    "yavsak",
+    "kahbe",
+    "avrat"
+  ];
+  static initDictionary() {
+    if (this.dictionaryLoaded) return;
+    try {
+      const candidates = [
+        import_path7.default.resolve(process.cwd(), "assets/clean_turkish_words.json"),
+        import_path7.default.resolve(__dirname, "../../../assets/clean_turkish_words.json"),
+        import_path7.default.resolve(__dirname, "../../assets/clean_turkish_words.json")
+      ];
+      for (const p of candidates) {
+        if (import_fs7.default.existsSync(p)) {
+          const raw = import_fs7.default.readFileSync(p, "utf8");
+          const arr = JSON.parse(raw);
+          this.dictionary = new Set(arr.map((w) => w.toLocaleLowerCase("tr-TR")));
+          this.dictionaryLoaded = true;
+          console.log(`[KelimeOyunu] \u2705 T\xFCrk\xE7e TDK kelime s\xF6zl\xFC\u011F\xFC y\xFCklendi! (${this.dictionary.size} kelime)`);
+          break;
+        }
+      }
+    } catch (e) {
+      console.warn("[KelimeOyunu] S\xF6zl\xFCk y\xFCklenirken hata:", e.message);
+    }
+  }
+  static isSexualOrProfane(rawWord) {
+    const lower = rawWord.toLocaleLowerCase("tr-TR");
+    const normalized = lower.replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c").replace(/0/g, "o").replace(/1/g, "i").replace(/3/g, "e").replace(/4/g, "a").replace(/@/g, "a").replace(/\$/g, "s");
+    const cleanLetters = normalized.replace(/[^a-z]/g, "");
+    for (const root of this.forbiddenRoots) {
+      if (cleanLetters.includes(root)) {
+        return true;
+      }
+    }
+    if (AutoSecurityGuard.isProfane(rawWord)) {
+      return true;
+    }
+    return false;
+  }
   static getState() {
     return this.state;
   }
@@ -6366,14 +6475,15 @@ var KelimeOyunuManager = class {
     if (message.author.bot || !message.guild) return;
     const channelName = message.channel.name || "";
     if (!channelName.includes("kelime-oyunu")) return;
+    this.initDictionary();
     const text = message.content.trim();
-    if (AutoSecurityGuard.isProfane(text)) {
+    if (this.isSexualOrProfane(text)) {
       await message.delete().catch(() => {
       });
       await this.sendTempWarning(
         message,
-        `\u{1F6AB} <@${message.author.id}>, k\xFCf\xFCr, hakaret veya argo i\xE7eren kelimeler kelime t\xFCretmece oyununda kullan\u0131lamaz!`,
-        4e3
+        `\u{1F6AB} <@${message.author.id}>, k\xFCf\xFCr, hakaret, argo veya cinsel i\xE7erikli kelimeler kelime t\xFCretmece oyununda kesinlikle yasakt\u0131r!`,
+        4500
       );
       return;
     }
@@ -6383,12 +6493,23 @@ var KelimeOyunuManager = class {
       });
       await this.sendTempWarning(
         message,
-        `\u26A0\uFE0F <@${message.author.id}>, buras\u0131 kelime t\xFCretme kanal\u0131d\u0131r! Yaln\u0131zca tek bir ge\xE7erli kelime yazabilirsiniz.`
+        `\u26A0\uFE0F <@${message.author.id}>, buras\u0131 kelime t\xFCretme kanal\u0131d\u0131r! Yaln\u0131zca tek bir ge\xE7erli T\xFCrk\xE7e kelime yazabilirsiniz.`
       );
       return;
     }
     const wordLower = text.toLocaleLowerCase("tr-TR");
     const wordUpper = text.toLocaleUpperCase("tr-TR");
+    if (this.dictionaryLoaded && this.dictionary.size > 0) {
+      if (!this.dictionary.has(wordLower)) {
+        await message.delete().catch(() => {
+        });
+        await this.sendTempWarning(
+          message,
+          `\u274C <@${message.author.id}>, '**${wordUpper}**' ge\xE7erli bir T\xFCrk\xE7e kelime de\u011Fildir! L\xFCtfen sadece ger\xE7ek T\xFCrk\xE7e kelimeler t\xFCretiniz.`
+        );
+        return;
+      }
+    }
     if (this.state.lastUserId === message.author.id) {
       await message.delete().catch(() => {
       });
@@ -6429,7 +6550,7 @@ var KelimeOyunuManager = class {
     if (this.state.streak % 10 === 0) {
       const nextLetter = this.state.lastWord.slice(-1).toLocaleUpperCase("tr-TR");
       const milestoneEmbed = new import_discord37.EmbedBuilder().setTitle(`\u{1F525} KEL\u0130ME T\xDCRETME SER\u0130S\u0130: ${this.state.streak} KEL\u0130ME! \u{1F525}`).setDescription(
-        `Harika gidiyorsunuz! Toplam **${this.state.streak}** kelime t\xFCretildi!
+        `Harika gidiyorsunuz! Toplam **${this.state.streak}** ge\xE7erli T\xFCrk\xE7e kelime t\xFCretildi!
 Son Kelime: **${this.state.lastWord}**
 S\u0131radaki Kelime '**${nextLetter}**' harfiyle ba\u015Flamal\u0131!`
       ).setColor("#F1C40F").setFooter({ text: "Nights Kelime Oyunu \u2022 Made by erencix" });
@@ -6445,15 +6566,16 @@ S\u0131radaki Kelime '**${nextLetter}**' harfiyle ba\u015Flamal\u0131!`
 
 ### \u{1F4CC} Oyun Kurallar\u0131:
 1\uFE0F\u20E3 Yazd\u0131\u011F\u0131n\u0131z kelime, bir \xF6nceki kelimenin **son harfiyle** ba\u015Flamal\u0131d\u0131r.
-2\uFE0F\u20E3 Ge\xE7ersiz, hatal\u0131 veya tekrarlanan kelimeler **otomatik silinir** ve uyar\u0131l\u0131rs\u0131n\u0131z.
-3\uFE0F\u20E3 Do\u011Fru kelimelere bot taraf\u0131ndan **\u2705 onay emojisi** b\u0131rak\u0131l\u0131r.
-4\uFE0F\u20E3 Ayn\u0131 ki\u015Fi art arda iki kelime yazamaz, s\u0131rayla oynanmal\u0131d\u0131r.
-5\uFE0F\u20E3 Sadece tek bir kelime yaz\u0131n\u0131z (sohbet veya c\xFCmle yazmay\u0131n\u0131z).
+2\uFE0F\u20E3 **Yaln\u0131zca TDK onayl\u0131 ger\xE7ek T\xFCrk\xE7e kelimeler** kabul edilir (k\xFCf\xFCr, argo ve cinsel kelimeler kesinlikle yasakt\u0131r).
+3\uFE0F\u20E3 Ge\xE7ersiz, uydurma veya tekrarlanan kelimeler **otomatik silinir**.
+4\uFE0F\u20E3 Do\u011Fru kelimelere bot taraf\u0131ndan **\u2705 onay emojisi** b\u0131rak\u0131l\u0131r.
+5\uFE0F\u20E3 Ayn\u0131 ki\u015Fi art arda iki kelime yazamaz, s\u0131rayla oynanmal\u0131d\u0131r.
+6\uFE0F\u20E3 Sadece tek bir kelime yaz\u0131n\u0131z (c\xFCmle veya sohbet yazmay\u0131n\u0131z).
 
 \u{1F3C1} **Ba\u015Flang\u0131\xE7 Kelimesi:** **${this.state.lastWord}**
 \u{1F449} **S\u0131radaki Kelime:** '**${nextLetter}**' harfiyle ba\u015Flamal\u0131d\u0131r!
 
-\u{1F525} *Hadi ilk kelimeyi yazarak seriyi ba\u015Flat\u0131n!*`
+\u{1F525} *Hadi ilk T\xFCrk\xE7e kelimeyi yazarak seriyi ba\u015Flat\u0131n!*`
     ).setColor("#38BDF8").setFooter({ text: "Nights Guard Otomatik Oyun Motoru" });
   }
 };

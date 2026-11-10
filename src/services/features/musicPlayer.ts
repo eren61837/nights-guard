@@ -242,11 +242,10 @@ export class MusicPlayer {
         const args = isSoundCloud
           ? ['-f', 'bestaudio/b/best', '-g', '--no-playlist', target]
           : [
-              '-f', 'ba/b[height<=360]/b/18/bestaudio',
+              '-f', 'ba/bestaudio/b[height<=360]/best',
               '-g',
               '--no-playlist',
               '--default-search', 'ytsearch',
-              '--extractor-args', 'youtube:player_client=android',
               target,
             ];
 
@@ -271,7 +270,7 @@ export class MusicPlayer {
         setTimeout(() => {
           try { proc.kill(); } catch (e) {}
           reject(new Error('Ses kaynağı zaman aşımına uğradı'));
-        }, 12000);
+        }, 9000);
       });
     };
 
