@@ -22,6 +22,7 @@ import { AIChatManager } from './services/features/aiChatManager';
 import { SocialManager } from './services/features/socialManager';
 import { InviteTracker } from './services/features/inviteTracker';
 import { MusicPlayer } from './services/features/musicPlayer';
+import { BoostManager } from './services/features/boostManager';
 import { PersistentStore } from './services/storage/persistentStore';
 import { EmbedBuilder, TextChannel } from 'discord.js';
 
@@ -109,9 +110,18 @@ async function bootstrap() {
     await AuditLogManager.logMemberLeave(member);
   });
 
+  client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+    await BoostManager.handleMemberUpdate(oldMember as any, newMember as any, client);
+  });
+
   // Gelişmiş Mesaj Olayları: Güvenlik, Oyunlar, Level XP ve Ekonomi Komutları
   client.on(Events.MessageCreate, async (message) => {
-    if (message.author.bot || !message.guild) return;
+    if (!message.guild) return;
+
+    // 0. Discord Sistem Boost Mesajlarını Dinle (Otomatik Kutlama & Hediye)
+    await BoostManager.handleSystemMessage(message, client);
+
+    if (message.author.bot) return;
 
     // 1. Üst Düzey Güvenlik Filtresi (Küfür, Reklam, Phishing, Spam)
     const blocked = await AutoSecurityGuard.inspect(message);
@@ -257,9 +267,11 @@ async function bootstrap() {
 
     // !gunluk
     if (cmd === '!gunluk') {
-      const res = EconomyManager.claimDaily(message.author.id);
+      const isBooster = !!message.member?.premiumSince;
+      const res = EconomyManager.claimDaily(message.author.id, isBooster);
       if (res.success) {
-        await message.reply(`🎉 Günlük ödülün olan **${res.amount} Nights Coin** hesabına aktarıldı!`).catch(() => {});
+        const bonusTxt = isBooster ? ' (💎 **Booster Bonusu: 3x Kat Para!**)' : '';
+        await message.reply(`🎉 Günlük ödülün olan **${res.amount} Nights Coin** hesabına aktarıldı!${bonusTxt}`).catch(() => {});
       } else {
         const remainingMinutes = Math.ceil(((res.nextTime || 0) - Date.now()) / (60 * 1000));
         await message.reply(`⏳ Günlük ödülünü zaten aldın! Tekrar almak için **${Math.floor(remainingMinutes / 60)}s ${remainingMinutes % 60}dk** beklemelisin.`).catch(() => {});

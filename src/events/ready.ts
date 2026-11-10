@@ -23,6 +23,7 @@ import { rankData, topData, seviyeAyarlaData } from '../commands/seviye';
 import { LevelManager } from '../services/features/levelManager';
 import { VoiceLobbyManager } from '../services/features/voiceLobbyManager';
 import { VoiceSetupManager } from '../services/features/voiceSetupManager';
+import { BoostManager } from '../services/features/boostManager';
 
 export async function onReady(client: Client): Promise<void> {
   console.log(`\n======================================================`);
@@ -59,6 +60,9 @@ export async function onReady(client: Client): Promise<void> {
 
   // Zengin Ses Kanallarını (Sinema, Anime, Valorant 5P, Yönetici) Otomatik Kur/Doğrula
   await VoiceSetupManager.ensureEnhancedVoiceChannels(client);
+
+  // Server Boost Kanalını ve Vitrinini Otomatik Kur/Doğrula
+  await BoostManager.init(client);
 
   // Sahipsiz & Boşta Kalan Geçici Ses Odalarını Sürekli Süpür (15 saniyede bir)
   VoiceLobbyManager.sweepEmptyChannels(client);

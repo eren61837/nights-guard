@@ -65,7 +65,7 @@ export class EconomyManager {
     return true;
   }
 
-  public static claimDaily(userId: string): { success: boolean; amount: number; nextTime?: number } {
+  public static claimDaily(userId: string, isBooster = false): { success: boolean; amount: number; nextTime?: number } {
     const user = this.getUser(userId);
     const now = Date.now();
     const cooldown = 24 * 60 * 60 * 1000;
@@ -74,7 +74,7 @@ export class EconomyManager {
       return { success: false, amount: 0, nextTime: user.lastDaily + cooldown };
     }
 
-    const reward = 500;
+    const reward = isBooster ? 1500 : 500;
     user.coins += reward;
     user.lastDaily = now;
     this.save();

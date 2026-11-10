@@ -172,8 +172,11 @@ export class LevelManager {
       return;
     }
 
-    // 15 - 25 arası rastgele XP kazanımı
-    const earnedXp = Math.floor(Math.random() * 11) + 15;
+    // 15 - 25 arası rastgele XP kazanımı (Booster üyelere 1.5x XP Bonusu!)
+    let earnedXp = Math.floor(Math.random() * 11) + 15;
+    if (message.member?.premiumSince) {
+      earnedXp = Math.round(earnedXp * 1.5);
+    }
     current.xp += earnedXp;
     current.lastMessageTime = now;
 
