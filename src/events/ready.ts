@@ -21,6 +21,7 @@ import * as itirafCmd from '../commands/itiraf';
 import * as muzikCmd from '../commands/muzik';
 import { rankData, topData, seviyeAyarlaData } from '../commands/seviye';
 import { LevelManager } from '../services/features/levelManager';
+import { VoiceLobbyManager } from '../services/features/voiceLobbyManager';
 
 export async function onReady(client: Client): Promise<void> {
   console.log(`\n======================================================`);
@@ -54,6 +55,12 @@ export async function onReady(client: Client): Promise<void> {
 
   // Sesli Kanallarda Seviye & XP Takip Motorunu Başlat
   LevelManager.startVoiceTracker(client);
+
+  // Sahipsiz & Boşta Kalan Geçici Ses Odalarını Süpür
+  VoiceLobbyManager.sweepEmptyChannels(client);
+  setInterval(() => {
+    VoiceLobbyManager.sweepEmptyChannels(client);
+  }, 45000);
 
   // Register Slash Commands Globally
   try {

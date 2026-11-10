@@ -13,6 +13,7 @@ import {
   ModalSubmitInteraction,
   ButtonInteraction,
 } from 'discord.js';
+import { VoiceLobbyManager } from './voiceLobbyManager';
 
 export class VoicePanelManager {
   public static getVoicePanelEmbed(): EmbedBuilder {
@@ -128,6 +129,8 @@ export class VoicePanelManager {
             },
           ],
         });
+
+        VoiceLobbyManager.registerTempChannel(newChannel.id);
 
         // Eğer kullanıcı bir sesteyse otomatik taşı
         if (member.voice.channel) {
