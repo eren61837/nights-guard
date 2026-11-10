@@ -17,18 +17,33 @@ export class VoiceLobbyManager {
       lowerName.includes('oda olustur') ||
       lowerName.includes('create voice') ||
       lowerName.includes('join to create') ||
-      lowerName.includes('sohbet odası') ||
-      lowerName.includes('sohbet odasi') ||
-      lowerName.includes('oyun odası') ||
-      lowerName.includes('oyun odasi') ||
+      lowerName.includes('sohbet') ||
+      lowerName.includes('sinema') ||
+      lowerName.includes('dizi') ||
+      lowerName.includes('anime') ||
+      lowerName.includes('watch party') ||
+      lowerName.includes('party') ||
+      lowerName.includes('valorant') ||
+      lowerName.includes('rekabetçi') ||
+      lowerName.includes('rekabetci') ||
+      lowerName.includes('duo') ||
+      lowerName.includes('trio') ||
+      lowerName.includes('minecraft') ||
+      lowerName.includes('roblox') ||
+      lowerName.includes('tft') ||
+      lowerName.includes('chill') ||
+      lowerName.includes('dinlenme') ||
       lowerName.includes('müzik') ||
       lowerName.includes('muzik') ||
       lowerName.includes('afk') ||
       lowerName.includes('toplantı') ||
       lowerName.includes('toplanti') ||
+      lowerName.includes('yönetici') ||
+      lowerName.includes('yonetici') ||
       lowerName.includes('yetkili') ||
       lowerName.includes('yönetim') ||
       lowerName.includes('yonetim') ||
+      lowerName.includes('kurucu') ||
       lowerName.includes('kayıt') ||
       lowerName.includes('kayit');
 

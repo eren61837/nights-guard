@@ -22,6 +22,7 @@ import * as muzikCmd from '../commands/muzik';
 import { rankData, topData, seviyeAyarlaData } from '../commands/seviye';
 import { LevelManager } from '../services/features/levelManager';
 import { VoiceLobbyManager } from '../services/features/voiceLobbyManager';
+import { VoiceSetupManager } from '../services/features/voiceSetupManager';
 
 export async function onReady(client: Client): Promise<void> {
   console.log(`\n======================================================`);
@@ -55,6 +56,9 @@ export async function onReady(client: Client): Promise<void> {
 
   // Sesli Kanallarda Seviye & XP Takip Motorunu Başlat
   LevelManager.startVoiceTracker(client);
+
+  // Zengin Ses Kanallarını (Sinema, Anime, Valorant 5P, Yönetici) Otomatik Kur/Doğrula
+  await VoiceSetupManager.ensureEnhancedVoiceChannels(client);
 
   // Sahipsiz & Boşta Kalan Geçici Ses Odalarını Süpür
   VoiceLobbyManager.sweepEmptyChannels(client);
