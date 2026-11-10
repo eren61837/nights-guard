@@ -74,9 +74,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         inline: false,
       },
       {
-        name: '🤖 Yapay Zeka Sohbet & Muhabbet',
+        name: '🤖 7/24 Akıllı Yapay Zeka Sohbeti (ChatGPT & Gemini Destekli)',
         value:
-          '• `#ai-sohbet` kanalında veya botu etiketleyerek (`@Nights Guard`) dilediğiniz her şeyi sorabilir, dertleşebilir veya eğlenceli sohbet edebilirsiniz!',
+          '• <#1568644563285835826> veya `#ai-sohbet` — Botu etiketlemenize gerek kalmadan doğrudan mesaj yazarak canlı sohbet edebilirsiniz!\n' +
+          '• 🧠 **Gerçek Üretken AI:** Kalıp veya otomatik robotik cevaplar yoktur; kodlama, oyunlar (Valorant, CS2), anime, dertleşme ve her konuda derin hafızalı zeki cevaplar verir.\n' +
+          '• 💬 Diğer kanallarda botu etiketleyerek (`@Nights Guard`) dilediğiniz her yerde konuşabilirsiniz.',
         inline: false,
       },
       {

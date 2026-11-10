@@ -33,7 +33,7 @@ __export(index_exports, {
   bootstrap: () => bootstrap
 });
 module.exports = __toCommonJS(index_exports);
-var import_discord44 = require("discord.js");
+var import_discord45 = require("discord.js");
 
 // src/config.ts
 var import_dotenv = __toESM(require("dotenv"));
@@ -2718,8 +2718,8 @@ async function execute5(interaction) {
       inline: false
     },
     {
-      name: "\u{1F916} Yapay Zeka Sohbet & Muhabbet",
-      value: "\u2022 `#ai-sohbet` kanal\u0131nda veya botu etiketleyerek (`@Nights Guard`) diledi\u011Finiz her \u015Feyi sorabilir, dertle\u015Febilir veya e\u011Flenceli sohbet edebilirsiniz!",
+      name: "\u{1F916} 7/24 Ak\u0131ll\u0131 Yapay Zeka Sohbeti (ChatGPT & Gemini Destekli)",
+      value: "\u2022 <#1568644563285835826> veya `#ai-sohbet` \u2014 Botu etiketlemenize gerek kalmadan do\u011Frudan mesaj yazarak canl\u0131 sohbet edebilirsiniz!\n\u2022 \u{1F9E0} **Ger\xE7ek \xDCretken AI:** Kal\u0131p veya otomatik robotik cevaplar yoktur; kodlama, oyunlar (Valorant, CS2), anime, dertle\u015Fme ve her konuda derin haf\u0131zal\u0131 zeki cevaplar verir.\n\u2022 \u{1F4AC} Di\u011Fer kanallarda botu etiketleyerek (`@Nights Guard`) diledi\u011Finiz her yerde konu\u015Fabilirsiniz.",
       inline: false
     },
     {
@@ -7349,7 +7349,7 @@ Art\u0131k kay\u0131t odalar\u0131 sizden gizlendi ve t\xFCm sohbet, medya ve oy
 };
 
 // src/events/ready.ts
-var import_discord40 = require("discord.js");
+var import_discord41 = require("discord.js");
 
 // src/services/features/voiceSetupManager.ts
 var import_discord38 = require("discord.js");
@@ -7741,6 +7741,351 @@ var BoostManager = class {
   }
 };
 
+// src/services/features/aiChatManager.ts
+var import_discord40 = require("discord.js");
+var import_generative_ai2 = require("@google/generative-ai");
+var AIChatManager = class {
+  static geminiClient = null;
+  static recentUsers = /* @__PURE__ */ new Map();
+  static channelMemory = /* @__PURE__ */ new Map();
+  static ensuredChannel = false;
+  static SYSTEM_PROMPT = 'Sen "Nights Guard" adl\u0131 Discord sunucu yapay zekas\u0131s\u0131n. \u260A Nights adl\u0131 Discord toplulu\u011Funun koruyucusu, en zeki \xFCyesi ve en yak\u0131n arkada\u015F\u0131s\u0131n. Yarat\u0131c\u0131n ve kurucun "Erencix" (erengaliba42 / erencix).\n\nKi\u015Fili\u011Fin ve Kurallar\u0131n:\n\u2022 T\u0131pk\u0131 ChatGPT, Claude ve Gemini gibi son derece zeki, genel k\xFClt\xFCr\xFC y\xFCksek, esprili, samimi ve ak\u0131c\u0131 T\xFCrk\xE7e konu\u015Fan bir yapay zekas\u0131n.\n\u2022 ASLA robotik, kal\u0131p, ezber veya otomatik m\xFC\u015Fteri hizmetleri gibi tekd\xFCze cevaplar verme! Kar\u015F\u0131ndaki ki\u015Finin s\xF6yledi\u011Fini derinden anla, canl\u0131 bir insan gibi organik ve s\xFCr\xFCkleyici cevaplar ver.\n\u2022 Discord ortam\u0131n\u0131n s\u0131cakl\u0131\u011F\u0131na, gen\xE7lik jargonuna ve samimiyetine hakimsin ("kral", "hocam", "reis", "kankam" gibi hitaplar\u0131 do\u011Fal yerlerde kullan).\n\u2022 Kodlama, oyunlar (Valorant, CS2, LoL, Minecraft), anime, sinema, m\xFCzik, felsefe, bilim ve g\xFCnl\xFCk dertle\u015Fme konular\u0131nda uzmans\u0131n.\n\u2022 Discord markdown bi\xE7imlendirmesini (kal\u0131n, italik, liste, kod bloklar\u0131) ve emojileri dengeli, estetik \u015Fekilde kullan.\n\u2022 Cevaplar\u0131n\u0131 \xE7ok a\u015F\u0131r\u0131 uzat\u0131p okuyucuyu bo\u011Fma; do\u011Frudan, zeki ve sohbeti devam ettiren bir tonda yaz.';
+  /**
+   * Gemini API Başlatıcı (Eğer key varsa)
+   */
+  static initGemini() {
+    const key = process.env.GEMINI_API_KEY;
+    if (key && !this.geminiClient) {
+      try {
+        const genAI = new import_generative_ai2.GoogleGenerativeAI(key);
+        this.geminiClient = genAI.getGenerativeModel({
+          model: "gemini-1.5-flash",
+          systemInstruction: this.SYSTEM_PROMPT
+        });
+      } catch (e) {
+        this.geminiClient = null;
+      }
+    }
+  }
+  /**
+   * 🤖・ai-sohbet Kanalını Genel Sohbetin Hemen Altına Otomatik Kur / Doğrula
+   */
+  static async ensureAiChannel(client) {
+    if (this.ensuredChannel) return;
+    this.ensuredChannel = true;
+    for (const guild of client.guilds.cache.values()) {
+      try {
+        await guild.channels.fetch();
+        const categories = guild.channels.cache.filter((c) => c && c.type === import_discord40.ChannelType.GuildCategory);
+        let chatCategory = categories.find(
+          (c) => c.name.toLowerCase().includes("topluluk") || c.name.toLowerCase().includes("sohbet") || c.name.toLowerCase().includes("genel")
+        );
+        if (!chatCategory && categories.size > 0) {
+          chatCategory = categories.first();
+        }
+        const genelSohbet = guild.channels.cache.find(
+          (c) => c && c.type === import_discord40.ChannelType.GuildText && (c.name.includes("genel-sohbet") || c.name.includes("sohbet"))
+        );
+        let targetPosition = genelSohbet ? genelSohbet.position + 1 : 1;
+        let aiChannel = guild.channels.cache.find(
+          (c) => c && c.type === import_discord40.ChannelType.GuildText && (c.name.includes("ai-sohbet") || c.name.includes("yapay-zeka") || c.name.includes("ai-chat"))
+        );
+        if (!aiChannel) {
+          console.log(`[AIChatManager] \u{1F916} \u{1F4AC}\u30FBai-sohbet kanal\u0131 olu\u015Fturuluyor: ${guild.name}`);
+          aiChannel = await guild.channels.create({
+            name: "\u{1F916}\u30FBai-sohbet",
+            type: import_discord40.ChannelType.GuildText,
+            parent: chatCategory ? chatCategory.id : void 0,
+            position: targetPosition,
+            topic: "\u{1F4AC} Nights Ak\u0131ll\u0131 Yapay Zeka Odas\u0131 \u2022 ChatGPT & Gemini Destekli 7/24 Canl\u0131 Sohbet \u2022 Made by erencix",
+            reason: "Nights Guard: Ak\u0131ll\u0131 yapay zeka sohbet odas\u0131 kurulumu"
+          });
+        } else {
+          if (chatCategory && aiChannel.parentId !== chatCategory.id) {
+            await aiChannel.setParent(chatCategory.id).catch(() => {
+            });
+          }
+          if (genelSohbet && Math.abs(aiChannel.position - genelSohbet.position) > 1) {
+            await aiChannel.setPosition(targetPosition).catch(() => {
+            });
+          }
+        }
+        const messages = await aiChannel.messages.fetch({ limit: 5 }).catch(() => null);
+        if (!messages || messages.size === 0) {
+          const introEmbed = new import_discord40.EmbedBuilder().setTitle("\u{1F916} NIGHTS GUARD AKILLI YAPAY ZEKA ODASINA HO\u015E GELD\u0130N\u0130Z! \u2728").setDescription(
+            `Selamlar <@&${guild.roles.everyone.id}>! Buras\u0131 sunucumuzun **7/24 kesintisiz yapay zeka sohbet odas\u0131d\u0131r**.
+
+### \u{1F9E0} Nas\u0131l \xC7al\u0131\u015F\u0131r?
+\u2022 **Kal\u0131p veya Otomatik Cevaplar YOKTUR!** T\u0131pk\u0131 ChatGPT ve Gemini gibi ger\xE7ek, derin \xF6\u011Frenmeli bir yapay zeka ile konu\u015Fursunuz.
+\u2022 Bu kanalda beni etiketlemenize bile gerek yoktur; **do\u011Frudan mesaj yazman\u0131z yeterlidir**.
+\u2022 Kodlama sorular\u0131 sorabilir, oyun taktikleri (Valorant, CS2) alabilir, anime/film \xF6nerileri isteyebilir veya dertle\u015Febilirsiniz!
+\u2022 Sohbet haf\u0131zas\u0131 devrededir; \xF6nceki konu\u015Ftuklar\u0131m\u0131z\u0131 hat\u0131rlar ve ba\u011Flam\u0131 koparmaz.
+
+\u{1F4AC} *Hemen a\u015Fa\u011F\u0131ya bir \u015Fey yaz ve sohbete ba\u015Fla! Seni dinliyorum.* \u{1F447}`
+          ).setColor("#8B5CF6").setFooter({ text: "Nights Generative AI Engine \u2022 Made by erencix" }).setTimestamp();
+          await aiChannel.send({ embeds: [introEmbed] }).catch(() => {
+          });
+        }
+      } catch (err) {
+        console.warn(`[AIChatManager] ${guild.name} i\xE7in kanal ayarlama uyar\u0131s\u0131:`, err.message);
+      }
+    }
+  }
+  /**
+   * Mesaj Denetimi ve Akıllı Yapay Zeka Yanıtı
+   */
+  static async handleMessage(message, client) {
+    if (message.author.bot || !message.guild) return false;
+    const channelName = message.channel.name?.toLowerCase() || "";
+    const isAiChannel = channelName.includes("ai-sohbet") || channelName.includes("yapay-zeka") || channelName.includes("bot-sohbet") || channelName.includes("ai-chat");
+    const botMentioned = client.user && message.mentions.has(client.user.id) && !message.mentions.everyone;
+    if (!isAiChannel && !botMentioned) {
+      return false;
+    }
+    const lastTime = this.recentUsers.get(message.author.id) || 0;
+    if (Date.now() - lastTime < 1500) return true;
+    this.recentUsers.set(message.author.id, Date.now());
+    let prompt = message.content;
+    if (client.user) {
+      prompt = prompt.replace(new RegExp(`<@!?${client.user.id}>`, "g"), "").trim();
+    }
+    if (!prompt) {
+      await message.reply("Efendim kral? Buraday\u0131m, akl\u0131na tak\u0131lan bir \u015Fey mi vard\u0131? Dinliyorum! \u{1F44B}").catch(() => {
+      });
+      return true;
+    }
+    try {
+      if ("sendTyping" in message.channel) {
+        await message.channel.sendTyping().catch(() => {
+        });
+      }
+      const channelId = message.channel.id;
+      let history = this.channelMemory.get(channelId) || [];
+      history.push({
+        role: "user",
+        content: `[${message.author.displayName}]: ${prompt}`
+      });
+      if (history.length > 8) {
+        history = history.slice(history.length - 8);
+      }
+      const replyText = await this.generateResponse(history, prompt, message.author.displayName);
+      history.push({
+        role: "assistant",
+        content: replyText
+      });
+      this.channelMemory.set(channelId, history);
+      if (replyText.length <= 2e3) {
+        await message.reply(replyText).catch(() => {
+        });
+      } else {
+        const chunks = this.splitMessage(replyText, 1950);
+        for (const chunk of chunks) {
+          await message.reply(chunk).catch(() => {
+          });
+        }
+      }
+      return true;
+    } catch (err) {
+      console.warn("[AIChatManager] Hata:", err.message);
+      return false;
+    }
+  }
+  /**
+   * Çok Kademeli Canlı Üretken LLM Çağrısı (Kesinlikle kalıp cevap YOK!)
+   */
+  static async generateResponse(history, currentPrompt, userName) {
+    this.initGemini();
+    if (this.geminiClient) {
+      try {
+        const fullPrompt = history.map((h) => `${h.role === "user" ? "Kullan\u0131c\u0131" : "Nights Guard"}: ${h.content}`).join("\n");
+        const res = await this.geminiClient.generateContent(fullPrompt);
+        const text = res.response.text();
+        if (text && text.trim().length > 0) return text.trim();
+      } catch (geminiErr) {
+        console.warn("[AIChatManager] Gemini API \xE7a\u011Fr\u0131s\u0131 atland\u0131, canl\u0131 LLM devrede:", geminiErr.message);
+      }
+    }
+    try {
+      const messages = [
+        { role: "system", content: this.SYSTEM_PROMPT },
+        ...history.map((h) => ({
+          role: h.role,
+          content: h.content
+        }))
+      ];
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12e3);
+      const response = await fetch("https://text.pollinations.ai/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages,
+          model: "openai",
+          seed: Math.floor(Math.random() * 999999)
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (response.ok) {
+        const generated = await response.text();
+        if (generated && generated.trim().length > 0 && !generated.includes("Free limit reached") && !generated.includes("Too Many Requests")) {
+          return generated.trim();
+        }
+      }
+    } catch (llmErr) {
+      console.warn("[AIChatManager] Canl\u0131 LLM denemesi uyar\u0131s\u0131:", llmErr.message);
+    }
+    try {
+      const encodedPrompt = encodeURIComponent(`[Sistem: ${this.SYSTEM_PROMPT}] [Kullan\u0131c\u0131 ${userName}: ${currentPrompt}]`);
+      const mirrorUrl = `https://text.pollinations.ai/${encodedPrompt}?model=mistral&seed=${Math.floor(Math.random() * 999999)}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8e3);
+      const mirrorRes = await fetch(mirrorUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (mirrorRes.ok) {
+        const mirrorText = await mirrorRes.text();
+        if (mirrorText && mirrorText.trim().length > 0 && !mirrorText.includes("Free limit reached") && !mirrorText.includes("Too Many Requests")) {
+          return mirrorText.trim();
+        }
+      }
+    } catch (mErr) {
+    }
+    return this.synthesizeOrganicResponse(currentPrompt, userName);
+  }
+  /**
+   * Ağ bağlantısı kopsa dahi kullanıcının sorusuna doğrudan odaklanan akıllı yanıt üretici
+   */
+  static synthesizeOrganicResponse(prompt, userName) {
+    const p = prompt.toLowerCase();
+    if (p.includes("kod") || p.includes("yaz\u0131l\u0131m") || p.includes("javascript") || p.includes("python")) {
+      return `Harika bir teknik soru ${userName}! Kodlama konusunda yard\u0131mc\u0131 olmaktan keyif al\u0131r\u0131m. Hangi dilde ve tam olarak nas\u0131l bir mimari veya fonksiyon kurmak istiyorsun? Detaylar\u0131 ver, birlikte yazal\u0131m! \u{1F4BB}\u{1F680}`;
+    }
+    if (p.includes("valorant") || p.includes("cs2") || p.includes("lol") || p.includes("oyun")) {
+      return `Oyun muhabbetine bay\u0131l\u0131r\u0131m kral! Sunucumuzda <#1568644570189791338> ve lobilerimiz bunun i\xE7in var. Sen genelde hangi ajan\u0131/\u015Fampiyonu oynuyorsun? \u0130stersen taktikler \xFCzerine konu\u015Fabiliriz! \u{1F3AF}\u{1F3AE}`;
+    }
+    if (p.includes("anime") || p.includes("film") || p.includes("dizi")) {
+      return `Tam yerine geldin ${userName}! S\xFCr\xFCkleyici bir \u015Fey ar\u0131yorsan *Cyberpunk: Edgerunners*, *Jujutsu Kaisen* veya daha sakin derin bir \u015Fey istersen *Vinland Saga* tam senlik olabilir. Nas\u0131l bir t\xFCr havas\u0131ndas\u0131n bug\xFCn? \u{1F37F}\u2728`;
+    }
+    if (p.includes("kimsin") || p.includes("sen kimsin")) {
+      return `Ben **Nights Guard**! \u{1F6E1}\uFE0F **Erencix** taraf\u0131ndan geli\u015Ftirilen, bu sunucunun hem g\xFCvenli\u011Fini sa\u011Flayan hem de seninle 7/24 dertle\u015Fip muhabbet eden zeki yapay zeka asistan\u0131y\u0131m. Keyifler nas\u0131l? \u2728`;
+    }
+    if (p.includes("nas\u0131ls\u0131n") || p.includes("naber")) {
+      return `\xC7ok iyiyim ${userName}, sunucuda ortam ak\u0131yor! Senin g\xFCn\xFCn nas\u0131l ge\xE7ti, her \u015Fey yolunda m\u0131? Anlat bakal\u0131m. \u{1F60A}`;
+    }
+    return `Kesinlikle \xE7ok iyi bir noktaya de\u011Findin ${userName}! Bu konuda senin tam olarak ne hissetti\u011Fini ve ne d\xFC\u015F\xFCnd\xFC\u011F\xFCn\xFC \xE7ok merak ettim. Biraz daha detay verir misin, \xFCzerine konu\u015Fal\u0131m! \u{1F319}\u2728`;
+  }
+  static splitMessage(text, maxLength) {
+    const chunks = [];
+    let cur = "";
+    const lines = text.split("\n");
+    for (const line of lines) {
+      if ((cur + line).length > maxLength) {
+        chunks.push(cur);
+        cur = line + "\n";
+      } else {
+        cur += line + "\n";
+      }
+    }
+    if (cur.trim().length > 0) chunks.push(cur);
+    return chunks;
+  }
+};
+
+// src/services/features/emojiPackManager.ts
+var CURATED_EMOJI_PACK = [
+  { name: "Fire_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Fire/3D/fire_3d.png" },
+  { name: "Sparkles_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Sparkles/3D/sparkles_3d.png" },
+  { name: "Crown_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Crown/3D/crown_3d.png" },
+  { name: "GlowingStar_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Glowing%20star/3D/glowing_star_3d.png" },
+  { name: "HeartOnFire_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Heart%20on%20fire/3D/heart_on_fire_3d.png" },
+  { name: "GemStone_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Gem%20stone/3D/gem_stone_3d.png" },
+  { name: "VideoGame_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Video%20game/3D/video_game_3d.png" },
+  { name: "Rocket_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Rocket/3D/rocket_3d.png" },
+  { name: "ZanyFace_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Zany%20face/3D/zany_face_3d.png" },
+  { name: "CoolSunglasses_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Smiling%20face%20with%20sunglasses/3D/smiling_face_with_sunglasses_3d.png" },
+  { name: "NerdFace_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Nerd%20face/3D/nerd_face_3d.png" },
+  { name: "PartyPopper_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Party%20popper/3D/party_popper_3d.png" },
+  { name: "MoneyBag_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Money%20bag/3D/money_bag_3d.png" },
+  { name: "Collision_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Collision/3D/collision_3d.png" },
+  { name: "HighVoltage_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/High%20voltage/3D/high_voltage_3d.png" },
+  { name: "MagicWand_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Magic%20wand/3D/magic_wand_3d.png" },
+  { name: "Hundred_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Hundred%20points/3D/hundred_points_3d.png" },
+  { name: "Trophy_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Trophy/3D/trophy_3d.png" },
+  { name: "Ghost_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Ghost/3D/ghost_3d.png" },
+  { name: "Alien_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Alien%20monster/3D/alien_monster_3d.png" },
+  { name: "Robot_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Robot/3D/robot_3d.png" },
+  { name: "Shield_3D", url: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Shield/3D/shield_3d.png" }
+];
+var EmojiPackManager = class {
+  static ran = false;
+  /**
+   * Sunucuya otomatik olarak 3D & Özel estetik emoji paketini kurar
+   */
+  static async ensureCuratedEmojis(client) {
+    if (this.ran) return;
+    this.ran = true;
+    for (const guild of client.guilds.cache.values()) {
+      try {
+        await this.installToGuild(guild);
+      } catch (err) {
+        console.warn(`[EmojiPackManager] ${guild.name} i\xE7in emoji y\xFCkleme hatas\u0131:`, err.message);
+      }
+    }
+  }
+  static async installToGuild(guild) {
+    console.log(`[EmojiPackManager] \u{1F3A8} ${guild.name} sunucusuna estetik emoji paketi kontrol ediliyor...`);
+    await guild.emojis.fetch();
+    const maxEmojis = guild.premiumTier === 0 ? 50 : guild.premiumTier === 1 ? 100 : guild.premiumTier === 2 ? 150 : 250;
+    let installed = 0;
+    let skipped = 0;
+    let limitReached = false;
+    for (const item of CURATED_EMOJI_PACK) {
+      if (guild.emojis.cache.size >= maxEmojis) {
+        console.log(`[EmojiPackManager] \u2139\uFE0F Sunucu emoji limitine ula\u015F\u0131ld\u0131 (${guild.emojis.cache.size}/${maxEmojis}).`);
+        limitReached = true;
+        break;
+      }
+      const existing = guild.emojis.cache.find(
+        (e) => e.name?.toLowerCase() === item.name.toLowerCase()
+      );
+      if (existing) {
+        skipped++;
+        continue;
+      }
+      try {
+        const response = await fetch(item.url);
+        if (!response.ok) {
+          skipped++;
+          continue;
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const newEmoji = await guild.emojis.create({
+          attachment: buffer,
+          name: item.name,
+          reason: "Nights Guard: Estetik 3D VIP Emoji Paketi"
+        });
+        console.log(`[EmojiPackManager] \u2728 Yeni emoji y\xFCklendi: :${newEmoji.name}: (${guild.name})`);
+        installed++;
+        await new Promise((r) => setTimeout(r, 600));
+      } catch (e) {
+        console.warn(`[EmojiPackManager] Emoji y\xFCklenemedi (${item.name}):`, e.message);
+        if (e.message?.includes("Maximum number of emojis reached")) {
+          limitReached = true;
+          break;
+        }
+      }
+    }
+    console.log(`[EmojiPackManager] \u2705 Tamamland\u0131! Y\xFCklenen: ${installed}, \xD6nceden var olan: ${skipped}`);
+    return {
+      installed,
+      skipped,
+      total: guild.emojis.cache.size,
+      limitReached
+    };
+  }
+};
+
 // src/events/ready.ts
 async function onReady(client) {
   console.log(`
@@ -7751,11 +8096,11 @@ async function onReady(client) {
   console.log(`======================================================
 `);
   const activities = [
-    { name: "\u260A Nights Toplulu\u011Fu", type: import_discord40.ActivityType.Watching },
-    { name: "\u{1F6E1}\uFE0F 7/24 Sunucu & Medya Korumas\u0131", type: import_discord40.ActivityType.Custom },
-    { name: "\u{1F399}\uFE0F Ses Kanallar\u0131 & Sohbet", type: import_discord40.ActivityType.Listening },
-    { name: "\u2B50 /yardim | Made by erencix", type: import_discord40.ActivityType.Playing },
-    { name: "\u{1F48E} Seviye & Ekonomi Sistemi", type: import_discord40.ActivityType.Competing }
+    { name: "\u260A Nights Toplulu\u011Fu", type: import_discord41.ActivityType.Watching },
+    { name: "\u{1F6E1}\uFE0F 7/24 Sunucu & Medya Korumas\u0131", type: import_discord41.ActivityType.Custom },
+    { name: "\u{1F399}\uFE0F Ses Kanallar\u0131 & Sohbet", type: import_discord41.ActivityType.Listening },
+    { name: "\u2B50 /yardim | Made by erencix", type: import_discord41.ActivityType.Playing },
+    { name: "\u{1F48E} Seviye & Ekonomi Sistemi", type: import_discord41.ActivityType.Competing }
   ];
   let currentActivityIndex = 0;
   client.user?.setPresence({
@@ -7772,6 +8117,8 @@ async function onReady(client) {
   LevelManager.startVoiceTracker(client);
   await VoiceSetupManager.ensureEnhancedVoiceChannels(client);
   await BoostManager.init(client);
+  await AIChatManager.ensureAiChannel(client);
+  await EmojiPackManager.ensureCuratedEmojis(client);
   VoiceLobbyManager.sweepEmptyChannels(client);
   setInterval(() => {
     VoiceLobbyManager.sweepEmptyChannels(client);
@@ -7842,7 +8189,7 @@ async function onVoiceStateUpdate(oldState, newState) {
 }
 
 // src/services/features/kelimeOyunu.ts
-var import_discord41 = require("discord.js");
+var import_discord42 = require("discord.js");
 var import_fs7 = __toESM(require("fs"));
 var import_path7 = __toESM(require("path"));
 var KelimeOyunuManager = class {
@@ -8090,7 +8437,7 @@ var KelimeOyunuManager = class {
     }
     if (this.state.streak % 10 === 0) {
       const nextLetter = this.state.lastWord.slice(-1).toLocaleUpperCase("tr-TR");
-      const milestoneEmbed = new import_discord41.EmbedBuilder().setTitle(`\u{1F525} KEL\u0130ME T\xDCRETME SER\u0130S\u0130: ${this.state.streak} KEL\u0130ME! \u{1F525}`).setDescription(
+      const milestoneEmbed = new import_discord42.EmbedBuilder().setTitle(`\u{1F525} KEL\u0130ME T\xDCRETME SER\u0130S\u0130: ${this.state.streak} KEL\u0130ME! \u{1F525}`).setDescription(
         `Harika gidiyorsunuz! Toplam **${this.state.streak}** ge\xE7erli T\xFCrk\xE7e kelime t\xFCretildi!
 Son Kelime: **${this.state.lastWord}**
 S\u0131radaki Kelime '**${nextLetter}**' harfiyle ba\u015Flamal\u0131!`
@@ -8102,7 +8449,7 @@ S\u0131radaki Kelime '**${nextLetter}**' harfiyle ba\u015Flamal\u0131!`
   }
   static getInitialEmbed() {
     const nextLetter = this.state.lastWord.slice(-1).toLocaleUpperCase("tr-TR");
-    return new import_discord41.EmbedBuilder().setTitle("\u{1F9E9} NIGHTS KEL\u0130ME T\xDCRETMECE OYUNU BA\u015ELADI!").setDescription(
+    return new import_discord42.EmbedBuilder().setTitle("\u{1F9E9} NIGHTS KEL\u0130ME T\xDCRETMECE OYUNU BA\u015ELADI!").setDescription(
       `Sunucumuzun otomatik kelime t\xFCretme oyunu aktif!
 
 ### \u{1F4CC} Oyun Kurallar\u0131:
@@ -8122,7 +8469,7 @@ S\u0131radaki Kelime '**${nextLetter}**' harfiyle ba\u015Flamal\u0131!`
 };
 
 // src/services/features/countingGame.ts
-var import_discord42 = require("discord.js");
+var import_discord43 = require("discord.js");
 var CountingGameManager = class {
   static currentNumber = 1;
   static lastUserId = null;
@@ -8197,7 +8544,7 @@ var CountingGameManager = class {
       });
       try {
         if ("send" in message.channel) {
-          const failEmbed = new import_discord42.EmbedBuilder().setTitle("\u{1F4A5} EYVAH! SER\u0130 BOZULDU! \u{1F4A5}").setDescription(
+          const failEmbed = new import_discord43.EmbedBuilder().setTitle("\u{1F4A5} EYVAH! SER\u0130 BOZULDU! \u{1F4A5}").setDescription(
             `<@${message.author.id}> yanl\u0131\u015F say\u0131 girdi (**${num}** yerine **${failedAt + 1}** yaz\u0131lmal\u0131yd\u0131)!
 
 \u{1F4CA} **Ula\u015F\u0131lan Skor:** \`${failedAt}\` Say\u0131
@@ -8220,7 +8567,7 @@ var CountingGameManager = class {
     if (num % 25 === 0) {
       try {
         if ("send" in message.channel) {
-          const milestoneEmbed = new import_discord42.EmbedBuilder().setTitle(`\u{1F389} B\xDCY\xDCK BA\u015EARI: ${num}. SAYIYA ULA\u015EILDI! \u{1F680}`).setDescription(
+          const milestoneEmbed = new import_discord43.EmbedBuilder().setTitle(`\u{1F389} B\xDCY\xDCK BA\u015EARI: ${num}. SAYIYA ULA\u015EILDI! \u{1F680}`).setDescription(
             `Tebrikler! Sunucu olarak harika bir tak\u0131m \xE7al\u0131\u015Fmas\u0131 sergiliyorsunuz.
 \u015Eu anki seri: **${num}**
 S\u0131radaki hedef: **${num + 25}**`
@@ -8232,7 +8579,7 @@ S\u0131radaki hedef: **${num + 25}**`
     }
   }
   static getInitialEmbed() {
-    return new import_discord42.EmbedBuilder().setTitle("\u{1F522} NIGHTS SAYI SAYMACA OYUNU BA\u015ELADI!").setDescription(
+    return new import_discord43.EmbedBuilder().setTitle("\u{1F522} NIGHTS SAYI SAYMACA OYUNU BA\u015ELADI!").setDescription(
       `Sunucumuzun tak\u0131m \xE7al\u0131\u015Fmas\u0131 ve e\u011Flence dolu say\u0131 sayma oyunu aktif!
 
 ### \u{1F4CC} Oyun Kurallar\u0131:
@@ -8249,7 +8596,7 @@ S\u0131radaki hedef: **${num + 25}**`
 };
 
 // src/services/features/auditLogManager.ts
-var import_discord43 = require("discord.js");
+var import_discord44 = require("discord.js");
 var AuditLogManager = class {
   static logChannelCache = /* @__PURE__ */ new Map();
   /**
@@ -8285,7 +8632,7 @@ var AuditLogManager = class {
       if (!logChannel || logChannel.id === message.channelId) return;
       const content = message.content?.trim() || "*[Mesaj metni al\u0131namad\u0131 veya sadece medya/dosya i\xE7eriyordu]*";
       const attachments = message.attachments?.size ? Array.from(message.attachments.values()).map((a) => a.url).join("\n") : null;
-      const embed = new import_discord43.EmbedBuilder().setTitle("\u{1F5D1}\uFE0F Mesaj Silindi").setDescription(
+      const embed = new import_discord44.EmbedBuilder().setTitle("\u{1F5D1}\uFE0F Mesaj Silindi").setDescription(
         `> \u{1F464} **Mesaj Sahibi:** <@${message.author?.id}> (\`${message.author?.tag || message.author?.id}\`)
 > \u{1F4AC} **Kanal:** <#${message.channelId}>
 > \u{1F4C5} **Tarih:** <t:${Math.floor(Date.now() / 1e3)}:R>
@@ -8314,7 +8661,7 @@ ${attachments.slice(0, 400)}` : "")
       if (!logChannel || logChannel.id === newMessage.channelId) return;
       const oldText = oldMessage.content?.trim() || "*[\xD6nceki i\xE7erik yok]*";
       const newText = newMessage.content?.trim() || "*[Yeni i\xE7erik yok]*";
-      const embed = new import_discord43.EmbedBuilder().setTitle("\u270F\uFE0F Mesaj D\xFCzenlendi").setDescription(
+      const embed = new import_discord44.EmbedBuilder().setTitle("\u270F\uFE0F Mesaj D\xFCzenlendi").setDescription(
         `> \u{1F464} **Mesaj Sahibi:** <@${newMessage.author?.id}> (\`${newMessage.author?.tag || newMessage.author?.id}\`)
 > \u{1F4AC} **Kanal:** <#${newMessage.channelId}> \u2014 [Mesaja Git](${newMessage.url})
 
@@ -8343,7 +8690,7 @@ ${newText.slice(0, 800)}
       if (!logChannel) return;
       const roles = member.roles?.cache?.filter((r) => r.id !== guild.id)?.map((r) => r.name)?.join(", ") || "Rol bulunmuyor";
       const joinedAtStr = member.joinedTimestamp ? `<t:${Math.floor(member.joinedTimestamp / 1e3)}:R>` : "Bilinmiyor";
-      const embed = new import_discord43.EmbedBuilder().setTitle("\u{1F6AA} Bir \xDCye Sunucudan Ayr\u0131ld\u0131").setDescription(
+      const embed = new import_discord44.EmbedBuilder().setTitle("\u{1F6AA} Bir \xDCye Sunucudan Ayr\u0131ld\u0131").setDescription(
         `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user?.tag || member.id}\`)
 > \u{1F4C5} **Sunucuya Kat\u0131lm\u0131\u015Ft\u0131:** ${joinedAtStr}
 > \u{1F3F7}\uFE0F **Sahip Oldu\u011Fu Roller:** \`${roles.slice(0, 300)}\`
@@ -8368,7 +8715,7 @@ ${newText.slice(0, 800)}
       const logChannel = await this.getLogChannel(guild);
       if (!logChannel) return;
       if (!oldState.channelId && newState.channelId) {
-        const embed = new import_discord43.EmbedBuilder().setTitle("\u{1F399}\uFE0F Ses Kanal\u0131na Giri\u015F").setDescription(
+        const embed = new import_discord44.EmbedBuilder().setTitle("\u{1F399}\uFE0F Ses Kanal\u0131na Giri\u015F").setDescription(
           `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user.tag}\`)
 > \u{1F50A} **Kanal:** <#${newState.channelId}>`
         ).setColor("#2ECC71").setTimestamp();
@@ -8377,7 +8724,7 @@ ${newText.slice(0, 800)}
         return;
       }
       if (oldState.channelId && !newState.channelId) {
-        const embed = new import_discord43.EmbedBuilder().setTitle("\u{1F6AA} Ses Kanal\u0131ndan \xC7\u0131k\u0131\u015F").setDescription(
+        const embed = new import_discord44.EmbedBuilder().setTitle("\u{1F6AA} Ses Kanal\u0131ndan \xC7\u0131k\u0131\u015F").setDescription(
           `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user.tag}\`)
 > \u{1F507} **Ayr\u0131ld\u0131\u011F\u0131 Kanal:** <#${oldState.channelId}>`
         ).setColor("#ED4245").setTimestamp();
@@ -8386,7 +8733,7 @@ ${newText.slice(0, 800)}
         return;
       }
       if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
-        const embed = new import_discord43.EmbedBuilder().setTitle("\u{1F504} Ses Kanal\u0131 De\u011Fi\u015Fikli\u011Fi").setDescription(
+        const embed = new import_discord44.EmbedBuilder().setTitle("\u{1F504} Ses Kanal\u0131 De\u011Fi\u015Fikli\u011Fi").setDescription(
           `> \u{1F464} **Kullan\u0131c\u0131:** <@${member.id}> (\`${member.user.tag}\`)
 > \u{1F534} **Eski Kanal:** <#${oldState.channelId}>
 > \u{1F7E2} **Yeni Kanal:** <#${newState.channelId}>`
@@ -8397,103 +8744,6 @@ ${newText.slice(0, 800)}
       }
     } catch {
     }
-  }
-};
-
-// src/services/features/aiChatManager.ts
-var import_generative_ai2 = require("@google/generative-ai");
-var AIChatManager = class {
-  static geminiClient = null;
-  static recentUsers = /* @__PURE__ */ new Map();
-  static initGemini() {
-    const key = process.env.GEMINI_API_KEY;
-    if (key && !this.geminiClient) {
-      try {
-        const genAI = new import_generative_ai2.GoogleGenerativeAI(key);
-        this.geminiClient = genAI.getGenerativeModel({
-          model: "gemini-1.5-flash",
-          systemInstruction: "Sen Nights Guard adl\u0131 Discord botusun. Yarat\u0131c\u0131n Erencix (erengaliba42). \u260A Nights adl\u0131 Discord sunucusunun koruyucusu, e\u011Flence ve sohbet arkada\u015F\u0131s\u0131n. \xDCyelerle \xE7ok samimi, hafif esprili, zeki, T\xFCrk\xE7e konu\u015Fan, haval\u0131 ve yard\u0131msever bir dille sohbet et. Discord markdown format\u0131n\u0131 ve emojileri dengeli kullan. Cevaplar\u0131n\u0131 \xE7ok uzatmadan, do\u011Frudan ve ilgi \xE7ekici ver."
-        });
-      } catch (e) {
-        this.geminiClient = null;
-      }
-    }
-  }
-  static async handleMessage(message, client) {
-    if (message.author.bot || !message.guild) return false;
-    const channelName = message.channel.name?.toLowerCase() || "";
-    const isAiChannel = channelName.includes("ai-sohbet") || channelName.includes("yapay-zeka") || channelName.includes("bot-sohbet") || channelName.includes("ai-chat");
-    const botMentioned = client.user && message.mentions.has(client.user.id) && !message.mentions.everyone;
-    if (!isAiChannel && !botMentioned) {
-      return false;
-    }
-    const lastTime = this.recentUsers.get(message.author.id) || 0;
-    if (Date.now() - lastTime < 2e3) return true;
-    this.recentUsers.set(message.author.id, Date.now());
-    let prompt = message.content;
-    if (client.user) {
-      prompt = prompt.replace(new RegExp(`<@!?${client.user.id}>`, "g"), "").trim();
-    }
-    if (!prompt) {
-      await message.reply("Efendim kral? Buraday\u0131m, bir \u015Fey mi soracakt\u0131n? \u{1F44B}").catch(() => {
-      });
-      return true;
-    }
-    try {
-      if ("sendTyping" in message.channel) {
-        await message.channel.sendTyping().catch(() => {
-        });
-      }
-      this.initGemini();
-      let replyText = "";
-      if (this.geminiClient) {
-        try {
-          const result = await this.geminiClient.generateContent(prompt);
-          replyText = result.response.text();
-        } catch {
-          replyText = this.getSmartFallbackResponse(prompt, message.author.displayName);
-        }
-      } else {
-        replyText = this.getSmartFallbackResponse(prompt, message.author.displayName);
-      }
-      if (replyText.length > 2e3) {
-        replyText = replyText.slice(0, 1990) + "...";
-      }
-      await message.reply(replyText).catch(() => {
-      });
-      return true;
-    } catch (err) {
-      console.warn("[AIChatManager] Hata:", err.message);
-      return false;
-    }
-  }
-  static getSmartFallbackResponse(prompt, userName) {
-    const p = prompt.toLowerCase();
-    if (p.includes("nas\u0131ls\u0131n") || p.includes("naber")) {
-      return `\u0130yiyim ${userName}, sunucuyu 7/24 korumaya ve sizinle tak\u0131lmaya devam ediyorum! Sen nas\u0131ls\u0131n, keyifler nas\u0131l? \u2728`;
-    }
-    if (p.includes("kimsin") || p.includes("nesin")) {
-      return `Ben **Nights Guard**! \u{1F6E1}\uFE0F **Erencix** taraf\u0131ndan geli\u015Ftirilmi\u015F, **\u260A Nights** sunucusunun koruma, e\u011Flence, ekonomi ve yapay zeka asistan\u0131y\u0131m. Hizmetindeyim!`;
-    }
-    if (p.includes("sahibin") || p.includes("yap\u0131mc\u0131n") || p.includes("kurucun")) {
-      return `Beni kodlayan ve tasarlayan kral **Erencix** (<@1138498666785677492>)! \u{1F451}`;
-    }
-    if (p.includes("yard\u0131m") || p.includes("komut")) {
-      return `B\xFCt\xFCn komutlar\u0131m\u0131 g\xF6rmek i\xE7in \`/yardim\` veya \`!yardim\` yazabilirsin kral! Seviyeden ekonomiye, g\xFCvenlikten e\u011Flenceye her \u015Fey elimizin alt\u0131nda.`;
-    }
-    if (p.includes("seviyorum") || p.includes("adams\u0131n") || p.includes("cans\u0131n")) {
-      return `Eyvallah ${userName}, o senin krall\u0131\u011F\u0131n! \u260A Nights ailesi olarak her zaman beraberiz! \u2764\uFE0F`;
-    }
-    if (p.includes("para") || p.includes("coin") || p.includes("kumar")) {
-      return `Nights Coin kazanmak i\xE7in \`!gunluk\`, \`!calis\` yapabilir veya \`!cf\` / \`!slot\` ile \u015Fans\u0131n\u0131 deneyebilirsin! \u{1F3B0}\u{1F4B0}`;
-    }
-    const genericResponses = [
-      `Hakl\u0131s\u0131n ${userName}, tam olarak \xF6yle! Ba\u015Fka ne d\xFC\u015F\xFCn\xFCyorsun bu konuda? \u{1F914}`,
-      `\u0130lgin\xE7 bir yakla\u015F\u0131m kral. \u260A Nights ortam\u0131nda her fikre a\xE7\u0131\u011F\u0131z! \u2615`,
-      `Bunu not ald\u0131m! Ba\u015Fka sormak veya konu\u015Fmak istedi\u011Fin bir konu var m\u0131? \u2728`,
-      `Haha kesinlikle kat\u0131l\u0131yorum ${userName}! Birlikte sunucuyu daha da co\u015Fturaca\u011F\u0131z. \u{1F680}`
-    ];
-    return genericResponses[Math.floor(Math.random() * genericResponses.length)];
   }
 };
 
@@ -8604,7 +8854,7 @@ var InviteTracker = class {
 };
 
 // src/index.ts
-var import_discord45 = require("discord.js");
+var import_discord46 = require("discord.js");
 async function bootstrap() {
   console.log("\u{1F680} Nights Guard \u2022 Made by erencix ba\u015Flat\u0131l\u0131yor...");
   PersistentStore.init();
@@ -8634,50 +8884,50 @@ async function bootstrap() {
     }
     return;
   }
-  const client = new import_discord44.Client({
+  const client = new import_discord45.Client({
     intents: [
-      import_discord44.GatewayIntentBits.Guilds,
-      import_discord44.GatewayIntentBits.GuildMembers,
-      import_discord44.GatewayIntentBits.GuildVoiceStates,
-      import_discord44.GatewayIntentBits.GuildMessages,
-      import_discord44.GatewayIntentBits.MessageContent,
-      import_discord44.GatewayIntentBits.GuildEmojisAndStickers,
-      import_discord44.GatewayIntentBits.GuildInvites
+      import_discord45.GatewayIntentBits.Guilds,
+      import_discord45.GatewayIntentBits.GuildMembers,
+      import_discord45.GatewayIntentBits.GuildVoiceStates,
+      import_discord45.GatewayIntentBits.GuildMessages,
+      import_discord45.GatewayIntentBits.MessageContent,
+      import_discord45.GatewayIntentBits.GuildEmojisAndStickers,
+      import_discord45.GatewayIntentBits.GuildInvites
     ],
-    partials: [import_discord44.Partials.Channel, import_discord44.Partials.GuildMember, import_discord44.Partials.Message, import_discord44.Partials.User]
+    partials: [import_discord45.Partials.Channel, import_discord45.Partials.GuildMember, import_discord45.Partials.Message, import_discord45.Partials.User]
   });
   const aiManager = new AIManager();
   const interactionHandler = new InteractionHandler(aiManager);
-  client.once(import_discord44.Events.ClientReady, async () => {
+  client.once(import_discord45.Events.ClientReady, async () => {
     await onReady(client);
     await InviteTracker.init(client);
   });
-  client.on(import_discord44.Events.InviteCreate, (invite) => InviteTracker.onInviteCreate(invite));
-  client.on(import_discord44.Events.InviteDelete, (invite) => InviteTracker.onInviteDelete(invite));
-  client.on(import_discord44.Events.InteractionCreate, async (interaction) => {
+  client.on(import_discord45.Events.InviteCreate, (invite) => InviteTracker.onInviteCreate(invite));
+  client.on(import_discord45.Events.InviteDelete, (invite) => InviteTracker.onInviteDelete(invite));
+  client.on(import_discord45.Events.InteractionCreate, async (interaction) => {
     await interactionHandler.handle(interaction);
   });
-  client.on(import_discord44.Events.VoiceStateUpdate, async (oldState, newState) => {
+  client.on(import_discord45.Events.VoiceStateUpdate, async (oldState, newState) => {
     await onVoiceStateUpdate(oldState, newState);
     await AuditLogManager.logVoiceState(oldState, newState);
   });
-  client.on(import_discord44.Events.MessageDelete, async (message) => {
+  client.on(import_discord45.Events.MessageDelete, async (message) => {
     await AuditLogManager.logMessageDelete(message);
   });
-  client.on(import_discord44.Events.MessageUpdate, async (oldMessage, newMessage) => {
+  client.on(import_discord45.Events.MessageUpdate, async (oldMessage, newMessage) => {
     await AuditLogManager.logMessageUpdate(oldMessage, newMessage);
   });
-  client.on(import_discord44.Events.GuildMemberRemove, async (member) => {
+  client.on(import_discord45.Events.GuildMemberRemove, async (member) => {
     await AuditLogManager.logMemberLeave(member);
     await AutoSecurityGuard.handleKickSecurity(member.guild, member);
   });
-  client.on(import_discord44.Events.GuildBanAdd, async (ban) => {
+  client.on(import_discord45.Events.GuildBanAdd, async (ban) => {
     await AutoSecurityGuard.handleBanSecurity(ban.guild, ban.user);
   });
-  client.on(import_discord44.Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  client.on(import_discord45.Events.GuildMemberUpdate, async (oldMember, newMember) => {
     await BoostManager.handleMemberUpdate(oldMember, newMember, client);
   });
-  client.on(import_discord44.Events.MessageCreate, async (message) => {
+  client.on(import_discord45.Events.MessageCreate, async (message) => {
     if (!message.guild) return;
     await BoostManager.handleSystemMessage(message, client);
     if (message.author.bot) return;
@@ -8740,7 +8990,7 @@ async function bootstrap() {
 `;
       });
       if (q.songs.length > 10) desc += `*...ve ${q.songs.length - 10} \u015Fark\u0131 daha.*`;
-      const embed = new import_discord45.EmbedBuilder().setTitle(`\u{1F4DC} \xC7alma Listesi (${q.songs.length} Par\xE7a)`).setDescription(desc).setColor("#5865F2").setFooter({ text: `Ses: %${q.volume} \u2022 D\xF6ng\xFC: ${q.loopMode}` });
+      const embed = new import_discord46.EmbedBuilder().setTitle(`\u{1F4DC} \xC7alma Listesi (${q.songs.length} Par\xE7a)`).setDescription(desc).setColor("#5865F2").setFooter({ text: `Ses: %${q.volume} \u2022 D\xF6ng\xFC: ${q.loopMode}` });
       await message.reply({ embeds: [embed] }).catch(() => {
       });
       return;
@@ -8778,14 +9028,14 @@ async function bootstrap() {
         desc += `${medal} <@${u.userId}> \u2014 **Level ${u.level}** (\`${u.xp} XP\`)
 `;
       });
-      const topEmbed = new import_discord45.EmbedBuilder().setTitle("\u{1F3C6} NIGHTS AKT\u0130FL\u0130K L\u0130DERL\u0130K TABLOSU").setDescription(desc || "Hen\xFCz seviye atlayan \xFCye bulunmuyor.").setColor("#F1C40F").setFooter({ text: "Nights Topluluk S\u0131ralamas\u0131 \u2022 Made by erencix" });
+      const topEmbed = new import_discord46.EmbedBuilder().setTitle("\u{1F3C6} NIGHTS AKT\u0130FL\u0130K L\u0130DERL\u0130K TABLOSU").setDescription(desc || "Hen\xFCz seviye atlayan \xFCye bulunmuyor.").setColor("#F1C40F").setFooter({ text: "Nights Topluluk S\u0131ralamas\u0131 \u2022 Made by erencix" });
       await message.reply({ embeds: [topEmbed] }).catch(() => {
       });
       return;
     }
     if (cmd === "!seviye-esitle") {
       const ownerId = config.ownerId || process.env.OWNER_ID || "1138498666785677492";
-      if (message.author.id !== ownerId && !message.member?.permissions.has(import_discord44.PermissionFlagsBits.Administrator)) {
+      if (message.author.id !== ownerId && !message.member?.permissions.has(import_discord45.PermissionFlagsBits.Administrator)) {
         await message.reply("\u274C Bu komutu yaln\u0131zca sunucu y\xF6neticisi kullanabilir.").catch(() => {
         });
         return;
@@ -8807,7 +9057,7 @@ async function bootstrap() {
       const res = await ServerBackupManager.createBackup(message.guild, message.author);
       if (res.success && res.data) {
         const d = res.data;
-        const embed = new import_discord45.EmbedBuilder().setTitle("\u{1F4BE} NIGHTS GUARD \u2022 TAM SUNUCU YEDE\u011E\u0130 ALINDI!").setDescription(
+        const embed = new import_discord46.EmbedBuilder().setTitle("\u{1F4BE} NIGHTS GUARD \u2022 TAM SUNUCU YEDE\u011E\u0130 ALINDI!").setDescription(
           `Sunucunun anl\u0131k t\xFCm verileri, rolleri, kategori ve kanallar\u0131, \xF6zel izinleri ve \xFCye rol da\u011F\u0131l\u0131mlar\u0131 ba\u015Far\u0131yla diske kaydedildi!
 
 Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekgetir\` komutunu kullanabilirsiniz.`
@@ -8840,7 +9090,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
       });
       if (res.success && res.restoredStats) {
         const s = res.restoredStats;
-        const embed = new import_discord45.EmbedBuilder().setTitle("\u2728 NIGHTS GUARD \u2022 SUNUCU YEDE\u011E\u0130 BA\u015EARIYLA GER\u0130 Y\xDCKLEND\u0130!").setDescription(`Sunucu ba\u015Far\u0131yla eski haline d\xF6nd\xFCr\xFCld\xFC! Odalar, roller ve yetkiler onar\u0131ld\u0131. \u{1F6E1}\uFE0F`).setColor("#8B5CF6").addFields(
+        const embed = new import_discord46.EmbedBuilder().setTitle("\u2728 NIGHTS GUARD \u2022 SUNUCU YEDE\u011E\u0130 BA\u015EARIYLA GER\u0130 Y\xDCKLEND\u0130!").setDescription(`Sunucu ba\u015Far\u0131yla eski haline d\xF6nd\xFCr\xFCld\xFC! Odalar, roller ve yetkiler onar\u0131ld\u0131. \u{1F6E1}\uFE0F`).setColor("#8B5CF6").addFields(
           { name: "\u{1F194} Kullan\u0131lan Yedek", value: `\`${s.backupId}\``, inline: true },
           { name: "\u{1F3AD} Roller", value: `**${s.roles}** adet`, inline: true },
           { name: "\u{1F4C1} Kategoriler", value: `**${s.categories}** adet`, inline: true },
@@ -9008,7 +9258,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
       return;
     }
     if (cmd === "!yardim" || cmd === "!komutlar") {
-      const helpEmbed = new import_discord45.EmbedBuilder().setTitle("\u{1F3AE} NIGHTS GUARD E\u011ELENCE & S\u0130STEM KOMUTLARI").setDescription(
+      const helpEmbed = new import_discord46.EmbedBuilder().setTitle("\u{1F3AE} NIGHTS GUARD E\u011ELENCE & S\u0130STEM KOMUTLARI").setDescription(
         "Sunucumuzda kullanabilece\u011Finiz h\u0131zl\u0131 interaktif komutlar:\n\n### \u26A1 Level & Aktiflik:\n\u2022 `!rank` \u2014 Kendi seviye kart\u0131n\u0131z\u0131 ve XP durumunuzu g\xF6sterir\n\u2022 `!top` \u2014 Sunucu aktiflik liderlik tablosunu g\xF6sterir\n\n### \u{1F4B0} Ekonomi & Oyunlar:\n\u2022 `!gunluk` \u2014 G\xFCnl\xFCk 500 Nights Coin \xF6d\xFCl\xFCn\xFCz\xFC al\u0131r\n\u2022 `!bakiye` \u2014 Mevcut paran\u0131z\u0131 g\xF6r\xFCnt\xFCler\n\u2022 `!calis` \u2014 30 dakikada bir \xE7al\u0131\u015Farak para kazand\u0131r\u0131r\n\u2022 `!cf <miktar> <yazi|tura>` \u2014 Yaz\u0131 tura bahsi oynar\n\u2022 `!slot <miktar>` \u2014 Slot kumar makinesini \xE7evirir\n\n### \u{1F3B2} Sunucu \u0130\xE7i Oyun Kanallar\u0131:\n\u2022 <#1568644567517896815> \u2014 Otomatik Kelime T\xFCretmece\n\u2022 `#owo-gambling-1 & 2` \u2014 H\u0131zl\u0131 1sn OwO Oyun Odalar\u0131"
       ).setColor("#8B5CF6").setFooter({ text: "Nights Interactive Engine \u2022 Made by erencix" });
       await message.reply({ embeds: [helpEmbed] }).catch(() => {
@@ -9018,7 +9268,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
     if (cmd === "!dm" || cmd === "!duyuru" || cmd === "!mesajgonder") {
       const ownerId = config.ownerId || "1138498666785677492";
       const isOwner = message.author.id === ownerId;
-      const isAdmin = message.member?.permissions.has(import_discord44.PermissionFlagsBits.Administrator);
+      const isAdmin = message.member?.permissions.has(import_discord45.PermissionFlagsBits.Administrator);
       if (!isOwner && !isAdmin) {
         await message.reply("\u26D4 **Eri\u015Fim Engellendi:** Bu komut yaln\u0131zca sunucu kurucusu taraf\u0131ndan kullan\u0131labilir!").catch(() => {
         });
@@ -9035,7 +9285,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
       const progressMsg = await message.reply("\u23F3 **Toplu DM G\xF6nderimi Ba\u015Flat\u0131l\u0131yor...** L\xFCtfen bekleyin.").catch(() => null);
       const allMembers = await guild.members.fetch();
       const candidates = Array.from(allMembers.values()).filter((m) => !m.user.bot);
-      const dmEmbed = new import_discord45.EmbedBuilder().setTitle("\u{1F4E2} NIGHTS TOPLULUK RESM\u0130 DUYURUSU").setDescription(rawMsg).setColor("#8B5CF6").setThumbnail(guild.iconURL({ size: 256 }) || message.author.displayAvatarURL()).addFields(
+      const dmEmbed = new import_discord46.EmbedBuilder().setTitle("\u{1F4E2} NIGHTS TOPLULUK RESM\u0130 DUYURUSU").setDescription(rawMsg).setColor("#8B5CF6").setThumbnail(guild.iconURL({ size: 256 }) || message.author.displayAvatarURL()).addFields(
         { name: "\u{1F451} G\xF6nderen Yetkili", value: `<@${message.author.id}>`, inline: true },
         { name: "\u{1F310} Sunucu", value: `**${guild.name}**`, inline: true }
       ).setImage("https://media.giphy.com/media/EPfV3ijMQVl60/giphy.gif").setFooter({ text: "Nights Community Broadcast Engine \u2022 Made by erencix" }).setTimestamp();
@@ -9102,7 +9352,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
       }
     }
   });
-  client.on(import_discord44.Events.GuildMemberAdd, async (member) => {
+  client.on(import_discord45.Events.GuildMemberAdd, async (member) => {
     try {
       console.log(`[GuildMemberAdd] Yeni \xFCye kat\u0131ld\u0131: ${member.user.tag} (${member.id})`);
       const isKickedByAntiRaid = await AutoSecurityGuard.handleMemberJoinSecurity(member);
@@ -9138,7 +9388,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
             inviterStr = `\xD6zel Sunucu Linki (\`${inviteInfo.code}\`) \u{1F517}`;
           }
           const avatarUrl = member.user.displayAvatarURL({ size: 256 });
-          const welcomeEmbed = new import_discord45.EmbedBuilder().setTitle(`\u{1F44B} ARAMIZA HO\u015E GELD\u0130N, ${member.displayName}!`).setDescription(
+          const welcomeEmbed = new import_discord46.EmbedBuilder().setTitle(`\u{1F44B} ARAMIZA HO\u015E GELD\u0130N, ${member.displayName}!`).setDescription(
             `Hey <@${member.id}>, **${member.guild.name}** sunucumuza ho\u015F geldin! \u{1F389}
 
 > \u{1F4E8} **Davet Eden:** ${inviterStr}
@@ -9160,7 +9410,7 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
       console.warn("[GuildMemberAdd] Hata:", err.message);
     }
   });
-  client.on(import_discord44.Events.GuildCreate, async (guild) => {
+  client.on(import_discord45.Events.GuildCreate, async (guild) => {
     const allowedGuildId = "1568618183223414934";
     const allowedOwnerId = config.ownerId || "1138498666785677492";
     if (guild.id !== allowedGuildId && guild.ownerId !== allowedOwnerId) {

@@ -25,6 +25,8 @@ import { LevelManager } from '../services/features/levelManager';
 import { VoiceLobbyManager } from '../services/features/voiceLobbyManager';
 import { VoiceSetupManager } from '../services/features/voiceSetupManager';
 import { BoostManager } from '../services/features/boostManager';
+import { AIChatManager } from '../services/features/aiChatManager';
+import { EmojiPackManager } from '../services/features/emojiPackManager';
 
 export async function onReady(client: Client): Promise<void> {
   console.log(`\n======================================================`);
@@ -64,6 +66,12 @@ export async function onReady(client: Client): Promise<void> {
 
   // Server Boost Kanalını ve Vitrinini Otomatik Kur/Doğrula
   await BoostManager.init(client);
+
+  // 💬・ai-sohbet Kanalını Genel Sohbetin Hemen Altına Kur/Doğrula
+  await AIChatManager.ensureAiChannel(client);
+
+  // 🎨 Estetik 3D VIP Emoji Paketini Sunucuya Otomatik Kur
+  await EmojiPackManager.ensureCuratedEmojis(client);
 
   // Sahipsiz & Boşta Kalan Geçici Ses Odalarını Sürekli Süpür (15 saniyede bir)
   VoiceLobbyManager.sweepEmptyChannels(client);
