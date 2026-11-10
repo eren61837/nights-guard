@@ -4,6 +4,7 @@ import {
   PermissionFlagsBits,
   EmbedBuilder,
   TextChannel,
+  MessageFlags,
 } from 'discord.js';
 
 export const data = new SlashCommandBuilder()
@@ -27,7 +28,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   ) {
     await interaction.reply({
       content: '❌ Bu komutu kullanabilmek için **Mesajları Yönet** yetkisine sahip olmalısınız.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -36,14 +37,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   if (!channel || !(channel instanceof TextChannel)) {
     await interaction.reply({
       content: '❌ Bu komut sadece metin kanallarında kullanılabilir.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
   const amount = interaction.options.getInteger('miktar', true);
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
     const deleted = await channel.bulkDelete(amount, true);

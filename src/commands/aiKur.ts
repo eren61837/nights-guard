@@ -6,6 +6,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   PermissionFlagsBits,
+  MessageFlags,
 } from 'discord.js';
 import crypto from 'crypto';
 import { AIManager } from '../services/ai/aiManager';
@@ -58,7 +59,7 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: ChatInputCommandInteraction, aiManager: AIManager) {
   if (!interaction.guild) {
-    await interaction.reply({ content: 'Bu komut sadece sunucularda kullanılabilir.', ephemeral: true });
+    await interaction.reply({ content: 'Bu komut sadece sunucularda kullanılabilir.', flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -66,7 +67,7 @@ export async function execute(interaction: ChatInputCommandInteraction, aiManage
   if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
     await interaction.reply({
       content: '❌ Bu komutu çalıştırmak için `Yönetici` (Administrator) yetkisine sahip olmalısınız.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -77,7 +78,7 @@ export async function execute(interaction: ChatInputCommandInteraction, aiManage
     await interaction.reply({
       content: '⚠️ **Bot yetkileri veya rol hiyerarşisi eksik!** Kuruluma başlamadan önce lütfen aşağıdaki ayarları tamamlayın:',
       embeds: [diagnostics.troubleshootingEmbed],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }

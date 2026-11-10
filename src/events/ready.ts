@@ -60,11 +60,11 @@ export async function onReady(client: Client): Promise<void> {
   // Zengin Ses Kanallarını (Sinema, Anime, Valorant 5P, Yönetici) Otomatik Kur/Doğrula
   await VoiceSetupManager.ensureEnhancedVoiceChannels(client);
 
-  // Sahipsiz & Boşta Kalan Geçici Ses Odalarını Süpür
+  // Sahipsiz & Boşta Kalan Geçici Ses Odalarını Sürekli Süpür (15 saniyede bir)
   VoiceLobbyManager.sweepEmptyChannels(client);
   setInterval(() => {
     VoiceLobbyManager.sweepEmptyChannels(client);
-  }, 45000);
+  }, 15000);
 
   // Register Slash Commands Globally
   try {

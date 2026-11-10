@@ -1,16 +1,43 @@
 import { VoiceState, ChannelType, PermissionFlagsBits, VoiceChannel, Client } from 'discord.js';
+import { PersistentStore } from '../storage/persistentStore';
 
 export class VoiceLobbyManager {
   private static tempVoiceChannels = new Set<string>();
+  private static loaded = false;
+
+  private static load(): void {
+    if (this.loaded) return;
+    const list = PersistentStore.safeReadJson<string[]>('tempVoiceChannels.json', [], []);
+    this.tempVoiceChannels = new Set<string>(list);
+    this.loaded = true;
+
+    PersistentStore.registerFlushHandler('VoiceLobbyManager', () => {
+      this.save();
+    });
+  }
+
+  private static save(): void {
+    if (!this.loaded) return;
+    PersistentStore.atomicSaveJson('tempVoiceChannels.json', Array.from(this.tempVoiceChannels));
+  }
 
   public static registerTempChannel(channelId: string): void {
+    this.load();
     this.tempVoiceChannels.add(channelId);
+    this.save();
+  }
+
+  public static unregisterTempChannel(channelId: string): void {
+    this.load();
+    this.tempVoiceChannels.delete(channelId);
+    this.save();
   }
 
   public static isTemporaryVoiceChannel(channel: VoiceChannel): boolean {
     if (!channel || channel.type !== ChannelType.GuildVoice) return false;
+    this.load();
 
-    // 1. Asla silinmemesi gereken kalıcı/korumalı kanallar
+    // 1. Asla silinmemesi gereken kalıcı/korumalı sunucu kanalları
     const lowerName = channel.name.toLocaleLowerCase('tr-TR');
     const isProtected =
       lowerName.includes('oyun') ||
@@ -49,17 +76,21 @@ export class VoiceLobbyManager {
 
     if (isProtected) return false;
 
-    // 2. Hafızadaki geçici kanallar listesinde mi?
+    // 2. Kalıcı listede kayıtlı geçici kanallar listesinde mi?
     if (this.tempVoiceChannels.has(channel.id)) return true;
 
-    // 3. Geçici kanal SADECE bot tarafından '🔊' ile açılmış ve bir üyeye özel ManageChannels verilmişse geçicidir
-    // Bu sayede adminlerin kurduğu sabit kanallar (Oyun Odası 1, 2 vb.) ASLA geçici sayılmaz ve SİLİNMEZ!
-    const isTempPrefixed = channel.name.startsWith('🔊・') || channel.name.startsWith('🔊');
+    // 3. Bir üyeye özel ManageChannels izni atanmışsa (kullanıcı panelle adını değiştirse bile tespit edilir!)
     const hasMemberManage = channel.permissionOverwrites.cache.some(
       (ow) => ow.type === 1 && ow.allow.has(PermissionFlagsBits.ManageChannels)
     );
+    if (hasMemberManage) {
+      this.tempVoiceChannels.add(channel.id);
+      this.save();
+      return true;
+    }
 
-    if (isTempPrefixed && hasMemberManage) {
+    // 4. Botun varsayılan açtığı '🔊' ön ekli kanallar
+    if (channel.name.startsWith('🔊・') || channel.name.startsWith('🔊')) {
       return true;
     }
 
@@ -97,7 +128,7 @@ export class VoiceLobbyManager {
             ],
           });
 
-          this.tempVoiceChannels.add(tempVoice.id);
+          this.registerTempChannel(tempVoice.id);
 
           // Kullanıcıyı anında yeni odaya taşı
           await member.voice.setChannel(tempVoice).catch(() => {});
@@ -110,18 +141,18 @@ export class VoiceLobbyManager {
     // 2. Kullanıcı bir ses kanalından ayrıldı mı?
     const leftChannel = oldState.channel;
     if (leftChannel) {
-      // 1 saniye sonra kontrol et (Discord cache senkronizasyon gecikmesini önler)
+      // 1.2 saniye sonra kontrol et (Discord cache senkronizasyon gecikmesini önler)
       setTimeout(async () => {
         try {
           const freshChannel = (await guild.channels.fetch(leftChannel.id).catch(() => null)) as VoiceChannel | null;
           if (!freshChannel) {
-            this.tempVoiceChannels.delete(leftChannel.id);
+            this.unregisterTempChannel(leftChannel.id);
             return;
           }
 
           // Odada kimse kalmadıysa ve geçici bir odaya aitse SİL!
           if (freshChannel.members.size === 0 && this.isTemporaryVoiceChannel(freshChannel)) {
-            this.tempVoiceChannels.delete(freshChannel.id);
+            this.unregisterTempChannel(freshChannel.id);
             await freshChannel.delete('Geçici ses odasında kimse kalmadığı için otomatik silindi.').catch(() => {});
             console.log(`[VoiceLobbyManager] 🗑️ Boşalan geçici oda silindi: ${freshChannel.name} (${freshChannel.id})`);
           }
@@ -132,17 +163,18 @@ export class VoiceLobbyManager {
     }
   }
 
-  // Periyodik Temizleyici: Bot yeniden başladığında veya arada kalan boş odaları süpürür
+  // Periyodik Temizleyici: Sürekli çalışan arka plan süpürücüsü
   public static async sweepEmptyChannels(client: Client): Promise<void> {
     try {
+      this.load();
       for (const [_, guild] of client.guilds.cache) {
         for (const [id, channel] of guild.channels.cache) {
           if (channel.type === ChannelType.GuildVoice && channel.members.size === 0) {
             const vChannel = channel as VoiceChannel;
             if (this.isTemporaryVoiceChannel(vChannel)) {
-              this.tempVoiceChannels.delete(id);
+              this.unregisterTempChannel(id);
               await vChannel.delete('Boşta kalan sahipsiz geçici oda otomatik temizlendi.').catch(() => {});
-              console.log(`[VoiceLobbyManager] 🧹 Boşta kalan oda süpürüldü: ${vChannel.name} (${id})`);
+              console.log(`[VoiceLobbyManager] 🧹 Boşta kalan sahipsiz geçici oda süpürüldü: ${vChannel.name} (${id})`);
             }
           }
         }

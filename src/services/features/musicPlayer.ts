@@ -189,10 +189,12 @@ export class MusicPlayer {
   public static searchSoundCloud(query: string): Promise<Song | null> {
     const { ytdlp } = this.getBinaries();
     return new Promise((resolve) => {
+      const cleanQ = MusicPlayer.cleanSongTitle(query) || query;
       const args = [
         '--dump-single-json',
         '--no-playlist',
-        `scsearch1:${query}`,
+        '--no-warnings',
+        `scsearch1:${cleanQ}`,
       ];
       const p = spawn(ytdlp, args);
       let out = '';
@@ -215,8 +217,8 @@ export class MusicPlayer {
                   ? entry.thumbnails[entry.thumbnails.length - 1].url
                   : null);
               return resolve({
-                title: entry.title || query,
-                url: entry.webpage_url || entry.url || `https://soundcloud.com/search?q=${encodeURIComponent(query)}`,
+                title: entry.title || cleanQ,
+                url: entry.webpage_url || entry.url || `https://soundcloud.com/search?q=${encodeURIComponent(cleanQ)}`,
                 duration,
                 thumbnail: thumb,
                 requesterId: '',
@@ -230,98 +232,115 @@ export class MusicPlayer {
       setTimeout(() => {
         try { p.kill(); } catch (e) {}
         resolve(null);
-      }, 7000);
+      }, 20000);
     });
   }
 
   public static getAudioStream(query: string, songTitle?: string): Promise<{ stream: any; process: ChildProcess }> {
     const { ytdlp, ffmpeg } = this.getBinaries();
 
-    const extractStream = (target: string, isSoundCloud = false): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const args = isSoundCloud
-          ? ['-f', 'bestaudio/b/best', '-g', '--no-playlist', target]
+    return new Promise((resolve, reject) => {
+      let isResolved = false;
+
+      const cleanTitle = songTitle ? MusicPlayer.cleanSongTitle(songTitle) : '';
+      const isScQuery = query.includes('soundcloud.com') || query.startsWith('scsearch');
+
+      const launchStream = (target: string, isSC: boolean, canFallback: boolean) => {
+        const ytdlpArgs = isSC
+          ? [
+              '-f', 'bestaudio/b/best',
+              '--no-playlist',
+              '--no-warnings',
+              '-o', '-',
+              target,
+            ]
           : [
               '-f', 'ba/bestaudio/b[height<=360]/best',
-              '-g',
               '--no-playlist',
+              '--no-warnings',
               '--default-search', 'ytsearch',
+              '--extractor-args', 'youtube:player_client=ios,web,mweb',
+              '-o', '-',
               target,
             ];
 
-        const proc = spawn(ytdlp, args);
-        let out = '';
-        let err = '';
+        const ytProc = spawn(ytdlp, ytdlpArgs);
+        const ffProc = spawn(ffmpeg, [
+          '-i', 'pipe:0',
+          '-f', 's16le',
+          '-ar', '48000',
+          '-ac', '2',
+          'pipe:1',
+        ]);
 
-        proc.stdout.on('data', (d) => (out += d.toString()));
-        proc.stderr.on('data', (d) => (err += d.toString()));
+        let hasData = false;
+        let ytErrOutput = '';
 
-        proc.on('close', (code) => {
-          const directUrl = out.trim().split('\n').filter((l) => l.startsWith('http'))[0];
-          if (code === 0 && directUrl) {
-            resolve(directUrl);
-          } else {
-            reject(new Error(err || 'Ses bağlantısı alınamadı'));
+        ytProc.stdout.pipe(ffProc.stdin);
+
+        ytProc.stderr.on('data', (d) => {
+          ytErrOutput += d.toString();
+        });
+
+        ffProc.stdout.once('data', () => {
+          hasData = true;
+          if (!isResolved) {
+            isResolved = true;
+            resolve({
+              stream: ffProc.stdout,
+              process: ffProc,
+            });
           }
         });
 
-        proc.on('error', reject);
+        // 18 saniye içinde ilk ses paketi gelmezse fallback veya hata
+        const timeout = setTimeout(() => {
+          if (!hasData) {
+            try { ytProc.kill(); } catch (e) {}
+            try { ffProc.kill(); } catch (e) {}
 
-        setTimeout(() => {
-          try { proc.kill(); } catch (e) {}
-          reject(new Error('Ses kaynağı zaman aşımına uğradı'));
-        }, 9000);
-      });
-    };
-
-    return new Promise(async (resolve, reject) => {
-      let directUrl = '';
-      const isSC = query.includes('soundcloud.com') || query.startsWith('scsearch');
-
-      if (isSC) {
-        try {
-          directUrl = await extractStream(query, true);
-        } catch (scErr: any) {
-          return reject(new Error(`SoundCloud hatası: ${scErr.message}`));
-        }
-      } else {
-        // 1. YouTube Android istemcisini dene
-        try {
-          directUrl = await extractStream(query, false);
-        } catch (ytErr: any) {
-          // YouTube bot engeli (Datacenter IP kısıtlaması) tespit edildi!
-          console.warn(`[MusicPlayer] ⚠️ YouTube kısıtlaması algılandı, SoundCloud yedeğine geçiliyor...`);
-          const rawTitle = songTitle || query;
-          const cleanQuery = MusicPlayer.cleanSongTitle(rawTitle) || rawTitle.replace(/https?:\/\/[^\s]+/g, '').trim();
-          const targetSearch = `scsearch1:${cleanQuery || 'pop music'}`;
-          console.log(`[MusicPlayer] 🔍 SoundCloud üzerinde parça aranıyor: "${cleanQuery}"`);
-
-          try {
-            directUrl = await extractStream(targetSearch, true);
-            console.log(`[MusicPlayer] ✅ SoundCloud üzerinden parça başarıyla bağlandı!`);
-          } catch (scErr: any) {
-            console.error(`[MusicPlayer] SoundCloud araması da yanıt vermedi:`, scErr.message);
-            return reject(new Error(`Müzik kaynağına ulaşılamadı. Lütfen şarkı adını veya direkt SoundCloud linkini deneyin.`));
+            if (canFallback && !isSC) {
+              console.warn('[MusicPlayer] ⚠️ YouTube veri akışı zaman aşımına uğradı, SoundCloud yedeğine geçiliyor...');
+              const fallbackSearch = `scsearch1:${cleanTitle || query}`;
+              console.log(`[MusicPlayer] 🔍 SoundCloud üzerinde aranıyor: "${cleanTitle || query}"`);
+              launchStream(fallbackSearch, true, false);
+            } else if (!isResolved) {
+              isResolved = true;
+              reject(new Error('Müzik akışı zaman aşımına uğradı.'));
+            }
           }
-        }
+        }, 18000);
+
+        ytProc.on('close', (code) => {
+          if (code !== 0 && !hasData) {
+            clearTimeout(timeout);
+            try { ffProc.kill(); } catch (e) {}
+
+            if (canFallback && !isSC) {
+              console.warn('[MusicPlayer] ⚠️ YouTube kısıtlaması algılandı, SoundCloud yedeğine geçiliyor...');
+              const fallbackSearch = `scsearch1:${cleanTitle || query}`;
+              console.log(`[MusicPlayer] 🔍 SoundCloud üzerinde parça aranıyor: "${cleanTitle || query}"`);
+              launchStream(fallbackSearch, true, false);
+            } else if (!isResolved) {
+              isResolved = true;
+              reject(new Error(ytErrOutput || 'Müzik kaynağına ulaşılamadı.'));
+            }
+          }
+        });
+
+        ffProc.on('error', (err) => {
+          if (!isResolved) {
+            isResolved = true;
+            reject(err);
+          }
+        });
+      };
+
+      if (isScQuery) {
+        launchStream(query, true, false);
+      } else {
+        launchStream(query, false, true);
       }
-
-      const ff = spawn(ffmpeg, [
-        '-reconnect', '1',
-        '-reconnect_streamed', '1',
-        '-reconnect_delay_max', '5',
-        '-i', directUrl,
-        '-f', 's16le',
-        '-ar', '48000',
-        '-ac', '2',
-        'pipe:1',
-      ]);
-
-      ff.on('error', (err) => {
-        console.error('[MusicPlayer FFmpeg Process Error]:', err);
-      });
-
-      resolve({ stream: ff.stdout, process: ff });
     });
   }
 

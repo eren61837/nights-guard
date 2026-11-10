@@ -3,6 +3,7 @@ import {
   SlashCommandBuilder,
   EmbedBuilder,
   ChannelType,
+  MessageFlags,
 } from 'discord.js';
 
 export const data = new SlashCommandBuilder()
@@ -12,7 +13,7 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const guild = interaction.guild;
   if (!guild) {
-    await interaction.reply({ content: '❌ Bu komut yalnızca bir sunucu içinde kullanılabilir.', ephemeral: true });
+    await interaction.reply({ content: '❌ Bu komut yalnızca bir sunucu içinde kullanılabilir.', flags: MessageFlags.Ephemeral });
     return;
   }
 

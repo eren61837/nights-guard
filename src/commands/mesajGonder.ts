@@ -4,6 +4,7 @@ import {
   EmbedBuilder,
   PermissionFlagsBits,
   GuildMember,
+  MessageFlags,
 } from 'discord.js';
 import { config } from '../config';
 
@@ -57,7 +58,7 @@ export const aliasData = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction) {
   const { guild, member, user } = interaction;
   if (!guild) {
-    await interaction.reply({ content: 'Bu komut sadece sunucularda kullanılabilir.', ephemeral: true });
+    await interaction.reply({ content: 'Bu komut sadece sunucularda kullanılabilir.', flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -68,12 +69,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   if (!isOwner && !isAdmin) {
     await interaction.reply({
       content: '⛔ **Erişim Engellendi:** Bu komut yalnızca sunucu kurucusu veya yöneticiler tarafından kullanılabilir!',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const rawMessage = interaction.options.getString('mesaj', true);
   const title = interaction.options.getString('baslik') || '📢 NIGHTS TOPLULUK DUYURUSU';

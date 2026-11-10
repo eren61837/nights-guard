@@ -1685,7 +1685,7 @@ var TicketManager = class {
   static async handleTicketOpen(interaction) {
     const { guild, user } = interaction;
     if (!guild) return;
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: import_discord5.MessageFlags.Ephemeral });
     const channels = await guild.channels.fetch();
     const roles = await guild.roles.fetch();
     const channelName = `bilet-${user.username.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
@@ -1845,22 +1845,205 @@ var import_discord7 = require("discord.js");
 
 // src/services/features/voiceLobbyManager.ts
 var import_discord6 = require("discord.js");
+
+// src/services/storage/persistentStore.ts
+var import_fs2 = __toESM(require("fs"));
+var import_path2 = __toESM(require("path"));
+var PersistentStore = class {
+  static dataDir = import_path2.default.resolve(process.cwd(), "data");
+  static backupDir = import_path2.default.resolve(process.cwd(), "data/backups");
+  static flushHandlers = /* @__PURE__ */ new Map();
+  static initialized = false;
+  static flushTimer = null;
+  static init() {
+    if (this.initialized) return;
+    this.initialized = true;
+    try {
+      if (!import_fs2.default.existsSync(this.dataDir)) {
+        import_fs2.default.mkdirSync(this.dataDir, { recursive: true });
+      }
+      if (!import_fs2.default.existsSync(this.backupDir)) {
+        import_fs2.default.mkdirSync(this.backupDir, { recursive: true });
+      }
+      console.log(`[PersistentStore] \u{1F4C2} G\xFCvenli kal\u0131c\u0131 veri deposu haz\u0131r: ${this.dataDir}`);
+    } catch (err) {
+      console.error("[PersistentStore] Dizin olu\u015Fturma hatas\u0131:", err.message);
+    }
+    this.flushTimer = setInterval(() => {
+      this.flushAll();
+    }, 3e4);
+    if (this.flushTimer.unref) {
+      this.flushTimer.unref();
+    }
+    const gracefulExit = (signal) => {
+      console.log(`[PersistentStore] \u{1F6D1} ${signal} sinyali al\u0131nd\u0131. T\xFCm veriler diske kaydediliyor...`);
+      this.flushAll();
+      process.exit(0);
+    };
+    process.once("SIGINT", () => gracefulExit("SIGINT"));
+    process.once("SIGTERM", () => gracefulExit("SIGTERM"));
+    process.once("beforeExit", () => {
+      this.flushAll();
+    });
+  }
+  static registerFlushHandler(name, handler) {
+    this.flushHandlers.set(name, handler);
+  }
+  static flushAll() {
+    for (const [name, handler] of this.flushHandlers.entries()) {
+      try {
+        handler();
+      } catch (err) {
+        console.error(`[PersistentStore] ${name} kaydedilirken hata:`, err.message);
+      }
+    }
+  }
+  /**
+   * Atomik dosya kaydetme:
+   * 1. Önce .tmp dosyasına yazar.
+   * 2. Boyutunu doğrular.
+   * 3. Hedef dosya varsa .bak olarak yedeğini alır.
+   * 4. .tmp dosyasını hedef dosyaya atomik olarak taşır.
+   */
+  static atomicSaveJson(filename, data20) {
+    this.init();
+    const targetPath = import_path2.default.resolve(this.dataDir, filename);
+    const tmpPath = import_path2.default.resolve(this.dataDir, `${filename}.tmp.${Date.now()}`);
+    const bakPath = import_path2.default.resolve(this.dataDir, `${filename}.bak`);
+    try {
+      const content = JSON.stringify(data20, null, 2);
+      import_fs2.default.writeFileSync(tmpPath, content, "utf-8");
+      const stats = import_fs2.default.statSync(tmpPath);
+      if (stats.size === 0) {
+        try {
+          import_fs2.default.unlinkSync(tmpPath);
+        } catch {
+        }
+        return false;
+      }
+      if (import_fs2.default.existsSync(targetPath)) {
+        try {
+          import_fs2.default.copyFileSync(targetPath, bakPath);
+        } catch {
+        }
+      }
+      try {
+        import_fs2.default.renameSync(tmpPath, targetPath);
+      } catch {
+        import_fs2.default.copyFileSync(tmpPath, targetPath);
+        try {
+          import_fs2.default.unlinkSync(tmpPath);
+        } catch {
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error(`[PersistentStore] ${filename} kaydedilemedi:`, err.message);
+      try {
+        if (import_fs2.default.existsSync(tmpPath)) import_fs2.default.unlinkSync(tmpPath);
+      } catch {
+      }
+      return false;
+    }
+  }
+  /**
+   * Güvenli veri okuma ve çok kademeli kurtarma:
+   * 1. data/${filename} dosyası okunur.
+   * 2. Bozuk veya boşsa data/${filename}.bak yedeğinden geri yüklenir.
+   * 3. İkisi de yoksa fallbackPaths (eski assets/ dosyaları) aranır ve data/ klasörüne otomatik taşınır.
+   * 4. Hiçbiri yoksa defaultVal döner.
+   */
+  static safeReadJson(filename, fallbackCandidates = [], defaultVal) {
+    this.init();
+    const targetPath = import_path2.default.resolve(this.dataDir, filename);
+    const bakPath = import_path2.default.resolve(this.dataDir, `${filename}.bak`);
+    if (import_fs2.default.existsSync(targetPath)) {
+      try {
+        const raw = import_fs2.default.readFileSync(targetPath, "utf-8").trim();
+        if (raw.length > 0) {
+          const parsed = JSON.parse(raw);
+          return parsed;
+        }
+      } catch (err) {
+        console.warn(`[PersistentStore] \u26A0\uFE0F ${filename} bozuk bulundu, yedekten kurtar\u0131l\u0131yor...`);
+      }
+    }
+    if (import_fs2.default.existsSync(bakPath)) {
+      try {
+        const raw = import_fs2.default.readFileSync(bakPath, "utf-8").trim();
+        if (raw.length > 0) {
+          const parsed = JSON.parse(raw);
+          console.log(`[PersistentStore] \u2705 ${filename} yedek dosyas\u0131ndan (.bak) ba\u015Far\u0131yla kurtar\u0131ld\u0131!`);
+          this.atomicSaveJson(filename, parsed);
+          return parsed;
+        }
+      } catch (err) {
+        console.warn(`[PersistentStore] \u26A0\uFE0F ${filename}.bak da bozuk \xE7\u0131kt\u0131.`);
+      }
+    }
+    for (const fb of fallbackCandidates) {
+      const resolvedFb = import_path2.default.isAbsolute(fb) ? fb : import_path2.default.resolve(process.cwd(), fb);
+      if (import_fs2.default.existsSync(resolvedFb)) {
+        try {
+          const raw = import_fs2.default.readFileSync(resolvedFb, "utf-8").trim();
+          if (raw.length > 0) {
+            const parsed = JSON.parse(raw);
+            console.log(`[PersistentStore] \u{1F4E6} Eski veri bulundu (${fb}), ${filename} konumuna migrate ediliyor!`);
+            this.atomicSaveJson(filename, parsed);
+            return parsed;
+          }
+        } catch {
+        }
+      }
+    }
+    this.atomicSaveJson(filename, defaultVal);
+    return defaultVal;
+  }
+};
+
+// src/services/features/voiceLobbyManager.ts
 var VoiceLobbyManager = class {
   static tempVoiceChannels = /* @__PURE__ */ new Set();
+  static loaded = false;
+  static load() {
+    if (this.loaded) return;
+    const list = PersistentStore.safeReadJson("tempVoiceChannels.json", [], []);
+    this.tempVoiceChannels = new Set(list);
+    this.loaded = true;
+    PersistentStore.registerFlushHandler("VoiceLobbyManager", () => {
+      this.save();
+    });
+  }
+  static save() {
+    if (!this.loaded) return;
+    PersistentStore.atomicSaveJson("tempVoiceChannels.json", Array.from(this.tempVoiceChannels));
+  }
   static registerTempChannel(channelId) {
+    this.load();
     this.tempVoiceChannels.add(channelId);
+    this.save();
+  }
+  static unregisterTempChannel(channelId) {
+    this.load();
+    this.tempVoiceChannels.delete(channelId);
+    this.save();
   }
   static isTemporaryVoiceChannel(channel) {
     if (!channel || channel.type !== import_discord6.ChannelType.GuildVoice) return false;
+    this.load();
     const lowerName = channel.name.toLocaleLowerCase("tr-TR");
     const isProtected = lowerName.includes("oyun") || lowerName.includes("game") || lowerName.includes("sohbet") || lowerName.includes("sinema") || lowerName.includes("dizi") || lowerName.includes("anime") || lowerName.includes("watch party") || lowerName.includes("party") || lowerName.includes("valorant") || lowerName.includes("rekabet\xE7i") || lowerName.includes("rekabetci") || lowerName.includes("duo") || lowerName.includes("trio") || lowerName.includes("minecraft") || lowerName.includes("roblox") || lowerName.includes("tft") || lowerName.includes("chill") || lowerName.includes("dinlenme") || lowerName.includes("afk") || lowerName.includes("toplant\u0131") || lowerName.includes("toplanti") || lowerName.includes("y\xF6netici") || lowerName.includes("yonetici") || lowerName.includes("yetkili") || lowerName.includes("y\xF6netim") || lowerName.includes("yonetim") || lowerName.includes("kurucu") || lowerName.includes("kay\u0131t") || lowerName.includes("kayit") || lowerName.includes("oda olu\u015Ftur") || lowerName.includes("oda olustur") || lowerName.includes("create voice") || lowerName.includes("join to create");
     if (isProtected) return false;
     if (this.tempVoiceChannels.has(channel.id)) return true;
-    const isTempPrefixed = channel.name.startsWith("\u{1F50A}\u30FB") || channel.name.startsWith("\u{1F50A}");
     const hasMemberManage = channel.permissionOverwrites.cache.some(
       (ow) => ow.type === 1 && ow.allow.has(import_discord6.PermissionFlagsBits.ManageChannels)
     );
-    if (isTempPrefixed && hasMemberManage) {
+    if (hasMemberManage) {
+      this.tempVoiceChannels.add(channel.id);
+      this.save();
+      return true;
+    }
+    if (channel.name.startsWith("\u{1F50A}\u30FB") || channel.name.startsWith("\u{1F50A}")) {
       return true;
     }
     return false;
@@ -1891,7 +2074,7 @@ var VoiceLobbyManager = class {
               }
             ]
           });
-          this.tempVoiceChannels.add(tempVoice.id);
+          this.registerTempChannel(tempVoice.id);
           await member.voice.setChannel(tempVoice).catch(() => {
           });
         } catch (err) {
@@ -1905,11 +2088,11 @@ var VoiceLobbyManager = class {
         try {
           const freshChannel = await guild.channels.fetch(leftChannel.id).catch(() => null);
           if (!freshChannel) {
-            this.tempVoiceChannels.delete(leftChannel.id);
+            this.unregisterTempChannel(leftChannel.id);
             return;
           }
           if (freshChannel.members.size === 0 && this.isTemporaryVoiceChannel(freshChannel)) {
-            this.tempVoiceChannels.delete(freshChannel.id);
+            this.unregisterTempChannel(freshChannel.id);
             await freshChannel.delete("Ge\xE7ici ses odas\u0131nda kimse kalmad\u0131\u011F\u0131 i\xE7in otomatik silindi.").catch(() => {
             });
             console.log(`[VoiceLobbyManager] \u{1F5D1}\uFE0F Bo\u015Falan ge\xE7ici oda silindi: ${freshChannel.name} (${freshChannel.id})`);
@@ -1920,18 +2103,19 @@ var VoiceLobbyManager = class {
       }, 1200);
     }
   }
-  // Periyodik Temizleyici: Bot yeniden başladığında veya arada kalan boş odaları süpürür
+  // Periyodik Temizleyici: Sürekli çalışan arka plan süpürücüsü
   static async sweepEmptyChannels(client) {
     try {
+      this.load();
       for (const [_, guild] of client.guilds.cache) {
         for (const [id, channel] of guild.channels.cache) {
           if (channel.type === import_discord6.ChannelType.GuildVoice && channel.members.size === 0) {
             const vChannel = channel;
             if (this.isTemporaryVoiceChannel(vChannel)) {
-              this.tempVoiceChannels.delete(id);
+              this.unregisterTempChannel(id);
               await vChannel.delete("Bo\u015Fta kalan sahipsiz ge\xE7ici oda otomatik temizlendi.").catch(() => {
               });
-              console.log(`[VoiceLobbyManager] \u{1F9F9} Bo\u015Fta kalan oda s\xFCp\xFCr\xFCld\xFC: ${vChannel.name} (${id})`);
+              console.log(`[VoiceLobbyManager] \u{1F9F9} Bo\u015Fta kalan sahipsiz ge\xE7ici oda s\xFCp\xFCr\xFCld\xFC: ${vChannel.name} (${id})`);
             }
           }
         }
@@ -1998,12 +2182,12 @@ var VoicePanelManager = class {
         await interaction.reply({
           content: `\u{1F389} **\xD6zel ses odan\u0131z ba\u015Far\u0131yla a\xE7\u0131ld\u0131:** <#${newChannel.id}>
 Odan\u0131za kat\u0131larak arkada\u015Flar\u0131n\u0131z\u0131 davet edebilir ve paneli kullanabilirsiniz!`,
-          ephemeral: true
+          flags: import_discord7.MessageFlags.Ephemeral
         });
       } catch (err) {
         await interaction.reply({
           content: `\u274C Oda olu\u015Fturulamad\u0131: ${err.message}`,
-          ephemeral: true
+          flags: import_discord7.MessageFlags.Ephemeral
         });
       }
       return;
@@ -2012,7 +2196,7 @@ Odan\u0131za kat\u0131larak arkada\u015Flar\u0131n\u0131z\u0131 davet edebilir v
     if (!currentVoice) {
       await interaction.reply({
         content: "\u26A0\uFE0F **Bu i\u015Flemi yapabilmek i\xE7in sunucumuzdaki bir ses kanal\u0131nda bulunmal\u0131s\u0131n\u0131z!**",
-        ephemeral: true
+        flags: import_discord7.MessageFlags.Ephemeral
       });
       return;
     }
@@ -2037,7 +2221,7 @@ Odan\u0131za kat\u0131larak arkada\u015Flar\u0131n\u0131z\u0131 davet edebilir v
         });
         await interaction.reply({
           content: `\u{1F512} **${currentVoice.name}** odas\u0131 kilitlendi! Art\u0131k d\u0131\u015Far\u0131dan yabanc\u0131 \xFCyeler kat\u0131lamaz.`,
-          ephemeral: true
+          flags: import_discord7.MessageFlags.Ephemeral
         });
         break;
       }
@@ -2048,7 +2232,7 @@ Odan\u0131za kat\u0131larak arkada\u015Flar\u0131n\u0131z\u0131 davet edebilir v
         });
         await interaction.reply({
           content: `\u{1F513} **${currentVoice.name}** odas\u0131n\u0131n kilidi a\xE7\u0131ld\u0131! T\xFCm \xFCyeler serbest\xE7e kat\u0131labilir.`,
-          ephemeral: true
+          flags: import_discord7.MessageFlags.Ephemeral
         });
         break;
       }
@@ -2065,7 +2249,7 @@ Odan\u0131za kat\u0131larak arkada\u015Flar\u0131n\u0131z\u0131 davet edebilir v
           });
           await interaction.reply({
             content: `\u{1F441}\uFE0F **${currentVoice.name}** odas\u0131 gizlendi! Art\u0131k kanal listesinde g\xF6r\xFCnmez (hayalet oda).`,
-            ephemeral: true
+            flags: import_discord7.MessageFlags.Ephemeral
           });
         } else {
           await currentVoice.permissionOverwrites.edit(everyoneRole, {
@@ -2073,7 +2257,7 @@ Odan\u0131za kat\u0131larak arkada\u015Flar\u0131n\u0131z\u0131 davet edebilir v
           });
           await interaction.reply({
             content: `\u{1F441}\uFE0F **${currentVoice.name}** odas\u0131 tekrar g\xF6r\xFCn\xFCr hale getirildi!`,
-            ephemeral: true
+            flags: import_discord7.MessageFlags.Ephemeral
           });
         }
         break;
@@ -2090,7 +2274,7 @@ Odan\u0131za kat\u0131larak arkada\u015Flar\u0131n\u0131z\u0131 davet edebilir v
         await currentVoice.setUserLimit(nextLimit);
         await interaction.reply({
           content: `\u{1F465} **${currentVoice.name}** odas\u0131n\u0131n ki\u015Fi kapasitesi **${nextLimit === 0 ? "S\u0131n\u0131rs\u0131z \u267E\uFE0F" : nextLimit + " Ki\u015Fi"}** olarak ayarland\u0131.`,
-          ephemeral: true
+          flags: import_discord7.MessageFlags.Ephemeral
         });
         break;
       }
@@ -2103,7 +2287,7 @@ Odan\u0131za kat\u0131larak arkada\u015Flar\u0131n\u0131z\u0131 davet edebilir v
         });
         await interaction.reply({
           content: `\u{1F507} **${currentVoice.name}** odas\u0131nda genel konu\u015Fma durumu: **${!canSpeak ? "Konu\u015Fma A\xE7\u0131k \u{1F50A}" : "Oda Sessize Al\u0131nd\u0131 \u{1F507}"}**`,
-          ephemeral: true
+          flags: import_discord7.MessageFlags.Ephemeral
         });
         break;
       }
@@ -2123,12 +2307,12 @@ Odan\u0131za kat\u0131larak arkada\u015Flar\u0131n\u0131z\u0131 davet edebilir v
           await currentVoice.setBitrate(nextBitrate);
           await interaction.reply({
             content: `\u{1F680} **${currentVoice.name}** ses odas\u0131n\u0131n ses iletim kalitesi **${bitrateLabel}** olarak ayarland\u0131!`,
-            ephemeral: true
+            flags: import_discord7.MessageFlags.Ephemeral
           });
         } catch (err) {
           await interaction.reply({
             content: `\u26A0\uFE0F Bitrate ayarlan\u0131rken sunucu limiti uyar\u0131s\u0131: ${err.message}`,
-            ephemeral: true
+            flags: import_discord7.MessageFlags.Ephemeral
           });
         }
         break;
@@ -2143,7 +2327,7 @@ Odan\u0131za kat\u0131larak arkada\u015Flar\u0131n\u0131z\u0131 davet edebilir v
         });
         await interaction.reply({
           content: `\u{1F451} **${currentVoice.name}** odas\u0131n\u0131n oda y\xF6neticisi ve sahipli\u011Fi ba\u015Far\u0131yla \xFCzerinize tan\u0131mland\u0131!`,
-          ephemeral: true
+          flags: import_discord7.MessageFlags.Ephemeral
         });
         break;
       }
@@ -2179,11 +2363,11 @@ Odan\u0131za kat\u0131larak arkada\u015Flar\u0131n\u0131z\u0131 davet edebilir v
             inline: false
           }
         ).setFooter({ text: "Nights Advanced Voice Studio" }).setTimestamp();
-        await interaction.reply({ embeds: [infoEmbed], ephemeral: true });
+        await interaction.reply({ embeds: [infoEmbed], flags: import_discord7.MessageFlags.Ephemeral });
         break;
       }
       default:
-        await interaction.reply({ content: "Bilinmeyen ses i\u015Flemi.", ephemeral: true });
+        await interaction.reply({ content: "Bilinmeyen ses i\u015Flemi.", flags: import_discord7.MessageFlags.Ephemeral });
         break;
     }
   }
@@ -2193,7 +2377,7 @@ Odan\u0131za kat\u0131larak arkada\u015Flar\u0131n\u0131z\u0131 davet edebilir v
     if (!currentVoice) {
       await interaction.reply({
         content: "\u26A0\uFE0F Ses kanal\u0131nda de\u011Filsiniz! \u0130sim de\u011Fi\u015Ftirebilmek i\xE7in bir ses odas\u0131nda bulunmal\u0131s\u0131n\u0131z.",
-        ephemeral: true
+        flags: import_discord7.MessageFlags.Ephemeral
       });
       return;
     }
@@ -2202,12 +2386,12 @@ Odan\u0131za kat\u0131larak arkada\u015Flar\u0131n\u0131z\u0131 davet edebilir v
       await currentVoice.setName(newName);
       await interaction.reply({
         content: `\u2705 Odan\u0131z\u0131n ad\u0131 ba\u015Far\u0131yla de\u011Fi\u015Ftirildi: **${newName}**`,
-        ephemeral: true
+        flags: import_discord7.MessageFlags.Ephemeral
       });
     } catch (err) {
       await interaction.reply({
         content: `\u274C \u0130sim de\u011Fi\u015Ftirilemedi: ${err.message}`,
-        ephemeral: true
+        flags: import_discord7.MessageFlags.Ephemeral
       });
     }
   }
@@ -2224,7 +2408,7 @@ var data = new import_discord8.SlashCommandBuilder().setName("logo").setDescript
 );
 async function execute(interaction) {
   if (!interaction.guild) {
-    await interaction.reply({ content: "Bu komut sadece sunucularda kullan\u0131labilir.", ephemeral: true });
+    await interaction.reply({ content: "Bu komut sadece sunucularda kullan\u0131labilir.", flags: import_discord8.MessageFlags.Ephemeral });
     return;
   }
   await interaction.deferReply();
@@ -2294,13 +2478,13 @@ var data2 = new import_discord9.SlashCommandBuilder().setName("kur").setDescript
 );
 async function execute2(interaction, aiManager) {
   if (!interaction.guild) {
-    await interaction.reply({ content: "Bu komut sadece sunucularda kullan\u0131labilir.", ephemeral: true });
+    await interaction.reply({ content: "Bu komut sadece sunucularda kullan\u0131labilir.", flags: import_discord9.MessageFlags.Ephemeral });
     return;
   }
   if (!interaction.memberPermissions?.has(import_discord9.PermissionFlagsBits.Administrator)) {
     await interaction.reply({
       content: "\u274C Bu komutu \xE7al\u0131\u015Ft\u0131rmak i\xE7in `Y\xF6netici` (Administrator) yetkisine sahip olmal\u0131s\u0131n\u0131z.",
-      ephemeral: true
+      flags: import_discord9.MessageFlags.Ephemeral
     });
     return;
   }
@@ -2309,7 +2493,7 @@ async function execute2(interaction, aiManager) {
     await interaction.reply({
       content: "\u26A0\uFE0F **Bot yetkileri veya rol hiyerar\u015Fisi eksik!** Kuruluma ba\u015Flamadan \xF6nce l\xFCtfen a\u015Fa\u011F\u0131daki ayarlar\u0131 tamamlay\u0131n:",
       embeds: [diagnostics.troubleshootingEmbed],
-      ephemeral: true
+      flags: import_discord9.MessageFlags.Ephemeral
     });
     return;
   }
@@ -2476,13 +2660,13 @@ var import_discord11 = require("discord.js");
 var data4 = new import_discord11.SlashCommandBuilder().setName("sunucu-temizle").setDescription("Sunucudaki t\xFCm kanallar\u0131 ve bot harici rolleri g\xFCvenle siler (Temiz Ba\u015Flang\u0131\xE7).").setDefaultMemberPermissions(import_discord11.PermissionFlagsBits.Administrator);
 async function execute4(interaction) {
   if (!interaction.guild) {
-    await interaction.reply({ content: "Bu komut sadece sunucularda \xE7al\u0131\u015F\u0131r.", ephemeral: true });
+    await interaction.reply({ content: "Bu komut sadece sunucularda \xE7al\u0131\u015F\u0131r.", flags: import_discord11.MessageFlags.Ephemeral });
     return;
   }
   if (!interaction.memberPermissions?.has(import_discord11.PermissionFlagsBits.Administrator)) {
     await interaction.reply({
       content: "\u274C Bu i\u015Flemi ger\xE7ekle\u015Ftirmek i\xE7in `Y\xF6netici` yetkisine sahip olmal\u0131s\u0131n\u0131z.",
-      ephemeral: true
+      flags: import_discord11.MessageFlags.Ephemeral
     });
     return;
   }
@@ -3172,7 +3356,7 @@ var data7 = new import_discord14.SlashCommandBuilder().setName("boost").setDescr
 async function execute7(interaction) {
   const { guild } = interaction;
   if (!guild) {
-    await interaction.reply({ content: "Bu komut sadece sunucularda \xE7al\u0131\u015F\u0131r.", ephemeral: true });
+    await interaction.reply({ content: "Bu komut sadece sunucularda \xE7al\u0131\u015F\u0131r.", flags: import_discord14.MessageFlags.Ephemeral });
     return;
   }
   const subcommand = interaction.options.getSubcommand() || "durum";
@@ -3230,7 +3414,7 @@ var data8 = new import_discord15.SlashCommandBuilder().setName("teamwork").setDe
 async function execute8(interaction) {
   const { guild } = interaction;
   if (!guild) {
-    await interaction.reply({ content: "Bu komut sadece sunucularda \xE7al\u0131\u015F\u0131r.", ephemeral: true });
+    await interaction.reply({ content: "Bu komut sadece sunucularda \xE7al\u0131\u015F\u0131r.", flags: import_discord15.MessageFlags.Ephemeral });
     return;
   }
   const subcommand = interaction.options.getSubcommand() || "kadro";
@@ -3367,7 +3551,7 @@ var aliasData = new import_discord18.SlashCommandBuilder().setName("mesajgonder"
 async function execute11(interaction) {
   const { guild, member, user } = interaction;
   if (!guild) {
-    await interaction.reply({ content: "Bu komut sadece sunucularda kullan\u0131labilir.", ephemeral: true });
+    await interaction.reply({ content: "Bu komut sadece sunucularda kullan\u0131labilir.", flags: import_discord18.MessageFlags.Ephemeral });
     return;
   }
   const ownerId = config.ownerId || "1138498666785677492";
@@ -3376,11 +3560,11 @@ async function execute11(interaction) {
   if (!isOwner && !isAdmin) {
     await interaction.reply({
       content: "\u26D4 **Eri\u015Fim Engellendi:** Bu komut yaln\u0131zca sunucu kurucusu veya y\xF6neticiler taraf\u0131ndan kullan\u0131labilir!",
-      ephemeral: true
+      flags: import_discord18.MessageFlags.Ephemeral
     });
     return;
   }
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: import_discord18.MessageFlags.Ephemeral });
   const rawMessage = interaction.options.getString("mesaj", true);
   const title = interaction.options.getString("baslik") || "\u{1F4E2} NIGHTS TOPLULUK DUYURUSU";
   const targetRole = interaction.options.getRole("hedef_rol");
@@ -3463,163 +3647,6 @@ var import_discord20 = require("discord.js");
 
 // src/services/features/levelManager.ts
 var import_discord19 = require("discord.js");
-
-// src/services/storage/persistentStore.ts
-var import_fs2 = __toESM(require("fs"));
-var import_path2 = __toESM(require("path"));
-var PersistentStore = class {
-  static dataDir = import_path2.default.resolve(process.cwd(), "data");
-  static backupDir = import_path2.default.resolve(process.cwd(), "data/backups");
-  static flushHandlers = /* @__PURE__ */ new Map();
-  static initialized = false;
-  static flushTimer = null;
-  static init() {
-    if (this.initialized) return;
-    this.initialized = true;
-    try {
-      if (!import_fs2.default.existsSync(this.dataDir)) {
-        import_fs2.default.mkdirSync(this.dataDir, { recursive: true });
-      }
-      if (!import_fs2.default.existsSync(this.backupDir)) {
-        import_fs2.default.mkdirSync(this.backupDir, { recursive: true });
-      }
-      console.log(`[PersistentStore] \u{1F4C2} G\xFCvenli kal\u0131c\u0131 veri deposu haz\u0131r: ${this.dataDir}`);
-    } catch (err) {
-      console.error("[PersistentStore] Dizin olu\u015Fturma hatas\u0131:", err.message);
-    }
-    this.flushTimer = setInterval(() => {
-      this.flushAll();
-    }, 3e4);
-    if (this.flushTimer.unref) {
-      this.flushTimer.unref();
-    }
-    const gracefulExit = (signal) => {
-      console.log(`[PersistentStore] \u{1F6D1} ${signal} sinyali al\u0131nd\u0131. T\xFCm veriler diske kaydediliyor...`);
-      this.flushAll();
-      process.exit(0);
-    };
-    process.once("SIGINT", () => gracefulExit("SIGINT"));
-    process.once("SIGTERM", () => gracefulExit("SIGTERM"));
-    process.once("beforeExit", () => {
-      this.flushAll();
-    });
-  }
-  static registerFlushHandler(name, handler) {
-    this.flushHandlers.set(name, handler);
-  }
-  static flushAll() {
-    for (const [name, handler] of this.flushHandlers.entries()) {
-      try {
-        handler();
-      } catch (err) {
-        console.error(`[PersistentStore] ${name} kaydedilirken hata:`, err.message);
-      }
-    }
-  }
-  /**
-   * Atomik dosya kaydetme:
-   * 1. Önce .tmp dosyasına yazar.
-   * 2. Boyutunu doğrular.
-   * 3. Hedef dosya varsa .bak olarak yedeğini alır.
-   * 4. .tmp dosyasını hedef dosyaya atomik olarak taşır.
-   */
-  static atomicSaveJson(filename, data20) {
-    this.init();
-    const targetPath = import_path2.default.resolve(this.dataDir, filename);
-    const tmpPath = import_path2.default.resolve(this.dataDir, `${filename}.tmp.${Date.now()}`);
-    const bakPath = import_path2.default.resolve(this.dataDir, `${filename}.bak`);
-    try {
-      const content = JSON.stringify(data20, null, 2);
-      import_fs2.default.writeFileSync(tmpPath, content, "utf-8");
-      const stats = import_fs2.default.statSync(tmpPath);
-      if (stats.size === 0) {
-        try {
-          import_fs2.default.unlinkSync(tmpPath);
-        } catch {
-        }
-        return false;
-      }
-      if (import_fs2.default.existsSync(targetPath)) {
-        try {
-          import_fs2.default.copyFileSync(targetPath, bakPath);
-        } catch {
-        }
-      }
-      try {
-        import_fs2.default.renameSync(tmpPath, targetPath);
-      } catch {
-        import_fs2.default.copyFileSync(tmpPath, targetPath);
-        try {
-          import_fs2.default.unlinkSync(tmpPath);
-        } catch {
-        }
-      }
-      return true;
-    } catch (err) {
-      console.error(`[PersistentStore] ${filename} kaydedilemedi:`, err.message);
-      try {
-        if (import_fs2.default.existsSync(tmpPath)) import_fs2.default.unlinkSync(tmpPath);
-      } catch {
-      }
-      return false;
-    }
-  }
-  /**
-   * Güvenli veri okuma ve çok kademeli kurtarma:
-   * 1. data/${filename} dosyası okunur.
-   * 2. Bozuk veya boşsa data/${filename}.bak yedeğinden geri yüklenir.
-   * 3. İkisi de yoksa fallbackPaths (eski assets/ dosyaları) aranır ve data/ klasörüne otomatik taşınır.
-   * 4. Hiçbiri yoksa defaultVal döner.
-   */
-  static safeReadJson(filename, fallbackCandidates = [], defaultVal) {
-    this.init();
-    const targetPath = import_path2.default.resolve(this.dataDir, filename);
-    const bakPath = import_path2.default.resolve(this.dataDir, `${filename}.bak`);
-    if (import_fs2.default.existsSync(targetPath)) {
-      try {
-        const raw = import_fs2.default.readFileSync(targetPath, "utf-8").trim();
-        if (raw.length > 0) {
-          const parsed = JSON.parse(raw);
-          return parsed;
-        }
-      } catch (err) {
-        console.warn(`[PersistentStore] \u26A0\uFE0F ${filename} bozuk bulundu, yedekten kurtar\u0131l\u0131yor...`);
-      }
-    }
-    if (import_fs2.default.existsSync(bakPath)) {
-      try {
-        const raw = import_fs2.default.readFileSync(bakPath, "utf-8").trim();
-        if (raw.length > 0) {
-          const parsed = JSON.parse(raw);
-          console.log(`[PersistentStore] \u2705 ${filename} yedek dosyas\u0131ndan (.bak) ba\u015Far\u0131yla kurtar\u0131ld\u0131!`);
-          this.atomicSaveJson(filename, parsed);
-          return parsed;
-        }
-      } catch (err) {
-        console.warn(`[PersistentStore] \u26A0\uFE0F ${filename}.bak da bozuk \xE7\u0131kt\u0131.`);
-      }
-    }
-    for (const fb of fallbackCandidates) {
-      const resolvedFb = import_path2.default.isAbsolute(fb) ? fb : import_path2.default.resolve(process.cwd(), fb);
-      if (import_fs2.default.existsSync(resolvedFb)) {
-        try {
-          const raw = import_fs2.default.readFileSync(resolvedFb, "utf-8").trim();
-          if (raw.length > 0) {
-            const parsed = JSON.parse(raw);
-            console.log(`[PersistentStore] \u{1F4E6} Eski veri bulundu (${fb}), ${filename} konumuna migrate ediliyor!`);
-            this.atomicSaveJson(filename, parsed);
-            return parsed;
-          }
-        } catch {
-        }
-      }
-    }
-    this.atomicSaveJson(filename, defaultVal);
-    return defaultVal;
-  }
-};
-
-// src/services/features/levelManager.ts
 var LEVEL_REWARD_ROLES = [
   { level: 5, name: "\u{1F949}\u30FBLevel 5 | \xC7aylak", roleId: "1568680202807156888", color: "#CD7F32" },
   { level: 10, name: "\u{1F948}\u30FBLevel 10 | Aktif \xDCye", roleId: "1568680215872278680", color: "#C0C0C0" },
@@ -3919,7 +3946,7 @@ async function execute12(interaction) {
   if (!interaction.memberPermissions?.has(import_discord21.PermissionFlagsBits.ManageMessages) && !interaction.memberPermissions?.has(import_discord21.PermissionFlagsBits.Administrator)) {
     await interaction.reply({
       content: "\u274C Bu komutu kullanabilmek i\xE7in **Mesajlar\u0131 Y\xF6net** yetkisine sahip olmal\u0131s\u0131n\u0131z.",
-      ephemeral: true
+      flags: import_discord21.MessageFlags.Ephemeral
     });
     return;
   }
@@ -3927,12 +3954,12 @@ async function execute12(interaction) {
   if (!channel || !(channel instanceof import_discord21.TextChannel)) {
     await interaction.reply({
       content: "\u274C Bu komut sadece metin kanallar\u0131nda kullan\u0131labilir.",
-      ephemeral: true
+      flags: import_discord21.MessageFlags.Ephemeral
     });
     return;
   }
   const amount = interaction.options.getInteger("miktar", true);
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: import_discord21.MessageFlags.Ephemeral });
   try {
     const deleted = await channel.bulkDelete(amount, true);
     const embed = new import_discord21.EmbedBuilder().setTitle("\u{1F5D1}\uFE0F Mesajlar Temizlendi").setDescription(
@@ -3991,7 +4018,7 @@ var data14 = new import_discord23.SlashCommandBuilder().setName("sunucu").setDes
 async function execute14(interaction) {
   const guild = interaction.guild;
   if (!guild) {
-    await interaction.reply({ content: "\u274C Bu komut yaln\u0131zca bir sunucu i\xE7inde kullan\u0131labilir.", ephemeral: true });
+    await interaction.reply({ content: "\u274C Bu komut yaln\u0131zca bir sunucu i\xE7inde kullan\u0131labilir.", flags: import_discord23.MessageFlags.Ephemeral });
     return;
   }
   const [members, channels, roles, emojis, stickers] = await Promise.all([
@@ -4368,7 +4395,7 @@ async function execute17(interaction) {
   const targetUser = interaction.options.getUser("kullanici") || interaction.user;
   const guild = interaction.guild;
   if (!guild) {
-    await interaction.reply({ content: "Bu komut yaln\u0131zca bir sunucu i\xE7inde kullan\u0131labilir.", ephemeral: true });
+    await interaction.reply({ content: "Bu komut yaln\u0131zca bir sunucu i\xE7inde kullan\u0131labilir.", flags: import_discord27.MessageFlags.Ephemeral });
     return;
   }
   const member = await guild.members.fetch(targetUser.id).catch(() => null);
@@ -4434,12 +4461,12 @@ async function execute18(interaction) {
   const amount = interaction.options.getInteger("miktar", true);
   const senderId = interaction.user.id;
   if (targetUser.bot) {
-    await interaction.reply({ content: "\u274C Botlara Nights Coin transfer edemezsiniz!", ephemeral: true });
+    await interaction.reply({ content: "\u274C Botlara Nights Coin transfer edemezsiniz!", flags: import_discord28.MessageFlags.Ephemeral });
     return;
   }
   const result = EconomyManager.transfer(senderId, targetUser.id, amount);
   if (!result.success) {
-    await interaction.reply({ content: `\u274C ${result.message}`, ephemeral: true });
+    await interaction.reply({ content: `\u274C ${result.message}`, flags: import_discord28.MessageFlags.Ephemeral });
     return;
   }
   const embed = new import_discord28.EmbedBuilder().setTitle("\u{1F4B8} Nights Coin Transferi Ba\u015Far\u0131l\u0131!").setDescription(
@@ -4846,12 +4873,12 @@ async function execute19(interaction) {
   if (!guild) {
     await interaction.reply({
       content: "\u274C Bu komut yaln\u0131zca sunucu i\xE7erisinde kullan\u0131labilir.",
-      ephemeral: true
+      flags: import_discord31.MessageFlags.Ephemeral
     });
     return;
   }
   const text = interaction.options.getString("itiraf", true);
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: import_discord31.MessageFlags.Ephemeral });
   const result = await ConfessionManager.submit(guild, interaction.user, text);
   await interaction.editReply({
     content: result.message
@@ -4994,10 +5021,12 @@ var MusicPlayer = class _MusicPlayer {
   static searchSoundCloud(query) {
     const { ytdlp } = this.getBinaries();
     return new Promise((resolve) => {
+      const cleanQ = _MusicPlayer.cleanSongTitle(query) || query;
       const args = [
         "--dump-single-json",
         "--no-playlist",
-        `scsearch1:${query}`
+        "--no-warnings",
+        `scsearch1:${cleanQ}`
       ];
       const p = (0, import_child_process.spawn)(ytdlp, args);
       let out = "";
@@ -5016,8 +5045,8 @@ var MusicPlayer = class _MusicPlayer {
               }
               const thumb = entry.thumbnail || (entry.thumbnails && entry.thumbnails.length > 0 ? entry.thumbnails[entry.thumbnails.length - 1].url : null);
               return resolve({
-                title: entry.title || query,
-                url: entry.webpage_url || entry.url || `https://soundcloud.com/search?q=${encodeURIComponent(query)}`,
+                title: entry.title || cleanQ,
+                url: entry.webpage_url || entry.url || `https://soundcloud.com/search?q=${encodeURIComponent(cleanQ)}`,
                 duration,
                 thumbnail: thumb,
                 requesterId: ""
@@ -5035,93 +5064,116 @@ var MusicPlayer = class _MusicPlayer {
         } catch (e) {
         }
         resolve(null);
-      }, 7e3);
+      }, 2e4);
     });
   }
   static getAudioStream(query, songTitle) {
     const { ytdlp, ffmpeg } = this.getBinaries();
-    const extractStream = (target, isSoundCloud = false) => {
-      return new Promise((resolve, reject) => {
-        const args = isSoundCloud ? ["-f", "bestaudio/b/best", "-g", "--no-playlist", target] : [
+    return new Promise((resolve, reject) => {
+      let isResolved = false;
+      const cleanTitle = songTitle ? _MusicPlayer.cleanSongTitle(songTitle) : "";
+      const isScQuery = query.includes("soundcloud.com") || query.startsWith("scsearch");
+      const launchStream = (target, isSC, canFallback) => {
+        const ytdlpArgs = isSC ? [
+          "-f",
+          "bestaudio/b/best",
+          "--no-playlist",
+          "--no-warnings",
+          "-o",
+          "-",
+          target
+        ] : [
           "-f",
           "ba/bestaudio/b[height<=360]/best",
-          "-g",
           "--no-playlist",
+          "--no-warnings",
           "--default-search",
           "ytsearch",
+          "--extractor-args",
+          "youtube:player_client=ios,web,mweb",
+          "-o",
+          "-",
           target
         ];
-        const proc = (0, import_child_process.spawn)(ytdlp, args);
-        let out = "";
-        let err = "";
-        proc.stdout.on("data", (d) => out += d.toString());
-        proc.stderr.on("data", (d) => err += d.toString());
-        proc.on("close", (code) => {
-          const directUrl = out.trim().split("\n").filter((l) => l.startsWith("http"))[0];
-          if (code === 0 && directUrl) {
-            resolve(directUrl);
-          } else {
-            reject(new Error(err || "Ses ba\u011Flant\u0131s\u0131 al\u0131namad\u0131"));
+        const ytProc = (0, import_child_process.spawn)(ytdlp, ytdlpArgs);
+        const ffProc = (0, import_child_process.spawn)(ffmpeg, [
+          "-i",
+          "pipe:0",
+          "-f",
+          "s16le",
+          "-ar",
+          "48000",
+          "-ac",
+          "2",
+          "pipe:1"
+        ]);
+        let hasData = false;
+        let ytErrOutput = "";
+        ytProc.stdout.pipe(ffProc.stdin);
+        ytProc.stderr.on("data", (d) => {
+          ytErrOutput += d.toString();
+        });
+        ffProc.stdout.once("data", () => {
+          hasData = true;
+          if (!isResolved) {
+            isResolved = true;
+            resolve({
+              stream: ffProc.stdout,
+              process: ffProc
+            });
           }
         });
-        proc.on("error", reject);
-        setTimeout(() => {
-          try {
-            proc.kill();
-          } catch (e) {
+        const timeout = setTimeout(() => {
+          if (!hasData) {
+            try {
+              ytProc.kill();
+            } catch (e) {
+            }
+            try {
+              ffProc.kill();
+            } catch (e) {
+            }
+            if (canFallback && !isSC) {
+              console.warn("[MusicPlayer] \u26A0\uFE0F YouTube veri ak\u0131\u015F\u0131 zaman a\u015F\u0131m\u0131na u\u011Frad\u0131, SoundCloud yede\u011Fine ge\xE7iliyor...");
+              const fallbackSearch = `scsearch1:${cleanTitle || query}`;
+              console.log(`[MusicPlayer] \u{1F50D} SoundCloud \xFCzerinde aran\u0131yor: "${cleanTitle || query}"`);
+              launchStream(fallbackSearch, true, false);
+            } else if (!isResolved) {
+              isResolved = true;
+              reject(new Error("M\xFCzik ak\u0131\u015F\u0131 zaman a\u015F\u0131m\u0131na u\u011Frad\u0131."));
+            }
           }
-          reject(new Error("Ses kayna\u011F\u0131 zaman a\u015F\u0131m\u0131na u\u011Frad\u0131"));
-        }, 9e3);
-      });
-    };
-    return new Promise(async (resolve, reject) => {
-      let directUrl = "";
-      const isSC = query.includes("soundcloud.com") || query.startsWith("scsearch");
-      if (isSC) {
-        try {
-          directUrl = await extractStream(query, true);
-        } catch (scErr) {
-          return reject(new Error(`SoundCloud hatas\u0131: ${scErr.message}`));
-        }
+        }, 18e3);
+        ytProc.on("close", (code) => {
+          if (code !== 0 && !hasData) {
+            clearTimeout(timeout);
+            try {
+              ffProc.kill();
+            } catch (e) {
+            }
+            if (canFallback && !isSC) {
+              console.warn("[MusicPlayer] \u26A0\uFE0F YouTube k\u0131s\u0131tlamas\u0131 alg\u0131land\u0131, SoundCloud yede\u011Fine ge\xE7iliyor...");
+              const fallbackSearch = `scsearch1:${cleanTitle || query}`;
+              console.log(`[MusicPlayer] \u{1F50D} SoundCloud \xFCzerinde par\xE7a aran\u0131yor: "${cleanTitle || query}"`);
+              launchStream(fallbackSearch, true, false);
+            } else if (!isResolved) {
+              isResolved = true;
+              reject(new Error(ytErrOutput || "M\xFCzik kayna\u011F\u0131na ula\u015F\u0131lamad\u0131."));
+            }
+          }
+        });
+        ffProc.on("error", (err) => {
+          if (!isResolved) {
+            isResolved = true;
+            reject(err);
+          }
+        });
+      };
+      if (isScQuery) {
+        launchStream(query, true, false);
       } else {
-        try {
-          directUrl = await extractStream(query, false);
-        } catch (ytErr) {
-          console.warn(`[MusicPlayer] \u26A0\uFE0F YouTube k\u0131s\u0131tlamas\u0131 alg\u0131land\u0131, SoundCloud yede\u011Fine ge\xE7iliyor...`);
-          const rawTitle = songTitle || query;
-          const cleanQuery = _MusicPlayer.cleanSongTitle(rawTitle) || rawTitle.replace(/https?:\/\/[^\s]+/g, "").trim();
-          const targetSearch = `scsearch1:${cleanQuery || "pop music"}`;
-          console.log(`[MusicPlayer] \u{1F50D} SoundCloud \xFCzerinde par\xE7a aran\u0131yor: "${cleanQuery}"`);
-          try {
-            directUrl = await extractStream(targetSearch, true);
-            console.log(`[MusicPlayer] \u2705 SoundCloud \xFCzerinden par\xE7a ba\u015Far\u0131yla ba\u011Fland\u0131!`);
-          } catch (scErr) {
-            console.error(`[MusicPlayer] SoundCloud aramas\u0131 da yan\u0131t vermedi:`, scErr.message);
-            return reject(new Error(`M\xFCzik kayna\u011F\u0131na ula\u015F\u0131lamad\u0131. L\xFCtfen \u015Fark\u0131 ad\u0131n\u0131 veya direkt SoundCloud linkini deneyin.`));
-          }
-        }
+        launchStream(query, false, true);
       }
-      const ff = (0, import_child_process.spawn)(ffmpeg, [
-        "-reconnect",
-        "1",
-        "-reconnect_streamed",
-        "1",
-        "-reconnect_delay_max",
-        "5",
-        "-i",
-        directUrl,
-        "-f",
-        "s16le",
-        "-ar",
-        "48000",
-        "-ac",
-        "2",
-        "pipe:1"
-      ]);
-      ff.on("error", (err) => {
-        console.error("[MusicPlayer FFmpeg Process Error]:", err);
-      });
-      resolve({ stream: ff.stdout, process: ff });
     });
   }
   static async playSong(guildId, song, client) {
@@ -5782,7 +5834,7 @@ Bu teklifi kabul ediyor musun?`
     if (interaction.user.id !== targetId) {
       await interaction.reply({
         content: "\u26D4 Bu teklif sizin i\xE7in yap\u0131lmad\u0131!",
-        ephemeral: true
+        flags: import_discord34.MessageFlags.Ephemeral
       });
       return true;
     }
@@ -6065,7 +6117,7 @@ var InteractionHandler = class {
         await executeSes(interaction);
         break;
       default:
-        await interaction.reply({ content: "Bilinmeyen komut.", ephemeral: true });
+        await interaction.reply({ content: "Bilinmeyen komut.", flags: import_discord35.MessageFlags.Ephemeral });
         break;
     }
   }
@@ -6097,14 +6149,14 @@ var InteractionHandler = class {
       if (!pending) {
         await interaction.reply({
           content: "\u26A0\uFE0F Bu kurulum oturumunun s\xFCresi dolmu\u015F veya iptal edilmi\u015F. L\xFCtfen `/kur` ile yeniden deneyin.",
-          ephemeral: true
+          flags: import_discord35.MessageFlags.Ephemeral
         });
         return;
       }
       if (!interaction.memberPermissions?.has(import_discord35.PermissionFlagsBits.Administrator)) {
         await interaction.reply({
           content: "\u274C Sadece y\xF6neticiler kurulumu ba\u015Flatabilir.",
-          ephemeral: true
+          flags: import_discord35.MessageFlags.Ephemeral
         });
         return;
       }
@@ -6113,7 +6165,7 @@ var InteractionHandler = class {
         await interaction.reply({
           content: "\u26A0\uFE0F **Kurulum ba\u015Flat\u0131lamad\u0131! Bot yetkileri veya rol hiyerar\u015Fisi eksik.**",
           embeds: [diagnostics.troubleshootingEmbed],
-          ephemeral: true
+          flags: import_discord35.MessageFlags.Ephemeral
         });
         return;
       }
@@ -6210,7 +6262,7 @@ S\xFCre: **${durationSec} saniye**`
       const cacheId = customId.split(":")[1];
       const pending = BlueprintCache.get(cacheId);
       if (!pending) {
-        await interaction.reply({ content: "Oturum bulunamad\u0131.", ephemeral: true });
+        await interaction.reply({ content: "Oturum bulunamad\u0131.", flags: import_discord35.MessageFlags.Ephemeral });
         return;
       }
       const jsonStr = JSON.stringify(pending.blueprint, null, 2);
@@ -6220,7 +6272,7 @@ S\xFCre: **${durationSec} saniye**`
 \`\`\`json
 ${snippet}
 \`\`\``,
-        ephemeral: true
+        flags: import_discord35.MessageFlags.Ephemeral
       });
       return;
     }
@@ -6238,14 +6290,14 @@ ${snippet}
       const logoId = customId.split(":")[1];
       const cached = pendingLogoCache.get(logoId);
       if (!cached) {
-        await interaction.reply({ content: "Logo verisi bulunamad\u0131 veya s\xFCresi doldu.", ephemeral: true });
+        await interaction.reply({ content: "Logo verisi bulunamad\u0131 veya s\xFCresi doldu.", flags: import_discord35.MessageFlags.Ephemeral });
         return;
       }
       if (!interaction.memberPermissions?.has(import_discord35.PermissionFlagsBits.ManageGuild)) {
-        await interaction.reply({ content: "\u274C Sunucuyu Y\xF6net yetkiniz yok.", ephemeral: true });
+        await interaction.reply({ content: "\u274C Sunucuyu Y\xF6net yetkiniz yok.", flags: import_discord35.MessageFlags.Ephemeral });
         return;
       }
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: import_discord35.MessageFlags.Ephemeral });
       try {
         await this.logoStudio.applyIconToGuild(interaction.guild, cached.buffer);
         pendingLogoCache.delete(logoId);
@@ -6257,7 +6309,7 @@ ${snippet}
     }
     if (customId.startsWith("wipe_confirm:")) {
       if (!interaction.memberPermissions?.has(import_discord35.PermissionFlagsBits.Administrator)) {
-        await interaction.reply({ content: "\u274C Bu i\u015Flemi yaln\u0131zca Y\xF6neticiler ger\xE7ekle\u015Ftirebilir.", ephemeral: true });
+        await interaction.reply({ content: "\u274C Bu i\u015Flemi yaln\u0131zca Y\xF6neticiler ger\xE7ekle\u015Ftirebilir.", flags: import_discord35.MessageFlags.Ephemeral });
         return;
       }
       await interaction.deferUpdate();
@@ -6299,7 +6351,7 @@ Sunucu s\u0131f\u0131rland\u0131 ve yeni kuruluma haz\u0131r hale getirildi. Art
       return;
     }
     if (customId === "btn_kayit_basla") {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: import_discord35.MessageFlags.Ephemeral });
       const member = interaction.member;
       if (!member || !interaction.guild) return;
       const roles = await interaction.guild.roles.fetch();
@@ -6333,7 +6385,7 @@ Sunucu s\u0131f\u0131rland\u0131 ve yeni kuruluma haz\u0131r hale getirildi. Art
         await interaction.reply({
           content: `\u26A0\uFE0F **Zaten t\u0131klad\u0131n\u0131z!**
 \u015Eu anki toplam: **${eventClickUsers.size} / 30**. Di\u011Fer arkada\u015Flar\u0131n\u0131z\u0131 da \xE7a\u011F\u0131r\u0131n, 30'a ula\u015Fal\u0131m!`,
-          ephemeral: true
+          flags: import_discord35.MessageFlags.Ephemeral
         });
         return;
       }
@@ -6399,7 +6451,7 @@ A\u015Fa\u011F\u0131daki butona t\u0131klayarak sayac\u0131 art\u0131r\u0131n. T
       return;
     }
     if (interaction.customId.startsWith("modal_kayit_")) {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: import_discord35.MessageFlags.Ephemeral });
       const isMale = interaction.customId === "modal_kayit_erkek";
       const isim = interaction.fields.getTextInputValue("input_isim").trim();
       const yas = interaction.fields.getTextInputValue("input_yas").trim();
@@ -6672,7 +6724,7 @@ async function onReady(client) {
   VoiceLobbyManager.sweepEmptyChannels(client);
   setInterval(() => {
     VoiceLobbyManager.sweepEmptyChannels(client);
-  }, 45e3);
+  }, 15e3);
   try {
     console.log("[Slash Commands] Slash komutlar\u0131 kaydediliyor...");
     const commands = [

@@ -2,6 +2,7 @@ import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   EmbedBuilder,
+  MessageFlags,
 } from 'discord.js';
 import { EconomyManager } from '../services/features/economyManager';
 
@@ -25,14 +26,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const senderId = interaction.user.id;
 
   if (targetUser.bot) {
-    await interaction.reply({ content: '❌ Botlara Nights Coin transfer edemezsiniz!', ephemeral: true });
+    await interaction.reply({ content: '❌ Botlara Nights Coin transfer edemezsiniz!', flags: MessageFlags.Ephemeral });
     return;
   }
 
   const result = EconomyManager.transfer(senderId, targetUser.id, amount);
 
   if (!result.success) {
-    await interaction.reply({ content: `❌ ${result.message}`, ephemeral: true });
+    await interaction.reply({ content: `❌ ${result.message}`, flags: MessageFlags.Ephemeral });
     return;
   }
 

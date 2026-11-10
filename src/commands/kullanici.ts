@@ -3,6 +3,7 @@ import {
   SlashCommandBuilder,
   EmbedBuilder,
   GuildMember,
+  MessageFlags,
 } from 'discord.js';
 import { LevelManager } from '../services/features/levelManager';
 import { EconomyManager } from '../services/features/economyManager';
@@ -21,7 +22,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const targetUser = interaction.options.getUser('kullanici') || interaction.user;
   const guild = interaction.guild;
   if (!guild) {
-    await interaction.reply({ content: 'Bu komut yalnızca bir sunucu içinde kullanılabilir.', ephemeral: true });
+    await interaction.reply({ content: 'Bu komut yalnızca bir sunucu içinde kullanılabilir.', flags: MessageFlags.Ephemeral });
     return;
   }
 

@@ -12,6 +12,7 @@ import {
   TextInputStyle,
   ModalSubmitInteraction,
   ButtonInteraction,
+  MessageFlags,
 } from 'discord.js';
 import { VoiceLobbyManager } from './voiceLobbyManager';
 
@@ -139,12 +140,12 @@ export class VoicePanelManager {
 
         await interaction.reply({
           content: `🎉 **Özel ses odanız başarıyla açıldı:** <#${newChannel.id}>\nOdanıza katılarak arkadaşlarınızı davet edebilir ve paneli kullanabilirsiniz!`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       } catch (err: any) {
         await interaction.reply({
           content: `❌ Oda oluşturulamadı: ${err.message}`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
       return;
@@ -155,7 +156,7 @@ export class VoicePanelManager {
     if (!currentVoice) {
       await interaction.reply({
         content: '⚠️ **Bu işlemi yapabilmek için sunucumuzdaki bir ses kanalında bulunmalısınız!**',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -195,7 +196,7 @@ export class VoicePanelManager {
         });
         await interaction.reply({
           content: `🔒 **${currentVoice.name}** odası kilitlendi! Artık dışarıdan yabancı üyeler katılamaz.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         break;
       }
@@ -207,7 +208,7 @@ export class VoicePanelManager {
         });
         await interaction.reply({
           content: `🔓 **${currentVoice.name}** odasının kilidi açıldı! Tüm üyeler serbestçe katılabilir.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         break;
       }
@@ -226,7 +227,7 @@ export class VoicePanelManager {
           });
           await interaction.reply({
             content: `👁️ **${currentVoice.name}** odası gizlendi! Artık kanal listesinde görünmez (hayalet oda).`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         } else {
           await currentVoice.permissionOverwrites.edit(everyoneRole, {
@@ -234,7 +235,7 @@ export class VoicePanelManager {
           });
           await interaction.reply({
             content: `👁️ **${currentVoice.name}** odası tekrar görünür hale getirildi!`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
         break;
@@ -255,7 +256,7 @@ export class VoicePanelManager {
           content: `👥 **${currentVoice.name}** odasının kişi kapasitesi **${
             nextLimit === 0 ? 'Sınırsız ♾️' : nextLimit + ' Kişi'
           }** olarak ayarlandı.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         break;
       }
@@ -271,7 +272,7 @@ export class VoicePanelManager {
           content: `🔇 **${currentVoice.name}** odasında genel konuşma durumu: **${
             !canSpeak ? 'Konuşma Açık 🔊' : 'Oda Sessize Alındı 🔇'
           }**`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         break;
       }
@@ -295,12 +296,12 @@ export class VoicePanelManager {
           await currentVoice.setBitrate(nextBitrate);
           await interaction.reply({
             content: `🚀 **${currentVoice.name}** ses odasının ses iletim kalitesi **${bitrateLabel}** olarak ayarlandı!`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         } catch (err: any) {
           await interaction.reply({
             content: `⚠️ Bitrate ayarlanırken sunucu limiti uyarısı: ${err.message}`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
         break;
@@ -316,7 +317,7 @@ export class VoicePanelManager {
         });
         await interaction.reply({
           content: `👑 **${currentVoice.name}** odasının oda yöneticisi ve sahipliği başarıyla üzerinize tanımlandı!`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         break;
       }
@@ -360,12 +361,12 @@ export class VoicePanelManager {
           .setFooter({ text: 'Nights Advanced Voice Studio' })
           .setTimestamp();
 
-        await interaction.reply({ embeds: [infoEmbed], ephemeral: true });
+        await interaction.reply({ embeds: [infoEmbed], flags: MessageFlags.Ephemeral });
         break;
       }
 
       default:
-        await interaction.reply({ content: 'Bilinmeyen ses işlemi.', ephemeral: true });
+        await interaction.reply({ content: 'Bilinmeyen ses işlemi.', flags: MessageFlags.Ephemeral });
         break;
     }
   }
@@ -377,7 +378,7 @@ export class VoicePanelManager {
     if (!currentVoice) {
       await interaction.reply({
         content: '⚠️ Ses kanalında değilsiniz! İsim değiştirebilmek için bir ses odasında bulunmalısınız.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -387,12 +388,12 @@ export class VoicePanelManager {
       await currentVoice.setName(newName);
       await interaction.reply({
         content: `✅ Odanızın adı başarıyla değiştirildi: **${newName}**`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     } catch (err: any) {
       await interaction.reply({
         content: `❌ İsim değiştirilemedi: ${err.message}`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   }

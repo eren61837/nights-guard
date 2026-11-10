@@ -7,6 +7,7 @@ import {
   ButtonStyle,
   AttachmentBuilder,
   PermissionFlagsBits,
+  MessageFlags,
 } from 'discord.js';
 import crypto from 'crypto';
 import { LogoStudio } from '../services/image/logoStudio';
@@ -33,7 +34,7 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    await interaction.reply({ content: 'Bu komut sadece sunucularda kullanılabilir.', ephemeral: true });
+    await interaction.reply({ content: 'Bu komut sadece sunucularda kullanılabilir.', flags: MessageFlags.Ephemeral });
     return;
   }
 

@@ -7,6 +7,7 @@ import {
   ButtonStyle,
   EmbedBuilder,
   TextChannel,
+  MessageFlags,
 } from 'discord.js';
 
 export class TicketManager {
@@ -14,7 +15,7 @@ export class TicketManager {
     const { guild, user } = interaction;
     if (!guild) return;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const channels = await guild.channels.fetch();
     const roles = await guild.roles.fetch();

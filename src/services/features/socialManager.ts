@@ -6,6 +6,7 @@ import {
   User,
   Message,
   ButtonInteraction,
+  MessageFlags,
 } from 'discord.js';
 import { PersistentStore } from '../storage/persistentStore';
 
@@ -121,7 +122,7 @@ export class SocialManager {
     if (interaction.user.id !== targetId) {
       await interaction.reply({
         content: '⛔ Bu teklif sizin için yapılmadı!',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return true;
     }

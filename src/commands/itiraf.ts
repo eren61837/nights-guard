@@ -1,6 +1,7 @@
 import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
+  MessageFlags,
 } from 'discord.js';
 import { ConfessionManager } from '../services/features/confessionManager';
 
@@ -20,7 +21,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   if (!guild) {
     await interaction.reply({
       content: '❌ Bu komut yalnızca sunucu içerisinde kullanılabilir.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -28,7 +29,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const text = interaction.options.getString('itiraf', true);
 
   // Yanıtı yalnızca komutu kullanan üye görür (Ephemeral)
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const result = await ConfessionManager.submit(guild, interaction.user, text);
 

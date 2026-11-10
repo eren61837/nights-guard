@@ -224,7 +224,7 @@ export class InteractionHandler {
         await muzikCmd.executeSes(interaction);
         break;
       default:
-        await interaction.reply({ content: 'Bilinmeyen komut.', ephemeral: true });
+        await interaction.reply({ content: 'Bilinmeyen komut.', flags: MessageFlags.Ephemeral });
         break;
     }
   }
@@ -268,7 +268,7 @@ export class InteractionHandler {
       if (!pending) {
         await interaction.reply({
           content: '⚠️ Bu kurulum oturumunun süresi dolmuş veya iptal edilmiş. Lütfen `/kur` ile yeniden deneyin.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -276,7 +276,7 @@ export class InteractionHandler {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
         await interaction.reply({
           content: '❌ Sadece yöneticiler kurulumu başlatabilir.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -287,7 +287,7 @@ export class InteractionHandler {
         await interaction.reply({
           content: '⚠️ **Kurulum başlatılamadı! Bot yetkileri veya rol hiyerarşisi eksik.**',
           embeds: [diagnostics.troubleshootingEmbed],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -404,7 +404,7 @@ export class InteractionHandler {
       const cacheId = customId.split(':')[1];
       const pending = BlueprintCache.get(cacheId);
       if (!pending) {
-        await interaction.reply({ content: 'Oturum bulunamadı.', ephemeral: true });
+        await interaction.reply({ content: 'Oturum bulunamadı.', flags: MessageFlags.Ephemeral });
         return;
       }
 
@@ -413,7 +413,7 @@ export class InteractionHandler {
 
       await interaction.reply({
         content: `📋 **MİMARİ PLANI (JSON KESİTİ):**\n\`\`\`json\n${snippet}\n\`\`\``,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -435,16 +435,16 @@ export class InteractionHandler {
       const logoId = customId.split(':')[1];
       const cached = pendingLogoCache.get(logoId);
       if (!cached) {
-        await interaction.reply({ content: 'Logo verisi bulunamadı veya süresi doldu.', ephemeral: true });
+        await interaction.reply({ content: 'Logo verisi bulunamadı veya süresi doldu.', flags: MessageFlags.Ephemeral });
         return;
       }
 
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-        await interaction.reply({ content: '❌ Sunucuyu Yönet yetkiniz yok.', ephemeral: true });
+        await interaction.reply({ content: '❌ Sunucuyu Yönet yetkiniz yok.', flags: MessageFlags.Ephemeral });
         return;
       }
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       try {
         await this.logoStudio.applyIconToGuild(interaction.guild, cached.buffer);
         pendingLogoCache.delete(logoId);
@@ -458,7 +458,7 @@ export class InteractionHandler {
     // 6. Wipe Confirm
     if (customId.startsWith('wipe_confirm:')) {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-        await interaction.reply({ content: '❌ Bu işlemi yalnızca Yöneticiler gerçekleştirebilir.', ephemeral: true });
+        await interaction.reply({ content: '❌ Bu işlemi yalnızca Yöneticiler gerçekleştirebilir.', flags: MessageFlags.Ephemeral });
         return;
       }
 
@@ -503,7 +503,7 @@ export class InteractionHandler {
 
     // 8. Registration Step 1: Kayıt Ol & Onay Al
     if (customId === 'btn_kayit_basla') {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const member = interaction.member as GuildMember;
       if (!member || !interaction.guild) return;
 
@@ -559,7 +559,7 @@ export class InteractionHandler {
       if (eventClickUsers.has(userId)) {
         await interaction.reply({
           content: `⚠️ **Zaten tıkladınız!**\nŞu anki toplam: **${eventClickUsers.size} / 30**. Diğer arkadaşlarınızı da çağırın, 30'a ulaşalım!`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -652,7 +652,7 @@ export class InteractionHandler {
 
     if (interaction.customId.startsWith('modal_kayit_')) {
       // 1. ANINDA DEFER ET - 3 Saniyelik 'Zaman Aşımı' / 'Uygulama Yanıt Vermedi' Hatasını Tamamen Engelle!
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const isMale = interaction.customId === 'modal_kayit_erkek';
       const isim = interaction.fields.getTextInputValue('input_isim').trim();

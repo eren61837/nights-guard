@@ -6,6 +6,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  MessageFlags,
 } from 'discord.js';
 
 export const data = new SlashCommandBuilder()
@@ -26,7 +27,7 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction) {
   const { guild } = interaction;
   if (!guild) {
-    await interaction.reply({ content: 'Bu komut sadece sunucularda çalışır.', ephemeral: true });
+    await interaction.reply({ content: 'Bu komut sadece sunucularda çalışır.', flags: MessageFlags.Ephemeral });
     return;
   }
 
