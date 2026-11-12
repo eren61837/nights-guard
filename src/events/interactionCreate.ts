@@ -606,9 +606,41 @@ export class InteractionHandler {
       return;
     }
 
-    // 9. Registration Step 2: Cinsiyet Seçimi (Erkek / Kız) -> Modal Açılır
+    // 9. Registration Step 2 & Gender Role Selection: Cinsiyet Seçimi (Erkek / Kız)
     if (customId === 'btn_cinsiyet_erkek' || customId === 'btn_cinsiyet_kiz') {
       const isMale = customId === 'btn_cinsiyet_erkek';
+      const member = interaction.member as GuildMember;
+      const guild = interaction.guild;
+      if (!member || !guild) return;
+
+      const roles = await guild.roles.fetch();
+      const approvedRole = roles.find((r: any) => r.name.toLowerCase() === 'onaylı' || r.name.includes('Onaylı'));
+      const memberRole = roles.find((r: any) => r.name.toLowerCase() === 'üye' || (r.name.includes('Üye') && !r.name.includes('Onaylı')));
+      const maleRole = roles.find((r: any) => r.name.toLowerCase() === 'erkek' || r.name.includes('Erkek'));
+      const femaleRole = roles.find((r: any) => r.name.toLowerCase() === 'kız' || r.name.includes('Kız'));
+
+      const isAlreadyApproved = (approvedRole && member.roles.cache.has(approvedRole.id)) || (memberRole && member.roles.cache.has(memberRole.id));
+
+      // ÜYE ZATEN KAYITLIYSA: Sadece cinsiyet rolünü güncelle (Modal açmaya gerek yok!)
+      if (isAlreadyApproved) {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        const targetRole = isMale ? maleRole : femaleRole;
+        const removeRole = isMale ? femaleRole : maleRole;
+
+        if (removeRole && member.roles.cache.has(removeRole.id)) {
+          await member.roles.remove(removeRole).catch(() => {});
+        }
+        if (targetRole && !member.roles.cache.has(targetRole.id)) {
+          await member.roles.add(targetRole).catch(() => {});
+        }
+
+        await interaction.editReply({
+          content: `✅ Cinsiyet rolünüz başarıyla **${isMale ? '👦 Erkek' : '👧 Kız'}** olarak güncellendi!`,
+        });
+        return;
+      }
+
+      // ÜYE HENÜZ KAYITLI DEĞİLSE: Kayıt modalını aç!
       const modal = new ModalBuilder()
         .setCustomId(isMale ? 'modal_kayit_erkek' : 'modal_kayit_kiz')
         .setTitle(`📝 Nights Kayıt (${isMale ? 'Erkek' : 'Kız'})`);

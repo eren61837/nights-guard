@@ -2586,16 +2586,28 @@ var LanguageGateManager = class {
       (c) => c.type === import_discord9.ChannelType.GuildText && c.name.includes("cinsiyet-secimi")
     );
     if (cinsiyetChannel) {
+      await cinsiyetChannel.setParent(category.id).catch(() => {
+      });
+      await cinsiyetChannel.setPosition(2).catch(() => {
+      });
       await cinsiyetChannel.permissionOverwrites.edit(everyoneRole.id, { ViewChannel: false, SendMessages: false });
-      if (waitingRole) {
-        await cinsiyetChannel.permissionOverwrites.edit(waitingRole.id, { ViewChannel: false, SendMessages: false });
+      if (trRole) {
+        await cinsiyetChannel.permissionOverwrites.edit(trRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
       }
-      if (onayliRole) await cinsiyetChannel.permissionOverwrites.edit(onayliRole.id, { ViewChannel: false });
-      if (uyeRole) await cinsiyetChannel.permissionOverwrites.edit(uyeRole.id, { ViewChannel: false });
+      if (waitingRole) {
+        await cinsiyetChannel.permissionOverwrites.edit(waitingRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
+      }
+      if (onayliRole) {
+        await cinsiyetChannel.permissionOverwrites.edit(onayliRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
+      }
+      if (uyeRole) {
+        await cinsiyetChannel.permissionOverwrites.edit(uyeRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
+      }
     }
     await this.applyServerWideIsolationLock(guild, langChannel.id, category.id);
     await this.sendLanguagePanel(langChannel);
     if (kayitChannel) await this.sendTurkishRegistrationPanel(kayitChannel);
+    if (cinsiyetChannel) await this.sendGenderSelectionPanel(cinsiyetChannel);
     if (regChannel) await this.sendEnglishRegistrationPanel(regChannel);
   }
   static async applyServerWideIsolationLock(guild, allowedLangChannelId, allowedCategoryId) {
@@ -2773,6 +2785,53 @@ Sunucumuza eri\u015Febilmek ve di\u011Fer \xFCyelerimizle etkile\u015Fime ge\xE7
       console.log(`[LanguageGateManager] Tek par\xE7a l\xFCks \u0130ngilizce kay\u0131t paneli '#${channel.name}' kanal\u0131na g\xF6nderildi.`);
     } catch (err) {
       console.error(`[LanguageGateManager] \u0130ngilizce kay\u0131t paneli hatas\u0131:`, err.message);
+    }
+  }
+  // ═══════════════════════════════════════════════════════════
+  // 🚻 TEK PARÇA CİNSİYET SEÇİM PANELİ
+  // ═══════════════════════════════════════════════════════════
+  static async sendGenderSelectionPanel(channel) {
+    try {
+      const messages = await channel.messages.fetch({ limit: 10 });
+      const existingPanel = messages.find(
+        (m) => m.author.id === channel.client.user?.id && m.embeds.length > 0
+      );
+      if (existingPanel) return;
+      for (const [, msg] of messages) {
+        if (msg.author.id === channel.client.user?.id) await msg.delete().catch(() => {
+        });
+      }
+      const guild = channel.guild;
+      const iconUrl = guild.iconURL({ size: 256 }) || void 0;
+      const embed = new import_discord9.EmbedBuilder().setColor(10181046).setAuthor({
+        name: `${guild.name.toUpperCase()} \u2022 ROL VE PROF\u0130L Y\xD6NET\u0130M\u0130`,
+        iconURL: iconUrl
+      }).setTitle("\u{1F6BB}  C\u0130NS\u0130YET ROL\xDC SE\xC7\u0130M\u0130").setDescription(
+        `Profilinize uygun cinsiyet unvan\u0131n\u0131 ve renk rol\xFCn\xFC a\u015Fa\u011F\u0131daki butonlara t\u0131klayarak an\u0131nda alabilirsiniz.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u{1F466} **Erkek Rol\xFC:**
+> Mavi profil rengi ve **Erkek** unvan\u0131 tan\u0131mlan\u0131r.
+
+\u{1F467} **K\u0131z Rol\xFC:**
+> Pembe profil rengi ve **K\u0131z** unvan\u0131 tan\u0131mlan\u0131r.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+\u{1F4A1} *Rol\xFCn\xFCz\xFC diledi\u011Finiz zaman butona tekrar t\u0131klayarak g\xFCncelleyebilirsiniz.*
+\u26A1 *Hen\xFCz kay\u0131t olmad\u0131ysan\u0131z, butona t\u0131klad\u0131\u011F\u0131n\u0131zda h\u0131zl\u0131 kay\u0131t formu a\xE7\u0131lacakt\u0131r.*`
+      ).setThumbnail(iconUrl || null).setImage(ANIMATIONS.flow).setFooter({
+        text: "Nights Guard \u2022 Cinsiyet Rol Y\xF6netimi \u2022 Made by erencix",
+        iconURL: channel.client.user?.displayAvatarURL()
+      }).setTimestamp();
+      const row = new import_discord9.ActionRowBuilder().addComponents(
+        new import_discord9.ButtonBuilder().setCustomId("btn_cinsiyet_erkek").setLabel("Erkek").setEmoji("\u{1F466}").setStyle(import_discord9.ButtonStyle.Primary),
+        new import_discord9.ButtonBuilder().setCustomId("btn_cinsiyet_kiz").setLabel("K\u0131z").setEmoji("\u{1F467}").setStyle(import_discord9.ButtonStyle.Danger)
+      );
+      await channel.send({ embeds: [embed], components: [row] });
+      console.log(`[LanguageGateManager] Tek par\xE7a l\xFCks Cinsiyet paneli '#${channel.name}' kanal\u0131na g\xF6nderildi.`);
+    } catch (err) {
+      console.error(`[LanguageGateManager] Cinsiyet paneli hatas\u0131:`, err.message);
     }
   }
   // ═══════════════════════════════════════════════════════════
@@ -8016,6 +8075,32 @@ Sunucu s\u0131f\u0131rland\u0131 ve yeni kuruluma haz\u0131r hale getirildi. Art
     }
     if (customId === "btn_cinsiyet_erkek" || customId === "btn_cinsiyet_kiz") {
       const isMale = customId === "btn_cinsiyet_erkek";
+      const member = interaction.member;
+      const guild = interaction.guild;
+      if (!member || !guild) return;
+      const roles = await guild.roles.fetch();
+      const approvedRole = roles.find((r) => r.name.toLowerCase() === "onayl\u0131" || r.name.includes("Onayl\u0131"));
+      const memberRole = roles.find((r) => r.name.toLowerCase() === "\xFCye" || r.name.includes("\xDCye") && !r.name.includes("Onayl\u0131"));
+      const maleRole = roles.find((r) => r.name.toLowerCase() === "erkek" || r.name.includes("Erkek"));
+      const femaleRole = roles.find((r) => r.name.toLowerCase() === "k\u0131z" || r.name.includes("K\u0131z"));
+      const isAlreadyApproved = approvedRole && member.roles.cache.has(approvedRole.id) || memberRole && member.roles.cache.has(memberRole.id);
+      if (isAlreadyApproved) {
+        await interaction.deferReply({ flags: import_discord40.MessageFlags.Ephemeral });
+        const targetRole = isMale ? maleRole : femaleRole;
+        const removeRole = isMale ? femaleRole : maleRole;
+        if (removeRole && member.roles.cache.has(removeRole.id)) {
+          await member.roles.remove(removeRole).catch(() => {
+          });
+        }
+        if (targetRole && !member.roles.cache.has(targetRole.id)) {
+          await member.roles.add(targetRole).catch(() => {
+          });
+        }
+        await interaction.editReply({
+          content: `\u2705 Cinsiyet rol\xFCn\xFCz ba\u015Far\u0131yla **${isMale ? "\u{1F466} Erkek" : "\u{1F467} K\u0131z"}** olarak g\xFCncellendi!`
+        });
+        return;
+      }
       const modal = new import_discord40.ModalBuilder().setCustomId(isMale ? "modal_kayit_erkek" : "modal_kayit_kiz").setTitle(`\u{1F4DD} Nights Kay\u0131t (${isMale ? "Erkek" : "K\u0131z"})`);
       const nameInput = new import_discord40.TextInputBuilder().setCustomId("input_isim").setLabel("\u0130sminiz").setStyle(import_discord40.TextInputStyle.Short).setPlaceholder("\xD6rn: Eren").setRequired(true).setMaxLength(20);
       const ageInput = new import_discord40.TextInputBuilder().setCustomId("input_yas").setLabel("Ya\u015F\u0131n\u0131z (\u0130ste\u011Fe ba\u011Fl\u0131)").setStyle(import_discord40.TextInputStyle.Short).setPlaceholder("\xD6rn: 19").setRequired(false).setMaxLength(3);

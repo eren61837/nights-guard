@@ -168,18 +168,27 @@ export class LanguageGateManager {
     if (onayliRole) await regChannel.permissionOverwrites.edit(onayliRole.id, { ViewChannel: false });
     if (uyeRole) await regChannel.permissionOverwrites.edit(uyeRole.id, { ViewChannel: false });
 
-    // ═══ 4. 🚻・cinsiyet-secimi (Eski kanal tamamen gizlenir, kafa karıştırmaz!) ═══
+    // ═══ 4. 🚻・cinsiyet-secimi ═══
     const cinsiyetChannel = guild.channels.cache.find(
       (c) => c.type === ChannelType.GuildText && c.name.includes('cinsiyet-secimi')
     ) as TextChannel | undefined;
 
     if (cinsiyetChannel) {
+      await cinsiyetChannel.setParent(category.id).catch(() => {});
+      await cinsiyetChannel.setPosition(2).catch(() => {});
       await cinsiyetChannel.permissionOverwrites.edit(everyoneRole.id, { ViewChannel: false, SendMessages: false });
-      if (waitingRole) {
-        await cinsiyetChannel.permissionOverwrites.edit(waitingRole.id, { ViewChannel: false, SendMessages: false });
+      if (trRole) {
+        await cinsiyetChannel.permissionOverwrites.edit(trRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
       }
-      if (onayliRole) await cinsiyetChannel.permissionOverwrites.edit(onayliRole.id, { ViewChannel: false });
-      if (uyeRole) await cinsiyetChannel.permissionOverwrites.edit(uyeRole.id, { ViewChannel: false });
+      if (waitingRole) {
+        await cinsiyetChannel.permissionOverwrites.edit(waitingRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
+      }
+      if (onayliRole) {
+        await cinsiyetChannel.permissionOverwrites.edit(onayliRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
+      }
+      if (uyeRole) {
+        await cinsiyetChannel.permissionOverwrites.edit(uyeRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
+      }
     }
 
     // ═══ SERVER-WIDE ISOLATION LOCK ═══
@@ -188,6 +197,7 @@ export class LanguageGateManager {
     // ═══ PANELLERİ GÖNDER ═══
     await this.sendLanguagePanel(langChannel);
     if (kayitChannel) await this.sendTurkishRegistrationPanel(kayitChannel);
+    if (cinsiyetChannel) await this.sendGenderSelectionPanel(cinsiyetChannel);
     if (regChannel) await this.sendEnglishRegistrationPanel(regChannel);
   }
 
@@ -433,6 +443,71 @@ export class LanguageGateManager {
       console.log(`[LanguageGateManager] Tek parça lüks İngilizce kayıt paneli '#${channel.name}' kanalına gönderildi.`);
     } catch (err: any) {
       console.error(`[LanguageGateManager] İngilizce kayıt paneli hatası:`, err.message);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 🚻 TEK PARÇA CİNSİYET SEÇİM PANELİ
+  // ═══════════════════════════════════════════════════════════
+  public static async sendGenderSelectionPanel(channel: TextChannel): Promise<void> {
+    try {
+      const messages = await channel.messages.fetch({ limit: 10 });
+      const existingPanel = messages.find(
+        (m) => m.author.id === channel.client.user?.id && m.embeds.length > 0
+      );
+
+      if (existingPanel) return;
+
+      for (const [, msg] of messages) {
+        if (msg.author.id === channel.client.user?.id) await msg.delete().catch(() => {});
+      }
+
+      const guild = channel.guild;
+      const iconUrl = guild.iconURL({ size: 256 }) || undefined;
+
+      const embed = new EmbedBuilder()
+        .setColor(0x9b59b6) // Asil Mor / Cyber Amethyst
+        .setAuthor({
+          name: `${guild.name.toUpperCase()} • ROL VE PROFİL YÖNETİMİ`,
+          iconURL: iconUrl,
+        })
+        .setTitle('🚻  CİNSİYET ROLÜ SEÇİMİ')
+        .setDescription(
+          `Profilinize uygun cinsiyet unvanını ve renk rolünü aşağıdaki butonlara tıklayarak anında alabilirsiniz.\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `👦 **Erkek Rolü:**\n` +
+          `> Mavi profil rengi ve **Erkek** unvanı tanımlanır.\n\n` +
+          `👧 **Kız Rolü:**\n` +
+          `> Pembe profil rengi ve **Kız** unvanı tanımlanır.\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `💡 *Rolünüzü dilediğiniz zaman butona tekrar tıklayarak güncelleyebilirsiniz.*\n` +
+          `⚡ *Henüz kayıt olmadıysanız, butona tıkladığınızda hızlı kayıt formu açılacaktır.*`
+        )
+        .setThumbnail(iconUrl || null)
+        .setImage(ANIMATIONS.flow) // Entegre siber akış animasyonu
+        .setFooter({
+          text: 'Nights Guard • Cinsiyet Rol Yönetimi • Made by erencix',
+          iconURL: channel.client.user?.displayAvatarURL(),
+        })
+        .setTimestamp();
+
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId('btn_cinsiyet_erkek')
+          .setLabel('Erkek')
+          .setEmoji('👦')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('btn_cinsiyet_kiz')
+          .setLabel('Kız')
+          .setEmoji('👧')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await channel.send({ embeds: [embed], components: [row] });
+      console.log(`[LanguageGateManager] Tek parça lüks Cinsiyet paneli '#${channel.name}' kanalına gönderildi.`);
+    } catch (err: any) {
+      console.error(`[LanguageGateManager] Cinsiyet paneli hatası:`, err.message);
     }
   }
 

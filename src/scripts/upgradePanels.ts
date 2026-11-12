@@ -63,16 +63,23 @@ async function main() {
     }
   }
 
-  // 3. cinsiyet-secimi kanalını HERKESTEN gizle (Artık doğrudan kayit-onay kullanılıyor)
+  // 3. cinsiyet-secimi kanalını ayarla
   const cinsiyetCh = channels.find((c) => c && c.isTextBased() && c.name.includes('cinsiyet-secimi')) as TextChannel | undefined;
   if (cinsiyetCh) {
-    console.log(`\n🔒 #${cinsiyetCh.name} kanalı tamamen gizleniyor...`);
+    console.log(`\n🚻 #${cinsiyetCh.name} kanalı izinleri ayarlanıyor...`);
     const everyoneRole = guild.roles.everyone;
-    await cinsiyetCh.permissionOverwrites.edit(everyoneRole.id, {
-      ViewChannel: false,
-      SendMessages: false,
-    }).catch(() => {});
-    console.log(`  ✅ #${cinsiyetCh.name} kanalı gizlendi!`);
+    const roles = await guild.roles.fetch();
+    const trRole = roles.find((r) => r.name.includes('Türkçe'));
+    const onayliRole = roles.find((r) => r.name === 'Onaylı' || r.name.includes('Onaylı'));
+    const uyeRole = roles.find((r) => r.name === 'Üye' || r.name.includes('Üye'));
+    const waitingRole = roles.find((r) => r.name.includes('Kayıt Bekleyen') || r.name.includes('Cinsiyet Bekleyen'));
+
+    await cinsiyetCh.permissionOverwrites.edit(everyoneRole.id, { ViewChannel: false, SendMessages: false }).catch(() => {});
+    if (trRole) await cinsiyetCh.permissionOverwrites.edit(trRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true }).catch(() => {});
+    if (waitingRole) await cinsiyetCh.permissionOverwrites.edit(waitingRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true }).catch(() => {});
+    if (onayliRole) await cinsiyetCh.permissionOverwrites.edit(onayliRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true }).catch(() => {});
+    if (uyeRole) await cinsiyetCh.permissionOverwrites.edit(uyeRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true }).catch(() => {});
+    console.log(`  ✅ #${cinsiyetCh.name} kanalı izinleri güncellendi!`);
   }
 
   // 4. Yeni tek parça lüks panelleri yükle
@@ -95,6 +102,12 @@ async function main() {
   if (kayitCh) {
     await LanguageGateManager.sendTurkishRegistrationPanel(kayitCh);
     console.log('  ✅ Tek parça Türkçe Kayıt Paneli yüklendi!');
+  }
+
+  // Cinsiyet Seçim Paneli
+  if (cinsiyetCh) {
+    await LanguageGateManager.sendGenderSelectionPanel(cinsiyetCh);
+    console.log('  ✅ Tek parça Cinsiyet Seçim Paneli yüklendi!');
   }
 
   // İngilizce Kayıt Paneli
