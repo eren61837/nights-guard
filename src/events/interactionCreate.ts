@@ -25,6 +25,7 @@ import { pendingLogoCache } from '../commands/aiLogo';
 
 import { config } from '../config';
 import { LanguageGateManager } from '../services/features/languageGateManager';
+import { AutoSecurityGuard } from '../services/features/autoSecurityGuard';
 import * as aiKurCmd from '../commands/aiKur';
 import * as aiLogoCmd from '../commands/aiLogo';
 import * as aiOnizleCmd from '../commands/aiOnizle';
@@ -796,8 +797,22 @@ export class InteractionHandler {
       const guild = interaction.guild;
       if (!member || !guild) return;
 
+      // ══════════════════════════════════════════════════════
+      // 🛡️ İSİM & YAŞ GERÇEKLİK VE GÜVENLİK DOĞRULAMASI
+      // ══════════════════════════════════════════════════════
+      const validation = this.validateNameAndAge(isim, yas);
+      if (!validation.valid) {
+        await interaction.editReply({
+          content: `⚠️ **Kayıt Formu Reddedildi!**\n\n${validation.error}\n\n> *Lütfen **#cinsiyet-secimi** kanalındaki butona tekrar basarak gerçek bilgilerinizi giriniz.*`,
+        });
+        return;
+      }
+
+      const validIsim = validation.cleanName;
+      const validYas = validation.cleanAge || '';
+
       // Update nickname: ☊ sembolü ile (örn: ☊ Eren | 19 veya ☊ Eren)
-      const formattedNick = `☊ ${isim}${yas ? ' | ' + yas : ''}`.slice(0, 32);
+      const formattedNick = `☊ ${validIsim}${validYas ? ' | ' + validYas : ''}`.slice(0, 32);
 
       // Rolleri güncel API'den fetch ederek kesin olarak bul
       const roles = await guild.roles.fetch();
@@ -837,7 +852,7 @@ export class InteractionHandler {
 
       // Premium kayıt başarı embed'i
       const successEmbeds = LanguageGateManager.buildRegistrationSuccessEmbed(
-        member, isim, yas, isMale, isEnglish,
+        member, validIsim, validYas, isMale, isEnglish,
         { name: guild.name, memberCount: guild.memberCount, iconURL: (opts?: any) => guild.iconURL(opts) }
       );
       await interaction.editReply({ embeds: successEmbeds });
@@ -849,11 +864,114 @@ export class InteractionHandler {
 
       if (logChannel) {
         const logEmbed = LanguageGateManager.buildRegistrationLogEmbed(
-          member, isim, yas, isMale, isEnglish,
+          member, validIsim, validYas, isMale, isEnglish,
           { name: guild.name, memberCount: guild.memberCount }
         );
         logChannel.send({ embeds: [logEmbed] }).catch(() => {});
       }
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 🛡️ İSİM & YAŞ GERÇEKLİK VE GÜVENLİK FİLTRESİ
+  // ═══════════════════════════════════════════════════════════
+  private validateNameAndAge(
+    rawName: string,
+    rawAge: string
+  ): { valid: boolean; error?: string; cleanName: string; cleanAge?: string } {
+    const clean = rawName.trim().replace(/\s+/g, ' ');
+
+    // 1. İsim Uzunluğu Kontrolü (2 - 16 karakter)
+    if (clean.length < 2) {
+      return { valid: false, cleanName: clean, error: '❌ **İsim çok kısa!** İsminiz en az **2 harf** olmalıdır.' };
+    }
+    if (clean.length > 16) {
+      return { valid: false, cleanName: clean, error: '❌ **İsim çok uzun!** İsminiz en fazla **16 karakter** olabilir.' };
+    }
+
+    // 2. Sadece Türkçe ve Latin harfler + en fazla 1 boşluk (İki isim için, örn: "Ali Can")
+    // Rakamlar, özel semboller, noktalama işaretleri kesinlikle yasak!
+    const nameRegex = /^[a-zA-ZçÇğĞıİöÖşŞüÜ]+(?:\s[a-zA-ZçÇğĞıİöÖşŞüÜ]+)?$/;
+    if (!nameRegex.test(clean)) {
+      return {
+        valid: false,
+        cleanName: clean,
+        error: '❌ **Geçersiz karakter tespit edildi!** İsminiz sadece harflerden oluşmalıdır. Rakam, emoji veya özel sembol (`!@#$%^&*` vb.) içeremez.',
+      };
+    }
+
+    // 3. Harf Tekrarı Spamı (Örn: "aaaaa", "Ereeeeen", "zzzzzz")
+    if (/(.)\1{2,}/i.test(clean)) {
+      return {
+        valid: false,
+        cleanName: clean,
+        error: '❌ **Anlamsız harf tekrarı!** İsminizde aynı harf arka arkaya 3 veya daha fazla kez tekrar edemez.',
+      };
+    }
+
+    // 4. Troll ve Anlamsız Kelime / Tuş Spamı Kontrolü
+    const lower = clean.toLowerCase();
+    const trollBlacklist = [
+      'asdasd', 'qweqwe', 'sjksjk', 'zaaaxd', 'admin', 'mod', 'moderator',
+      'kurucu', 'owner', 'everyone', 'here', 'discord', 'sahip', 'bot',
+      'allah', 'tanrı', 'peygamber', 'orospu', 'pic', 'yarrak', 'amk', 'aq',
+      'sik', 'sikik', 'got', 'meme', 'tasak', 'yarak', 'kahpe', 'kasar'
+    ];
+
+    if (trollBlacklist.some((bad) => lower.includes(bad))) {
+      return {
+        valid: false,
+        cleanName: clean,
+        error: '❌ **Uygunsuz veya kural dışı isim!** Lütfen gerçek adınızı yazınız.',
+      };
+    }
+
+    // 5. Küfür ve Hakaret Kontrolü (AutoSecurityGuard entegre)
+    if (AutoSecurityGuard.isProfane(clean)) {
+      return {
+        valid: false,
+        cleanName: clean,
+        error: '❌ **Uygunsuz kelime!** İsminiz küfür, hakaret veya argo içeremez.',
+      };
+    }
+
+    // İsmi Şık Bir Şekilde Baş Harfleri Büyük Yap (Örn: "eReN" -> "Eren", "aLi cAn" -> "Ali Can")
+    const formattedName = clean
+      .split(' ')
+      .map((part) => part.charAt(0).toLocaleUpperCase('tr-TR') + part.slice(1).toLocaleLowerCase('tr-TR'))
+      .join(' ');
+
+    // 6. Yaş Kontrolü (Eğer girildiyse)
+    let cleanAge: string | undefined = undefined;
+    if (rawAge && rawAge.trim().length > 0) {
+      const ageTrimmed = rawAge.trim();
+
+      // Sadece rakam olmalı
+      if (!/^\d+$/.test(ageTrimmed)) {
+        return {
+          valid: false,
+          cleanName: formattedName,
+          error: '❌ **Geçersiz yaş biçimi!** Yaş kutucuğuna sadece rakam yazınız (örneğin: `19`).',
+        };
+      }
+
+      const ageNum = parseInt(ageTrimmed, 10);
+      // Gerçekçi Discord yaş aralığı: 13 - 50
+      if (isNaN(ageNum) || ageNum < 13 || ageNum > 50) {
+        return {
+          valid: false,
+          cleanName: formattedName,
+          error: `❌ **Gerçek dışı yaş (${ageNum})!** Lütfen gerçekçi bir yaş giriniz (**13 ile 50 arası**).`,
+        };
+      }
+
+      cleanAge = String(ageNum);
+    }
+
+    return {
+      valid: true,
+      cleanName: formattedName,
+      cleanAge,
+    };
   }
 }
