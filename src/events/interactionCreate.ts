@@ -597,11 +597,28 @@ export class InteractionHandler {
       return;
     }
 
-    // 8. Registration Step 1 (Legacy / Fallback): Kayıt Ol Butonu
+    // 8. Registration Step 1: Kayıt Ol & Onay Al (1. Adım -> Kayıt Bekleyen verir, kayit-onay kapanır, cinsiyet-secimi açılır)
     if (customId === 'btn_kayit_basla') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const member = interaction.member as GuildMember;
+      const guild = interaction.guild;
+      if (!member || !guild) return;
+
+      const roles = await guild.roles.fetch();
+      const waitingRole = roles.find(
+        (r: any) => r.name.includes('Cinsiyet Bekleyen') || r.name.includes('Kayıt Bekleyen')
+      );
+      if (waitingRole) {
+        await member.roles.add(waitingRole).catch(() => {});
+      }
+
+      const cinsiyetCh = guild.channels.cache.find(
+        (c: any) => c && c.name.includes('cinsiyet-secimi')
+      );
+      const mention = cinsiyetCh ? `<#${cinsiyetCh.id}>` : '#cinsiyet-secimi';
+
       await interaction.editReply({
-        content: '⚡ **Hızlı Kayıt:** Lütfen **#🛡️・kayit-onay** kanalındaki **Erkek Kayıt** veya **Kız Kayıt** butonuna tıklayarak saniyeler içinde kaydınızı tamamlayınız!',
+        content: `✅ **1. Adım Tamamlandı!**\nLütfen size özel olarak açılan ${mention} kanalına geçerek cinsiyetinizi seçiniz.\n\n*Step 1 complete! Please proceed to ${mention} to select your gender.*`,
       });
       return;
     }
@@ -643,19 +660,19 @@ export class InteractionHandler {
       // ÜYE HENÜZ KAYITLI DEĞİLSE: Kayıt modalını aç!
       const modal = new ModalBuilder()
         .setCustomId(isMale ? 'modal_kayit_erkek' : 'modal_kayit_kiz')
-        .setTitle(`📝 Nights Kayıt (${isMale ? 'Erkek' : 'Kız'})`);
+        .setTitle(`📝 Nights Kayıt / Registration (${isMale ? 'Erkek / Male' : 'Kız / Female'})`);
 
       const nameInput = new TextInputBuilder()
         .setCustomId('input_isim')
-        .setLabel('İsminiz')
+        .setLabel('İsminiz / Your Name')
         .setStyle(TextInputStyle.Short)
-        .setPlaceholder('Örn: Eren')
+        .setPlaceholder('Örn: Eren / Alex')
         .setRequired(true)
         .setMaxLength(20);
 
       const ageInput = new TextInputBuilder()
         .setCustomId('input_yas')
-        .setLabel('Yaşınız (İsteğe bağlı)')
+        .setLabel('Yaşınız / Your Age (İsteğe bağlı)')
         .setStyle(TextInputStyle.Short)
         .setPlaceholder('Örn: 19')
         .setRequired(false)

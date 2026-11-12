@@ -1,13 +1,13 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { Client, GatewayIntentBits, TextChannel, PermissionFlagsBits } from 'discord.js';
+import { Client, GatewayIntentBits, TextChannel } from 'discord.js';
 import { config } from '../config';
 
 const TARGET_GUILD_ID = '1568618183223414934';
 
 async function main() {
-  console.log('🎨 [Premium Panel Upgrade] Başlatılıyor...');
+  console.log('🎨 [Registration Upgrade] 2 Adımlı Aşamalı Kayıt Sistemi Kuruluyor...');
 
   const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages],
@@ -18,111 +18,22 @@ async function main() {
   const guild = await client.guilds.fetch({ guild: TARGET_GUILD_ID, force: true });
   console.log(`✅ Sunucuya bağlanıldı: ${guild.name}`);
 
+  // 1. Dil seçimi ve registration kanallarını tamamen sil
   const channels = await guild.channels.fetch();
-
-  // 1. Boost kanalındaki fazla/çift mesajları temizle
-  const boostCh = channels.find((c) => c && c.isTextBased() && c.name.includes('boost')) as TextChannel | undefined;
-  if (boostCh) {
-    console.log(`\n🚀 #${boostCh.name} kanalındaki fazla boost vitrinleri temizleniyor...`);
-    try {
-      const msgs = await boostCh.messages.fetch({ limit: 20 });
-      const botMsgs = Array.from(msgs.values()).filter((m) => m.author.id === client.user!.id);
-      console.log(`  Bulunan bot mesajı: ${botMsgs.length}`);
-      if (botMsgs.length > 1) {
-        // En son atılanı bırak, eskilerini sil
-        for (let i = 1; i < botMsgs.length; i++) {
-          await botMsgs[i].delete().catch(() => {});
-          console.log(`  🗑️ Eski çift boost mesajı silindi: ${botMsgs[i].id}`);
-          await new Promise((r) => setTimeout(r, 400));
-        }
-      }
-    } catch (e: any) {
-      console.warn(`  ⚠️ Boost temizleme hatası:`, e.message);
+  for (const [, ch] of channels) {
+    if (ch && (ch.name.includes('dil-secimi') || ch.name.includes('registration') || ch.name.includes('register-en'))) {
+      console.log(`🗑️ Dil kanalı siliniyor: #${ch.name}`);
+      await ch.delete('Dil seçimi kaldırıldı, eski kayıt sistemine dönüldü').catch(() => {});
     }
   }
 
-  // 2. Kayıt kanallarındaki ESKİ mesajları temizle
-  const targetChannelNames = ['dil-secimi', 'kayit-onay', 'registration', 'cinsiyet-secimi'];
-
-  for (const chName of targetChannelNames) {
-    const ch = channels.find((c) => c && c.isTextBased() && c.name.includes(chName)) as TextChannel | undefined;
-    if (!ch) continue;
-
-    console.log(`\n🗑️ #${ch.name} kanalındaki eski mesajlar temizleniyor...`);
-    try {
-      const msgs = await ch.messages.fetch({ limit: 50 });
-      for (const [, msg] of msgs) {
-        if (msg.author.id === client.user!.id) {
-          await msg.delete().catch(() => {});
-          await new Promise((r) => setTimeout(r, 300));
-        }
-      }
-      console.log(`  ✅ #${ch.name} temizlendi.`);
-    } catch (err: any) {
-      console.warn(`  ⚠️ #${ch.name} temizlenirken hata:`, err.message);
-    }
-  }
-
-  // 3. cinsiyet-secimi kanalını ayarla
-  const cinsiyetCh = channels.find((c) => c && c.isTextBased() && c.name.includes('cinsiyet-secimi')) as TextChannel | undefined;
-  if (cinsiyetCh) {
-    console.log(`\n🚻 #${cinsiyetCh.name} kanalı izinleri ayarlanıyor...`);
-    const everyoneRole = guild.roles.everyone;
-    const roles = await guild.roles.fetch();
-    const trRole = roles.find((r) => r.name.includes('Türkçe'));
-    const onayliRole = roles.find((r) => r.name === 'Onaylı' || r.name.includes('Onaylı'));
-    const uyeRole = roles.find((r) => r.name === 'Üye' || r.name.includes('Üye'));
-    const waitingRole = roles.find((r) => r.name.includes('Kayıt Bekleyen') || r.name.includes('Cinsiyet Bekleyen'));
-
-    const erkekRole = roles.find((r) => r.name === 'Erkek');
-    const kizRole = roles.find((r) => r.name === 'Kız');
-
-    await cinsiyetCh.permissionOverwrites.edit(everyoneRole.id, { ViewChannel: false, SendMessages: false }).catch(() => {});
-    if (trRole) await cinsiyetCh.permissionOverwrites.edit(trRole.id, { ViewChannel: false }).catch(() => {});
-    if (waitingRole) await cinsiyetCh.permissionOverwrites.edit(waitingRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true }).catch(() => {});
-    if (onayliRole) await cinsiyetCh.permissionOverwrites.edit(onayliRole.id, { ViewChannel: false }).catch(() => {});
-    if (uyeRole) await cinsiyetCh.permissionOverwrites.edit(uyeRole.id, { ViewChannel: false }).catch(() => {});
-    if (erkekRole) await cinsiyetCh.permissionOverwrites.edit(erkekRole.id, { ViewChannel: false }).catch(() => {});
-    if (kizRole) await cinsiyetCh.permissionOverwrites.edit(kizRole.id, { ViewChannel: false }).catch(() => {});
-    console.log(`  ✅ #${cinsiyetCh.name} kanalı izinleri kilitlendi (Kayıtlı üyelere ve @everyone'a kapatıldı)!`);
-  }
-
-  // 4. Yeni tek parça lüks panelleri yükle
-  console.log('\n🚀 Yeni tek parça lüks paneller yükleniyor...');
-
+  // 2. LanguageGateManager'ı (Registration Engine) çalıştır
   const { LanguageGateManager } = await import('../services/features/languageGateManager');
 
-  // Rolleri garantile
-  await LanguageGateManager.ensureRoles(guild);
+  console.log('\n🚀 Kanallar ve izinler ayarlanıyor...');
+  await LanguageGateManager.ensureRegistrationChannels(guild);
 
-  // Dil Seçim Paneli
-  const langCh = channels.find((c) => c && c.isTextBased() && c.name.includes('dil-secimi')) as TextChannel | undefined;
-  if (langCh) {
-    await LanguageGateManager.sendLanguagePanel(langCh);
-    console.log('  ✅ Tek parça Dil Seçim Paneli yüklendi!');
-  }
-
-  // Türkçe Kayıt Paneli
-  const kayitCh = channels.find((c) => c && c.isTextBased() && c.name.includes('kayit-onay')) as TextChannel | undefined;
-  if (kayitCh) {
-    await LanguageGateManager.sendTurkishRegistrationPanel(kayitCh);
-    console.log('  ✅ Tek parça Türkçe Kayıt Paneli yüklendi!');
-  }
-
-  // Cinsiyet Seçim Paneli
-  if (cinsiyetCh) {
-    await LanguageGateManager.sendGenderSelectionPanel(cinsiyetCh);
-    console.log('  ✅ Tek parça Cinsiyet Seçim Paneli yüklendi!');
-  }
-
-  // İngilizce Kayıt Paneli
-  const regCh = channels.find((c) => c && c.isTextBased() && c.name.includes('registration')) as TextChannel | undefined;
-  if (regCh) {
-    await LanguageGateManager.sendEnglishRegistrationPanel(regCh);
-    console.log('  ✅ Tek parça İngilizce Kayıt Paneli yüklendi!');
-  }
-
-  console.log('\n🎉 TÜM PANELLER VE BOOST DÜZENLEMELERİ BAŞARIYLA TAMAMLANDI!');
+  console.log('\n🎉 YENİ 2 ADIMLI AŞAMALI KAYIT SİSTEMİ BAŞARIYLA KURULDU!');
   client.destroy();
   process.exit(0);
 }

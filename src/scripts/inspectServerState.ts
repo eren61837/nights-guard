@@ -14,25 +14,14 @@ async function main() {
   const guild = await client.guilds.fetch({ guild: TARGET_GUILD_ID, force: true });
   console.log(`Sunucu: ${guild.name} (${guild.id})`);
 
-  const ch = guild.channels.cache.find((c) => c && c.name.includes('cinsiyet-secimi')) as TextChannel | undefined;
-  if (ch) {
-    console.log(`\n--- #${ch.name} İZİNLERİ (Kategori: ${ch.parent?.name}) ---`);
-    ch.permissionOverwrites.cache.forEach((ow) => {
-      const targetRole = guild.roles.cache.get(ow.id);
-      const name = targetRole ? targetRole.name : ow.id;
-      console.log(`- Hedef: "${name}" | Allow: [${ow.allow.toArray().join(', ')}] | Deny: [${ow.deny.toArray().join(', ')}]`);
-    });
-  }
-
-  // Ayrıca kayit-onay ve registration izinlerine de bakalım
-  for (const name of ['dil-secimi', 'kayit-onay']) {
-    const kCh = guild.channels.cache.find((c) => c && c.name.includes(name)) as TextChannel | undefined;
-    if (kCh) {
-      console.log(`\n--- #${kCh.name} İZİNLERİ ---`);
-      kCh.permissionOverwrites.cache.forEach((ow) => {
-        const targetRole = guild.roles.cache.get(ow.id);
-        const rName = targetRole ? targetRole.name : ow.id;
-        console.log(`- Hedef: "${rName}" | Allow: [${ow.allow.toArray().join(', ')}] | Deny: [${ow.deny.toArray().join(', ')}]`);
+  for (const name of ['kayit-onay', 'cinsiyet-secimi']) {
+    const ch = guild.channels.cache.find((c) => c && c.name.includes(name)) as TextChannel | undefined;
+    if (ch) {
+      console.log(`\n--- #${ch.name} ---`);
+      const msgs = await ch.messages.fetch({ limit: 5 });
+      console.log(`Mesaj sayısı: ${msgs.size}`);
+      msgs.forEach((m) => {
+        console.log(`- [${m.id}] Embeds: ${m.embeds.length} | Başlık: "${m.embeds[0]?.title || 'Yok'}" | Resim/GIF: ${Boolean(m.embeds[0]?.image)} | Butonlar: ${m.components.length > 0 ? (m.components[0] as any).components.length : 0}`);
       });
     }
   }
