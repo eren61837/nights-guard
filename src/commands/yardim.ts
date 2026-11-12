@@ -19,6 +19,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       {
         name: '👥 Genel & Kullanıcı Komutları (Herkese Açık)',
         value:
+          '• `/lobi-bul` — Valorant, CS2, LoL veya istediğin oyunda anında takım arkadaşı arama lobisi açar! 🎮\n' +
+          '• `/oyuncu` — Valorant, CS2 veya LoL oyuncu istatistiklerini ve canlı Tracker kartını görüntüler.\n' +
           '• `/itiraf <mesaj>` — Sunucuya tamamen anonim ve gizli itirafta bulunur (Kimliğiniz %100 saklıdır).\n' +
           '• `/kullanici [kullanıcı]` — Detaylı sunucu profili, roller, seviye, ses süresi ve bakiye kartı.\n' +
           '• `/istatistik` — Botun anlık ping, RAM kullanımı, uptime ve teknik sistem verileri.\n' +

@@ -21,6 +21,8 @@ import * as itirafCmd from '../commands/itiraf';
 import * as muzikCmd from '../commands/muzik';
 import * as yedekCmd from '../commands/yedek';
 import * as aiAnahtarCmd from '../commands/aiAnahtar';
+import * as lobiCmd from '../commands/lobi';
+import * as oyuncuCmd from '../commands/oyuncu';
 import { rankData, topData, seviyeAyarlaData } from '../commands/seviye';
 import { LevelManager } from '../services/features/levelManager';
 import { VoiceLobbyManager } from '../services/features/voiceLobbyManager';
@@ -29,6 +31,7 @@ import { BoostManager } from '../services/features/boostManager';
 import { AIChatManager } from '../services/features/aiChatManager';
 import { EmojiPackManager } from '../services/features/emojiPackManager';
 import { LanguageGateManager } from '../services/features/languageGateManager';
+import { GamerHubManager } from '../services/features/gamerHubManager';
 
 export async function onReady(client: Client): Promise<void> {
   console.log(`\n======================================================`);
@@ -78,6 +81,9 @@ export async function onReady(client: Client): Promise<void> {
   // 🌐 Dil Seçimi & İzole Kayıt Kapısını (Language Gate) Otomatik Kur/Doğrula
   await LanguageGateManager.init(client);
 
+  // 🎮 Gamer Hub (Lobi & Takım Arkadaşı Arama) Sistemini Otomatik Kur/Doğrula
+  GamerHubManager.init(client);
+
   // Sahipsiz & Boşta Kalan Geçici Ses Odalarını Sürekli Süpür (15 saniyede bir)
   VoiceLobbyManager.sweepEmptyChannels(client);
   setInterval(() => {
@@ -97,6 +103,8 @@ export async function onReady(client: Client): Promise<void> {
       kullaniciCmd.data,
       gonderCmd.data,
       itirafCmd.data,
+      lobiCmd.data,
+      oyuncuCmd.data,
 
       // Müzik Komutları (Tüm Üyelere Açık)
       muzikCmd.calData,

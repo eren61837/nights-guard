@@ -10,6 +10,7 @@ import {
   TextInputStyle,
   GuildMember,
   TextChannel,
+  ChannelType,
   ModalSubmitInteraction,
   MessageFlags,
 } from 'discord.js';
@@ -49,6 +50,9 @@ import * as itirafCmd from '../commands/itiraf';
 import * as muzikCmd from '../commands/muzik';
 import * as yedekCmd from '../commands/yedek';
 import * as aiAnahtarCmd from '../commands/aiAnahtar';
+import * as lobiCmd from '../commands/lobi';
+import * as oyuncuCmd from '../commands/oyuncu';
+import { GamerHubManager } from '../services/features/gamerHubManager';
 import { SocialManager } from '../services/features/socialManager';
 import { ConfessionManager } from '../services/features/confessionManager';
 import { MusicPlayer } from '../services/features/musicPlayer';
@@ -71,7 +75,7 @@ export class InteractionHandler {
 
   public async handle(interaction: Interaction): Promise<void> {
     try {
-      // Kayıt, Dil Seçimi, Etkinlik (Click Me), Müzik (buton & /cal komutları), Ses Paneli ve Destek (Ticket) tüm üyelere açıktır:
+      // Kayıt, Dil Seçimi, Etkinlik (Click Me), Müzik (buton & /cal komutları), Ses Paneli, Gamer Hub ve Destek (Ticket) tüm üyelere açıktır:
       const isPublicInteraction =
         (interaction.isButton() && (
           interaction.customId === 'btn_kayit_basla' ||
@@ -83,13 +87,21 @@ export class InteractionHandler {
           interaction.customId.startsWith('marry_') ||
           interaction.customId.startsWith('confess_') ||
           interaction.customId.startsWith('btn_music_') ||
+          interaction.customId === 'btn_open_lobby_modal' ||
+          interaction.customId === 'btn_how_it_works' ||
+          interaction.customId.startsWith('lobby_') ||
           interaction.customId === 'ticket_open' ||
           interaction.customId === 'ticket_close'
         )) ||
-        (interaction.isModalSubmit() && (interaction.customId.startsWith('modal_kayit_') || interaction.customId === 'modal_voice_rename')) ||
+        (interaction.isModalSubmit() && (
+          interaction.customId.startsWith('modal_kayit_') ||
+          interaction.customId === 'modal_voice_rename' ||
+          interaction.customId === 'modal_create_lobby'
+        )) ||
         (interaction.isChatInputCommand() && [
           'rank', 'seviye', 'top', 'liderlik', 'yardim', 'avatar', 'sunucu', 'afk', 'sil',
-          'istatistik', 'kullanici', 'gonder', 'itiraf', 'cal', 'durdur', 'devam', 'gec', 'kuyruk', 'ayril', 'ses'
+          'istatistik', 'kullanici', 'gonder', 'itiraf', 'cal', 'durdur', 'devam', 'gec', 'kuyruk', 'ayril', 'ses',
+          'lobi-bul', 'oyuncu'
         ].includes(interaction.commandName));
 
       if (!isPublicInteraction) {
@@ -243,6 +255,12 @@ export class InteractionHandler {
       case 'ai-key':
         await aiAnahtarCmd.execute(interaction);
         break;
+      case 'lobi-bul':
+        await lobiCmd.execute(interaction);
+        break;
+      case 'oyuncu':
+        await oyuncuCmd.execute(interaction);
+        break;
       default:
         await interaction.reply({ content: 'Bilinmeyen komut.', flags: MessageFlags.Ephemeral });
         break;
@@ -278,6 +296,60 @@ export class InteractionHandler {
     if (customId.startsWith('btn_music_')) {
       await MusicPlayer.handleMusicButton(interaction, interaction.client);
       return;
+    }
+
+    // 1.8. Gamer Hub Buttons
+    if (customId === 'btn_open_lobby_modal') {
+      const modal = new ModalBuilder()
+        .setCustomId('modal_create_lobby')
+        .setTitle('🎮 Hızlı Oyun Lobisi Oluştur');
+
+      const gameInput = new TextInputBuilder()
+        .setCustomId('input_lobby_game')
+        .setLabel('Oyun Adı (Valorant, CS2, LoL, GTA...)')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('Örn: Valorant')
+        .setRequired(true)
+        .setMaxLength(30);
+
+      const slotsInput = new TextInputBuilder()
+        .setCustomId('input_lobby_slots')
+        .setLabel('Kaç Kişi Arıyorsunuz? (1 - 9)')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('Örn: 2')
+        .setRequired(true)
+        .setMaxLength(2);
+
+      const rankInput = new TextInputBuilder()
+        .setCustomId('input_lobby_rank')
+        .setLabel('Aranan Rank / Seviye (İsteğe bağlı)')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('Örn: Platin+, Gold, Fark etmez')
+        .setRequired(false)
+        .setMaxLength(30);
+
+      const noteInput = new TextInputBuilder()
+        .setCustomId('input_lobby_note')
+        .setLabel('Lobi Notu (İsteğe bağlı)')
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder('Örn: Ses şart, tryhard veya chill...')
+        .setRequired(false)
+        .setMaxLength(100);
+
+      modal.addComponents(
+        new ActionRowBuilder<TextInputBuilder>().addComponents(gameInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(slotsInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(rankInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(noteInput)
+      );
+
+      await interaction.showModal(modal);
+      return;
+    }
+
+    if (customId === 'btn_how_it_works' || customId.startsWith('lobby_')) {
+      const handled = await GamerHubManager.handleButton(interaction);
+      if (handled) return;
     }
 
     // 2. Build Confirm
@@ -782,6 +854,69 @@ export class InteractionHandler {
   private async handleModalSubmit(interaction: ModalSubmitInteraction): Promise<void> {
     if (interaction.customId === 'modal_voice_rename') {
       await VoicePanelManager.handleVoiceModal(interaction);
+      return;
+    }
+
+    if (interaction.customId === 'modal_create_lobby') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const member = interaction.member as GuildMember;
+      const guild = interaction.guild;
+      if (!member || !guild) return;
+
+      const rawGame = interaction.fields.getTextInputValue('input_lobby_game').trim();
+      const rawSlots = interaction.fields.getTextInputValue('input_lobby_slots').trim();
+      const rawRank = interaction.fields.getTextInputValue('input_lobby_rank')?.trim();
+      const rawNote = interaction.fields.getTextInputValue('input_lobby_note')?.trim();
+
+      const parsedSlots = parseInt(rawSlots, 10);
+      const neededSlots = isNaN(parsedSlots) || parsedSlots < 1 ? 1 : Math.min(9, parsedSlots);
+      const targetSlots = neededSlots + 1; // Host + needed
+
+      let gameKey = 'diger';
+      const lower = rawGame.toLowerCase();
+      if (lower.includes('valo')) gameKey = 'valorant';
+      else if (lower.includes('cs') || lower.includes('counter')) gameKey = 'cs2';
+      else if (lower.includes('lol') || lower.includes('league')) gameKey = 'lol';
+      else if (lower.includes('gta') || lower.includes('fivem')) gameKey = 'gta';
+      else if (lower.includes('mine')) gameKey = 'minecraft';
+      else if (lower.includes('roblox')) gameKey = 'roblox';
+      else if (lower.includes('tft')) gameKey = 'tft';
+
+      let targetChannel = guild.channels.cache.find(
+        (c) =>
+          c.type === ChannelType.GuildText &&
+          (c.name.includes('oyun-arkadasi-bul') || c.name.includes('lobi'))
+      ) as TextChannel | undefined;
+
+      if (!targetChannel) {
+        if (interaction.channel && interaction.channel.type === ChannelType.GuildText) {
+          targetChannel = interaction.channel as TextChannel;
+        } else {
+          await interaction.editReply({ content: '⚠️ Lobi kanalı bulunamadı!' });
+          return;
+        }
+      }
+
+      try {
+        await GamerHubManager.createLobby({
+          guild,
+          channel: targetChannel,
+          host: member,
+          gameKey,
+          customGameName: rawGame,
+          targetSlots,
+          rankReq: rawRank || undefined,
+          note: rawNote || undefined,
+        });
+
+        await interaction.editReply({
+          content: `🎉 **Lobiniz başarıyla oluşturuldu!** <#${targetChannel.id}> kanalında paylaşıldı.`,
+        });
+      } catch (err: any) {
+        await interaction.editReply({
+          content: `❌ Lobi oluşturulamadı: ${err.message}`,
+        });
+      }
       return;
     }
 
