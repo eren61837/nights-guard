@@ -74,12 +74,17 @@ async function main() {
     const uyeRole = roles.find((r) => r.name === 'Üye' || r.name.includes('Üye'));
     const waitingRole = roles.find((r) => r.name.includes('Kayıt Bekleyen') || r.name.includes('Cinsiyet Bekleyen'));
 
+    const erkekRole = roles.find((r) => r.name === 'Erkek');
+    const kizRole = roles.find((r) => r.name === 'Kız');
+
     await cinsiyetCh.permissionOverwrites.edit(everyoneRole.id, { ViewChannel: false, SendMessages: false }).catch(() => {});
-    if (trRole) await cinsiyetCh.permissionOverwrites.edit(trRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true }).catch(() => {});
+    if (trRole) await cinsiyetCh.permissionOverwrites.edit(trRole.id, { ViewChannel: false }).catch(() => {});
     if (waitingRole) await cinsiyetCh.permissionOverwrites.edit(waitingRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true }).catch(() => {});
-    if (onayliRole) await cinsiyetCh.permissionOverwrites.edit(onayliRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true }).catch(() => {});
-    if (uyeRole) await cinsiyetCh.permissionOverwrites.edit(uyeRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true }).catch(() => {});
-    console.log(`  ✅ #${cinsiyetCh.name} kanalı izinleri güncellendi!`);
+    if (onayliRole) await cinsiyetCh.permissionOverwrites.edit(onayliRole.id, { ViewChannel: false }).catch(() => {});
+    if (uyeRole) await cinsiyetCh.permissionOverwrites.edit(uyeRole.id, { ViewChannel: false }).catch(() => {});
+    if (erkekRole) await cinsiyetCh.permissionOverwrites.edit(erkekRole.id, { ViewChannel: false }).catch(() => {});
+    if (kizRole) await cinsiyetCh.permissionOverwrites.edit(kizRole.id, { ViewChannel: false }).catch(() => {});
+    console.log(`  ✅ #${cinsiyetCh.name} kanalı izinleri kilitlendi (Kayıtlı üyelere ve @everyone'a kapatıldı)!`);
   }
 
   // 4. Yeni tek parça lüks panelleri yükle

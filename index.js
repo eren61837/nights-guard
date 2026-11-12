@@ -2500,10 +2500,10 @@ var LanguageGateManager = class {
     }
     const onayliRole = roles.find((r) => r.name === "Onayl\u0131" || r.name.includes("Onayl\u0131"));
     const uyeRole = roles.find((r) => r.name === "\xDCye" || r.name.includes("\xDCye"));
-    const erkekRole = roles.find((r) => r.name === "Erkek");
-    const kizRole = roles.find((r) => r.name === "K\u0131z");
+    const erkekRole2 = roles.find((r) => r.name === "Erkek");
+    const kizRole2 = roles.find((r) => r.name === "K\u0131z");
     const waitingRole = roles.find((r) => r.name.includes("Kay\u0131t Bekleyen") || r.name.includes("Cinsiyet Bekleyen"));
-    return { trRole, enRole, onayliRole, uyeRole, erkekRole, kizRole, waitingRole };
+    return { trRole, enRole, onayliRole, uyeRole, erkekRole: erkekRole2, kizRole: kizRole2, waitingRole };
   }
   static async ensureLanguageGate(guild) {
     const { trRole, enRole, onayliRole, uyeRole, waitingRole } = await this.ensureRoles(guild);
@@ -2592,16 +2592,22 @@ var LanguageGateManager = class {
       });
       await cinsiyetChannel.permissionOverwrites.edit(everyoneRole.id, { ViewChannel: false, SendMessages: false });
       if (trRole) {
-        await cinsiyetChannel.permissionOverwrites.edit(trRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
+        await cinsiyetChannel.permissionOverwrites.edit(trRole.id, { ViewChannel: false });
       }
       if (waitingRole) {
         await cinsiyetChannel.permissionOverwrites.edit(waitingRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
       }
       if (onayliRole) {
-        await cinsiyetChannel.permissionOverwrites.edit(onayliRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
+        await cinsiyetChannel.permissionOverwrites.edit(onayliRole.id, { ViewChannel: false });
       }
       if (uyeRole) {
-        await cinsiyetChannel.permissionOverwrites.edit(uyeRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
+        await cinsiyetChannel.permissionOverwrites.edit(uyeRole.id, { ViewChannel: false });
+      }
+      if (erkekRole) {
+        await cinsiyetChannel.permissionOverwrites.edit(erkekRole.id, { ViewChannel: false });
+      }
+      if (kizRole) {
+        await cinsiyetChannel.permissionOverwrites.edit(kizRole.id, { ViewChannel: false });
       }
     }
     await this.applyServerWideIsolationLock(guild, langChannel.id, category.id);

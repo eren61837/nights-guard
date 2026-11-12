@@ -14,26 +14,25 @@ async function main() {
   const guild = await client.guilds.fetch({ guild: TARGET_GUILD_ID, force: true });
   console.log(`Sunucu: ${guild.name} (${guild.id})`);
 
-  // Boost kanalını tara
-  const boostCh = guild.channels.cache.find((c) => c && c.name.includes('boost')) as TextChannel | undefined;
-  if (boostCh) {
-    console.log(`\n--- BOOST KANALI: #${boostCh.name} ---`);
-    const msgs = await boostCh.messages.fetch({ limit: 10 });
-    console.log(`Toplam mesaj sayısı: ${msgs.size}`);
-    msgs.forEach((m) => {
-      console.log(`- [${m.id}] ${m.author.tag} | Embeds: ${m.embeds.length} | Başlık: "${m.embeds[0]?.title || 'Yok'}"`);
+  const ch = guild.channels.cache.find((c) => c && c.name.includes('cinsiyet-secimi')) as TextChannel | undefined;
+  if (ch) {
+    console.log(`\n--- #${ch.name} İZİNLERİ (Kategori: ${ch.parent?.name}) ---`);
+    ch.permissionOverwrites.cache.forEach((ow) => {
+      const targetRole = guild.roles.cache.get(ow.id);
+      const name = targetRole ? targetRole.name : ow.id;
+      console.log(`- Hedef: "${name}" | Allow: [${ow.allow.toArray().join(', ')}] | Deny: [${ow.deny.toArray().join(', ')}]`);
     });
   }
 
-  // Kayıt kanallarını tara
-  for (const name of ['dil-secimi', 'kayit-onay', 'registration', 'cinsiyet-secimi']) {
-    const ch = guild.channels.cache.find((c) => c && c.name.includes(name)) as TextChannel | undefined;
-    if (ch) {
-      console.log(`\n--- #${ch.name} ---`);
-      const msgs = await ch.messages.fetch({ limit: 5 });
-      console.log(`Mesaj sayısı: ${msgs.size}`);
-      msgs.forEach((m) => {
-        console.log(`- [${m.id}] Embeds: ${m.embeds.length} | Başlık: "${m.embeds[0]?.title || 'Yok'}" | Resim/GIF var mı: ${Boolean(m.embeds[0]?.image)} | Buton sayısı: ${m.components.length > 0 ? (m.components[0] as any).components.length : 0}`);
+  // Ayrıca kayit-onay ve registration izinlerine de bakalım
+  for (const name of ['dil-secimi', 'kayit-onay']) {
+    const kCh = guild.channels.cache.find((c) => c && c.name.includes(name)) as TextChannel | undefined;
+    if (kCh) {
+      console.log(`\n--- #${kCh.name} İZİNLERİ ---`);
+      kCh.permissionOverwrites.cache.forEach((ow) => {
+        const targetRole = guild.roles.cache.get(ow.id);
+        const rName = targetRole ? targetRole.name : ow.id;
+        console.log(`- Hedef: "${rName}" | Allow: [${ow.allow.toArray().join(', ')}] | Deny: [${ow.deny.toArray().join(', ')}]`);
       });
     }
   }

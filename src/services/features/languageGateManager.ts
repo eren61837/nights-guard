@@ -168,7 +168,7 @@ export class LanguageGateManager {
     if (onayliRole) await regChannel.permissionOverwrites.edit(onayliRole.id, { ViewChannel: false });
     if (uyeRole) await regChannel.permissionOverwrites.edit(uyeRole.id, { ViewChannel: false });
 
-    // ═══ 4. 🚻・cinsiyet-secimi ═══
+    // ═══ 4. 🚻・cinsiyet-secimi (Kayıtlı üyelere ve @everyone'a KESİNLİKLE KAPALI, sadece Kayıt Bekleyen görür) ═══
     const cinsiyetChannel = guild.channels.cache.find(
       (c) => c.type === ChannelType.GuildText && c.name.includes('cinsiyet-secimi')
     ) as TextChannel | undefined;
@@ -178,16 +178,22 @@ export class LanguageGateManager {
       await cinsiyetChannel.setPosition(2).catch(() => {});
       await cinsiyetChannel.permissionOverwrites.edit(everyoneRole.id, { ViewChannel: false, SendMessages: false });
       if (trRole) {
-        await cinsiyetChannel.permissionOverwrites.edit(trRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
+        await cinsiyetChannel.permissionOverwrites.edit(trRole.id, { ViewChannel: false });
       }
       if (waitingRole) {
         await cinsiyetChannel.permissionOverwrites.edit(waitingRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
       }
       if (onayliRole) {
-        await cinsiyetChannel.permissionOverwrites.edit(onayliRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
+        await cinsiyetChannel.permissionOverwrites.edit(onayliRole.id, { ViewChannel: false });
       }
       if (uyeRole) {
-        await cinsiyetChannel.permissionOverwrites.edit(uyeRole.id, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
+        await cinsiyetChannel.permissionOverwrites.edit(uyeRole.id, { ViewChannel: false });
+      }
+      if (erkekRole) {
+        await cinsiyetChannel.permissionOverwrites.edit(erkekRole.id, { ViewChannel: false });
+      }
+      if (kizRole) {
+        await cinsiyetChannel.permissionOverwrites.edit(kizRole.id, { ViewChannel: false });
       }
     }
 
