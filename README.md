@@ -1,4 +1,14 @@
-# 🏛️ Discord AI Architect (PeakBot & Onyx AI Engine)
+---
+title: Nights Guard
+emoji: 🛡️
+colorFrom: purple
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
+# 🏛️ Discord AI Architect (Nights Guard)
 
 Yapay zeka gücüyle saniyeler içinde baştan aşağı profesyonel, modern, güvenli ve eksiksiz Discord sunucuları kuran yeni nesil otonom Discord botu. **PeakBot**, **ServerForge** ve **Onyx AI** mimarisi referans alınarak TypeScript ve `discord.js` v14 ile geliştirilmiştir.
 
