@@ -24,6 +24,7 @@ import { VoicePanelManager } from '../services/features/voicePanelManager';
 import { pendingLogoCache } from '../commands/aiLogo';
 
 import { config } from '../config';
+import { LanguageGateManager } from '../services/features/languageGateManager';
 import * as aiKurCmd from '../commands/aiKur';
 import * as aiLogoCmd from '../commands/aiLogo';
 import * as aiOnizleCmd from '../commands/aiOnizle';
@@ -551,17 +552,15 @@ export class InteractionHandler {
           (c: any) => c.isTextBased() && c.name.includes('kayit-onay')
         );
         const mentionText = kayitCh ? `<#${kayitCh.id}>` : '**#kayit-onay**';
-        await interaction.editReply({
-          content: `🇹🇷 **Diliniz Türkçe olarak belirlendi!**\nLütfen kaydınızı tamamlamak ve sunucu odalarını açmak için ${mentionText} kanalına geçiniz. 🛡️✨`,
-        });
+        const langEmbed = LanguageGateManager.buildLanguageSelectedEmbed(true, mentionText);
+        await interaction.editReply({ embeds: [langEmbed] });
       } else {
         const regCh = guild.channels.cache.find(
           (c: any) => c.isTextBased() && c.name.includes('registration')
         );
         const mentionText = regCh ? `<#${regCh.id}>` : '**#registration**';
-        await interaction.editReply({
-          content: `🇬🇧 **Your language has been set to English!**\nPlease proceed to ${mentionText} to complete your verification and access server channels. 🛡️✨`,
-        });
+        const langEmbed = LanguageGateManager.buildLanguageSelectedEmbed(false, mentionText);
+        await interaction.editReply({ embeds: [langEmbed] });
       }
       return;
     }
@@ -598,22 +597,11 @@ export class InteractionHandler {
       return;
     }
 
-    // 8. Registration Step 1: Kayıt Ol & Onay Al
+    // 8. Registration Step 1 (Legacy / Fallback): Kayıt Ol Butonu
     if (customId === 'btn_kayit_basla') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-      const member = interaction.member as GuildMember;
-      if (!member || !interaction.guild) return;
-
-      const roles = await interaction.guild.roles.fetch();
-      const waitingRole = roles.find(
-        (r: any) => r.name.includes('Cinsiyet Bekleyen') || r.name.includes('Kayıt Bekleyen')
-      );
-      if (waitingRole) {
-        await member.roles.add(waitingRole).catch(() => {});
-      }
-
       await interaction.editReply({
-        content: '✅ **İlk doğrulama adımınız tamamlandı!**\nŞimdi size özel olarak açılan **#cinsiyet-secimi** kanalına geçerek cinsiyetinizi seçiniz.',
+        content: '⚡ **Hızlı Kayıt:** Lütfen **#🛡️・kayit-onay** kanalındaki **Erkek Kayıt** veya **Kız Kayıt** butonuna tıklayarak saniyeler içinde kaydınızı tamamlayınız!',
       });
       return;
     }
@@ -798,15 +786,12 @@ export class InteractionHandler {
       // 3. İsmi ☊ sembolüyle güncelle
       await freshMember.setNickname(formattedNick).catch((err) => console.warn('[Kayıt] Nick değiştirilemedi:', err.message));
 
-      if (isEnglish) {
-        await interaction.editReply({
-          content: `🎉 **Congratulations ${isim}! Your registration is complete.**\nAll server rooms, chat, and voice channels are now unlocked for you. Welcome to Nights! 🌙✨`,
-        });
-      } else {
-        await interaction.editReply({
-          content: `🎉 **Tebrikler ${isim}! Kaydınız başarıyla tamamlandı.**\nArtık kayıt odaları sizden gizlendi ve tüm sohbet, medya ve oyun odalarına erişebilirsiniz! Aramıza hoş geldin! 🌙✨`,
-        });
-      }
+      // Premium kayıt başarı embed'i
+      const successEmbeds = LanguageGateManager.buildRegistrationSuccessEmbed(
+        member, isim, yas, isMale, isEnglish,
+        { name: guild.name, memberCount: guild.memberCount, iconURL: (opts?: any) => guild.iconURL(opts) }
+      );
+      await interaction.editReply({ embeds: successEmbeds });
 
       // Send log to #kayit-log asynchronously without blocking
       const logChannel = guild.channels.cache.find(
@@ -814,18 +799,10 @@ export class InteractionHandler {
       ) as TextChannel | undefined;
 
       if (logChannel) {
-        const logEmbed = new EmbedBuilder()
-          .setTitle(isEnglish ? '📥 New Member Registration Complete' : '📥 Yeni Üye Kaydı Tamamlandı')
-          .setColor(isMale ? '#3498DB' : '#E91E63')
-          .addFields(
-            { name: isEnglish ? '👤 Member' : '👤 Üye', value: `<@${member.id}> (\`${member.user.tag}\`)`, inline: true },
-            { name: isEnglish ? '🚻 Gender' : '🚻 Cinsiyet', value: isMale ? (isEnglish ? '👦 Male' : '👦 Erkek') : (isEnglish ? '👧 Female' : '👧 Kız'), inline: true },
-            { name: isEnglish ? '📝 New Nickname' : '📝 Yeni İsim', value: `\`${formattedNick}\``, inline: true }
-          )
-          .setThumbnail(member.user.displayAvatarURL())
-          .setFooter({ text: 'Nights Guard • Kayıt Sistemi' })
-          .setTimestamp();
-
+        const logEmbed = LanguageGateManager.buildRegistrationLogEmbed(
+          member, isim, yas, isMale, isEnglish,
+          { name: guild.name, memberCount: guild.memberCount }
+        );
         logChannel.send({ embeds: [logEmbed] }).catch(() => {});
       }
     }

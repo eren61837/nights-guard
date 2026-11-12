@@ -102,11 +102,29 @@ export class BoostManager {
 
   private static async sendBoostShowcase(channel: TextChannel, guild: Guild, client: Client): Promise<void> {
     try {
-      const msgs = await channel.messages.fetch({ limit: 15 }).catch(() => null);
-      const alreadyHasShowcase =
-        msgs && msgs.some((m) => m.author.id === client.user?.id && m.embeds.length > 0 && m.embeds[0].title?.includes('BOOSTER AYRICALIKLARI'));
+      const msgs = await channel.messages.fetch({ limit: 20 }).catch(() => null);
+      
+      // Botun attığı mevcut boost vitrini mesajlarını bul
+      const botShowcaseMsgs = msgs
+        ? Array.from(msgs.values()).filter(
+            (m) =>
+              m.author.id === client.user?.id &&
+              m.embeds.length > 0 &&
+              (m.embeds[0].title?.includes('BOOST') || m.embeds[0].title?.includes('BOOSTER'))
+          )
+        : [];
 
-      if (alreadyHasShowcase) return;
+      // Zaten 1 tane varsa tekrar gönderme!
+      if (botShowcaseMsgs.length > 0) {
+        // Eğer birden fazla kopya varsa (restartlardan kalma), fazlalıkları sil ve sadece 1 tane bırak!
+        if (botShowcaseMsgs.length > 1) {
+          console.log(`[BoostManager] #${channel.name} kanalında ${botShowcaseMsgs.length} adet kopya vitrin bulundu. Fazlalıklar siliniyor...`);
+          for (let i = 1; i < botShowcaseMsgs.length; i++) {
+            await botShowcaseMsgs[i].delete().catch(() => {});
+          }
+        }
+        return;
+      }
 
       const bannerPath = path.resolve(process.cwd(), 'assets/nights_boost_banner.png');
       const hasBanner = fs.existsSync(bannerPath);
