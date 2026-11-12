@@ -479,13 +479,14 @@ export class AutoSecurityGuard {
 
       const kurallar = channels.find((c: any) => c && c.name.includes('kural'));
       const genelSohbet = channels.find((c: any) => c && c.name.includes('genel-sohbet') || c?.name.includes('sohbet'));
+      const langCh = channels.find((c: any) => c && c.name.includes('dil-secimi'));
       const kayitOnay = channels.find((c: any) => c && c.name.includes('kayit'));
       const boostKanal = channels.find((c: any) => c && c.name.includes('server-boost') || c?.name.includes('boost'));
       const sesBilgi = channels.find((c: any) => c && c.name.includes('ses-bilgi'));
 
       const kurallarLink = kurallar ? `<#${kurallar.id}>` : '#kurallar';
       const sohbetLink = genelSohbet ? `<#${genelSohbet.id}>` : '#genel-sohbet';
-      const kayitLink = kayitOnay ? `<#${kayitOnay.id}>` : '#kayıt-onay';
+      const langLink = langCh ? `<#${langCh.id}>` : (kayitOnay ? `<#${kayitOnay.id}>` : '#dil-secimi');
       const boostLink = boostKanal ? `<#${boostKanal.id}>` : '#server-boost';
       const sesLink = sesBilgi ? `<#${sesBilgi.id}>` : '`➕︱Oda Oluştur`';
 
@@ -495,9 +496,9 @@ export class AutoSecurityGuard {
           `Selam <@${member.id}> (**${member.user.username}**)! Aramıza katıldığın için çok mutluyuz. 🎉\n\n` +
           `Nights; kaliteli sohbetlerin, gece muhabbetlerinin, anime izleme gecelerinin ve rekabetçi oyun lobilerinin buluşma noktasıdır.\n\n` +
           `### 🗺️ Sunucuda İlk Adımların:\n` +
+          `• 🌐 **Dil Seçimi & Kayıt:** ${langLink} kanalından dilini seçip kaydını tamamlayarak tüm sunucu odalarının kilidini açabilirsin.\n` +
           `• 📜 **Kurallar:** Sunucu huzurumuz için lütfen ${kurallarLink} kanalına göz at.\n` +
-          `• 🛡️ **Kayıt:** ${kayitLink} kanalından kaydını tamamlayıp sunucudaki tüm odaların kilidini açabilirsin.\n` +
-          `• 💬 **Sohbet:** Hemen ${sohbetLink} kanalında bir "selam" ver, sıcak topluluğumuzla tanış!\n` +
+          `• 💬 **Sohbet:** Kaydını bitirdikten sonra hemen ${sohbetLink} kanalında bir "selam" ver!\n` +
           `• 🎙️ **Özel Ses Odaları:** ${sesLink} ile kendine özel 384 Kbps stüdyo ses odanı açabilir veya sinema/oyun lobilerine katılabilirsin.\n` +
           `• 💎 **Server Boost:** ${boostLink} kanalını inceleyerek sunucumuza takviye basabilir, özel renkli rol, 10.000 Coin ve 3x çekiliş hakkı kazanabilirsin!\n` +
           `• 🎮 **Eğlence & Oyunlar:** \`#kelime-oyunu\` ve \`#sayi-saymaca\` kanallarında rekorlar kır, Nights Coin kazan!\n\n` +

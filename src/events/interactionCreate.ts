@@ -69,10 +69,12 @@ export class InteractionHandler {
 
   public async handle(interaction: Interaction): Promise<void> {
     try {
-      // Kayıt, Etkinlik (Click Me), Müzik (buton & /cal komutları), Ses Paneli ve Destek (Ticket) tüm üyelere açıktır:
+      // Kayıt, Dil Seçimi, Etkinlik (Click Me), Müzik (buton & /cal komutları), Ses Paneli ve Destek (Ticket) tüm üyelere açıktır:
       const isPublicInteraction =
         (interaction.isButton() && (
           interaction.customId === 'btn_kayit_basla' ||
+          interaction.customId.startsWith('btn_lang_') ||
+          interaction.customId.startsWith('btn_reg_') ||
           interaction.customId.startsWith('btn_cinsiyet_') ||
           interaction.customId === 'btn_event_click' ||
           interaction.customId.startsWith('btn_voice_') ||
@@ -517,6 +519,85 @@ export class InteractionHandler {
       return;
     }
 
+    // 7.8. Language Gate (Dil Seçimi: 🇹🇷 Türkçe / 🇬🇧 English)
+    if (customId === 'btn_lang_tr' || customId === 'btn_lang_en') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const member = interaction.member as GuildMember;
+      const guild = interaction.guild;
+      if (!member || !guild) return;
+
+      const roles = await guild.roles.fetch();
+      let trRole = roles.find((r: any) => r.name === '🇹🇷・Türkçe' || r.name === 'Türkçe');
+      let enRole = roles.find((r: any) => r.name === '🇬🇧・English' || r.name === 'English');
+
+      if (!trRole) {
+        trRole = await guild.roles.create({ name: '🇹🇷・Türkçe', color: '#3B82F6', reason: 'Dil Seçim Rolü' });
+      }
+      if (!enRole) {
+        enRole = await guild.roles.create({ name: '🇬🇧・English', color: '#A855F7', reason: 'Language Role' });
+      }
+
+      const isTr = customId === 'btn_lang_tr';
+      const targetRole = isTr ? trRole : enRole;
+      const removeRole = isTr ? enRole : trRole;
+
+      if (member.roles.cache.has(removeRole.id)) {
+        await member.roles.remove(removeRole).catch(() => {});
+      }
+      await member.roles.add(targetRole).catch(() => {});
+
+      if (isTr) {
+        const kayitCh = guild.channels.cache.find(
+          (c: any) => c.isTextBased() && c.name.includes('kayit-onay')
+        );
+        const mentionText = kayitCh ? `<#${kayitCh.id}>` : '**#kayit-onay**';
+        await interaction.editReply({
+          content: `🇹🇷 **Diliniz Türkçe olarak belirlendi!**\nLütfen kaydınızı tamamlamak ve sunucu odalarını açmak için ${mentionText} kanalına geçiniz. 🛡️✨`,
+        });
+      } else {
+        const regCh = guild.channels.cache.find(
+          (c: any) => c.isTextBased() && c.name.includes('registration')
+        );
+        const mentionText = regCh ? `<#${regCh.id}>` : '**#registration**';
+        await interaction.editReply({
+          content: `🇬🇧 **Your language has been set to English!**\nPlease proceed to ${mentionText} to complete your verification and access server channels. 🛡️✨`,
+        });
+      }
+      return;
+    }
+
+    // 7.9. Global English Registration (btn_reg_male / btn_reg_female) -> Modal
+    if (customId === 'btn_reg_male' || customId === 'btn_reg_female') {
+      const isMale = customId === 'btn_reg_male';
+      const modal = new ModalBuilder()
+        .setCustomId(isMale ? 'modal_kayit_male' : 'modal_kayit_female')
+        .setTitle(`📝 Nights Registration (${isMale ? 'Male' : 'Female'})`);
+
+      const nameInput = new TextInputBuilder()
+        .setCustomId('input_isim')
+        .setLabel('Your Name / Nickname')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('E.g. Alex')
+        .setRequired(true)
+        .setMaxLength(20);
+
+      const ageInput = new TextInputBuilder()
+        .setCustomId('input_yas')
+        .setLabel('Your Age (Optional)')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('E.g. 19')
+        .setRequired(false)
+        .setMaxLength(3);
+
+      modal.addComponents(
+        new ActionRowBuilder<TextInputBuilder>().addComponents(nameInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(ageInput)
+      );
+
+      await interaction.showModal(modal);
+      return;
+    }
+
     // 8. Registration Step 1: Kayıt Ol & Onay Al
     if (customId === 'btn_kayit_basla') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -670,7 +751,8 @@ export class InteractionHandler {
       // 1. ANINDA DEFER ET - 3 Saniyelik 'Zaman Aşımı' / 'Uygulama Yanıt Vermedi' Hatasını Tamamen Engelle!
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      const isMale = interaction.customId === 'modal_kayit_erkek';
+      const isMale = interaction.customId === 'modal_kayit_erkek' || interaction.customId === 'modal_kayit_male';
+      const isEnglish = interaction.customId.includes('male') || interaction.customId.includes('female');
       const isim = interaction.fields.getTextInputValue('input_isim').trim();
       const yas = interaction.fields.getTextInputValue('input_yas').trim();
       const member = interaction.member as GuildMember;
@@ -716,9 +798,15 @@ export class InteractionHandler {
       // 3. İsmi ☊ sembolüyle güncelle
       await freshMember.setNickname(formattedNick).catch((err) => console.warn('[Kayıt] Nick değiştirilemedi:', err.message));
 
-      await interaction.editReply({
-        content: `🎉 **Tebrikler ${isim}! Kaydınız başarıyla tamamlandı.**\nArtık kayıt odaları sizden gizlendi ve tüm sohbet, medya ve oyun odalarına erişebilirsiniz! Aramıza hoş geldin!`,
-      });
+      if (isEnglish) {
+        await interaction.editReply({
+          content: `🎉 **Congratulations ${isim}! Your registration is complete.**\nAll server rooms, chat, and voice channels are now unlocked for you. Welcome to Nights! 🌙✨`,
+        });
+      } else {
+        await interaction.editReply({
+          content: `🎉 **Tebrikler ${isim}! Kaydınız başarıyla tamamlandı.**\nArtık kayıt odaları sizden gizlendi ve tüm sohbet, medya ve oyun odalarına erişebilirsiniz! Aramıza hoş geldin! 🌙✨`,
+        });
+      }
 
       // Send log to #kayit-log asynchronously without blocking
       const logChannel = guild.channels.cache.find(
@@ -727,12 +815,12 @@ export class InteractionHandler {
 
       if (logChannel) {
         const logEmbed = new EmbedBuilder()
-          .setTitle('📥 Yeni Üye Kaydı Tamamlandı')
+          .setTitle(isEnglish ? '📥 New Member Registration Complete' : '📥 Yeni Üye Kaydı Tamamlandı')
           .setColor(isMale ? '#3498DB' : '#E91E63')
           .addFields(
-            { name: '👤 Üye', value: `<@${member.id}> (\`${member.user.tag}\`)`, inline: true },
-            { name: '🚻 Cinsiyet', value: isMale ? '👦 Erkek' : '👧 Kız', inline: true },
-            { name: '📝 Yeni İsim', value: `\`${formattedNick}\``, inline: true }
+            { name: isEnglish ? '👤 Member' : '👤 Üye', value: `<@${member.id}> (\`${member.user.tag}\`)`, inline: true },
+            { name: isEnglish ? '🚻 Gender' : '🚻 Cinsiyet', value: isMale ? (isEnglish ? '👦 Male' : '👦 Erkek') : (isEnglish ? '👧 Female' : '👧 Kız'), inline: true },
+            { name: isEnglish ? '📝 New Nickname' : '📝 Yeni İsim', value: `\`${formattedNick}\``, inline: true }
           )
           .setThumbnail(member.user.displayAvatarURL())
           .setFooter({ text: 'Nights Guard • Kayıt Sistemi' })

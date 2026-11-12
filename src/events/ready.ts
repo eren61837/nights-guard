@@ -28,6 +28,7 @@ import { VoiceSetupManager } from '../services/features/voiceSetupManager';
 import { BoostManager } from '../services/features/boostManager';
 import { AIChatManager } from '../services/features/aiChatManager';
 import { EmojiPackManager } from '../services/features/emojiPackManager';
+import { LanguageGateManager } from '../services/features/languageGateManager';
 
 export async function onReady(client: Client): Promise<void> {
   console.log(`\n======================================================`);
@@ -73,6 +74,9 @@ export async function onReady(client: Client): Promise<void> {
 
   // 🎨 Estetik 3D VIP Emoji Paketini Sunucuya Otomatik Kur
   await EmojiPackManager.ensureCuratedEmojis(client);
+
+  // 🌐 Dil Seçimi & İzole Kayıt Kapısını (Language Gate) Otomatik Kur/Doğrula
+  await LanguageGateManager.init(client);
 
   // Sahipsiz & Boşta Kalan Geçici Ses Odalarını Sürekli Süpür (15 saniyede bir)
   VoiceLobbyManager.sweepEmptyChannels(client);

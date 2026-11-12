@@ -689,13 +689,15 @@ async function bootstrap() {
             inviterStr = `Özel Sunucu Linki (\`${inviteInfo.code}\`) 🔗`;
           }
 
+          const langCh = channels.find((c: any) => c && c.name.includes('dil-secimi'));
+          const dilMention = langCh ? `<#${langCh.id}>` : '<#1568644551797899368>';
           const avatarUrl = member.user.displayAvatarURL({ size: 256 });
           const welcomeEmbed = new EmbedBuilder()
             .setTitle(`👋 ARAMIZA HOŞ GELDİN, ${member.displayName}!`)
             .setDescription(
               `Hey <@${member.id}>, **${member.guild.name}** sunucumuza hoş geldin! 🎉\n\n` +
               `> 📨 **Davet Eden:** ${inviterStr}\n` +
-              `> 🛡️ **Kayıt Olmak İçin:** <#1568644551797899368> kanalından kaydınızı tamamlayıp tüm odaların kilidini açabilirsiniz.\n` +
+              `> 🌐 **Kayıt Olmak İçin:** ${dilMention} kanalından dilinizi seçip kaydınızı tamamlayabilirsiniz.\n` +
               `> 📜 **Kurallar:** Sunucu huzurumuz için <#1568644556139008154> kanalına göz atmayı unutmayın.\n\n` +
               `📊 **Seninle Birlikte:** Toplam **${member.guild.memberCount}** Kişi Olduk! ✨`
             )
