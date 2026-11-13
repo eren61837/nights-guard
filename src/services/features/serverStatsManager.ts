@@ -1,17 +1,40 @@
 import { Guild, ChannelType, PermissionFlagsBits } from 'discord.js';
 
 export class ServerStatsManager {
-  public static async updateStats(guild: Guild): Promise<void> {
+  private static updatingGuilds = new Set<string>();
+  private static lastUpdate = new Map<string, number>();
+
+  /**
+   * Sunucu istatistik kanallarını günceller veya yoksa otomatik oluşturur.
+   * Discord kanal adı güncelleme sınırlamalarına (10 dakikada 2 kez) karşı otomatik korumalıdır.
+   */
+  public static async updateStats(guild: Guild, force = false): Promise<void> {
+    if (!guild) return;
+
+    if (this.updatingGuilds.has(guild.id)) {
+      return;
+    }
+
+    const now = Date.now();
+    const last = this.lastUpdate.get(guild.id) || 0;
+    // 5 dakikada en fazla 1 kez güncelle (Discord 10 dk / 2 rename kuralı)
+    if (!force && now - last < 300000) {
+      return;
+    }
+
+    this.updatingGuilds.add(guild.id);
+
     try {
-      const members = await guild.members.fetch();
-      const totalMembers = members.size;
+      await guild.members.fetch().catch(() => {});
+      const members = guild.members.cache;
+      const totalMembers = guild.memberCount || members.size;
       const onlineMembers = members.filter(
         (m) => m.presence?.status === 'online' || m.presence?.status === 'dnd' || m.presence?.status === 'idle'
       ).size;
-      const voiceMembers = members.filter((m) => !!m.voice.channelId).size;
+      const voiceMembers = members.filter((m) => !!m.voice?.channelId).size;
 
-      const channels = await guild.channels.fetch();
-      let category = channels.find(
+      await guild.channels.fetch().catch(() => {});
+      let category = guild.channels.cache.find(
         (c) => c && c.type === ChannelType.GuildCategory && c.name.includes('SUNUCU İSTATİSTİKLERİ')
       );
 
@@ -33,7 +56,9 @@ export class ServerStatsManager {
       }
 
       // 1. Toplam Üye Kanalı
-      let chTotal = channels.find((c) => c && c.parentId === category?.id && c.name.includes('Toplam Üye'));
+      let chTotal = guild.channels.cache.find(
+        (c) => c && c.parentId === category?.id && c.name.includes('Toplam Üye')
+      );
       const totalName = `👥・Toplam Üye: ${totalMembers}`;
       if (!chTotal) {
         await guild.channels.create({
@@ -45,12 +70,15 @@ export class ServerStatsManager {
           ],
         });
       } else if (chTotal.name !== totalName) {
-        await chTotal.setName(totalName);
+        await chTotal.setName(totalName).catch(() => {});
       }
 
       // 2. Çevrimiçi / Aktif Kanalı
-      let chOnline = channels.find((c) => c && c.parentId === category?.id && (c.name.includes('Çevrimiçi') || c.name.includes('Aktif')));
-      const onlineName = `🟢・Aktif Üye: ${onlineMembers > 0 ? onlineMembers : totalMembers}`;
+      let chOnline = guild.channels.cache.find(
+        (c) => c && c.parentId === category?.id && (c.name.includes('Çevrimiçi') || c.name.includes('Aktif'))
+      );
+      const onlineDisplay = onlineMembers > 0 ? onlineMembers : totalMembers;
+      const onlineName = `🟢・Aktif Üye: ${onlineDisplay}`;
       if (!chOnline) {
         await guild.channels.create({
           name: onlineName,
@@ -61,11 +89,13 @@ export class ServerStatsManager {
           ],
         });
       } else if (chOnline.name !== onlineName) {
-        await chOnline.setName(onlineName);
+        await chOnline.setName(onlineName).catch(() => {});
       }
 
       // 3. Sesteki Üyeler Kanalı
-      let chVoice = channels.find((c) => c && c.parentId === category?.id && c.name.includes('Sesteki'));
+      let chVoice = guild.channels.cache.find(
+        (c) => c && c.parentId === category?.id && c.name.includes('Sesteki')
+      );
       const voiceName = `🎙️・Sesteki Üyeler: ${voiceMembers}`;
       if (!chVoice) {
         await guild.channels.create({
@@ -77,11 +107,13 @@ export class ServerStatsManager {
           ],
         });
       } else if (chVoice.name !== voiceName) {
-        await chVoice.setName(voiceName);
+        await chVoice.setName(voiceName).catch(() => {});
       }
 
       // 4. Güvenlik Durumu Kanalı
-      let chSecurity = channels.find((c) => c && c.parentId === category?.id && c.name.includes('Güvenlik'));
+      let chSecurity = guild.channels.cache.find(
+        (c) => c && c.parentId === category?.id && c.name.includes('Güvenlik')
+      );
       const secName = '🛡️・Güvenlik: %100 Aktif';
       if (!chSecurity) {
         await guild.channels.create({
@@ -93,8 +125,14 @@ export class ServerStatsManager {
           ],
         });
       }
+
+      this.lastUpdate.set(guild.id, Date.now());
+      console.log(`[ServerStatsManager] 📊 ${guild.name} istatistikleri güncellendi (Toplam: ${totalMembers}, Sesteki: ${voiceMembers})`);
     } catch (err: any) {
       console.warn('[ServerStatsManager] İstatistik kanalları güncellenirken hata:', err.message);
+    } finally {
+      this.updatingGuilds.delete(guild.id);
     }
   }
 }
+

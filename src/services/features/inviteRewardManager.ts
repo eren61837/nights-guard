@@ -22,8 +22,16 @@ export interface UserInviteData {
   left: number;
   fake: number;
   bonus: number;
+  rejoins: number;
   inviterId?: string;
   claimedMilestones: number[];
+}
+
+export interface MemberJoinHistory {
+  inviterId: string;
+  firstJoinedAt: number;
+  hasLeft: boolean;
+  joinCount: number;
 }
 
 export interface InviteMilestone {
@@ -42,6 +50,7 @@ export const INVITE_MILESTONES: InviteMilestone[] = [
 
 export class InviteRewardManager {
   private static userInvites = new Map<string, UserInviteData>();
+  private static memberHistory = new Map<string, MemberJoinHistory>();
   private static loaded = false;
   private static initialized = false;
 
@@ -54,6 +63,7 @@ export class InviteRewardManager {
     for (const guild of client.guilds.cache.values()) {
       this.ensureRoles(guild).catch(() => {});
       this.ensureShowcasePanel(guild, client).catch(() => {});
+      this.ensureLogChannel(guild).catch(() => {});
     }
   }
 
@@ -73,6 +83,18 @@ export class InviteRewardManager {
           }
         }
       }
+
+      const historyPath = path.resolve(process.cwd(), 'data/invite_history.json');
+      if (fs.existsSync(historyPath)) {
+        const rawH = fs.readFileSync(historyPath, 'utf-8');
+        const parsedH = JSON.parse(rawH);
+        if (typeof parsedH === 'object' && parsedH !== null) {
+          this.memberHistory.clear();
+          for (const [k, v] of Object.entries(parsedH)) {
+            this.memberHistory.set(k, v as MemberJoinHistory);
+          }
+        }
+      }
     } catch (e: any) {
       console.warn('[InviteRewardManager] Veri yüklenemedi:', e.message);
     }
@@ -85,6 +107,12 @@ export class InviteRewardManager {
         obj[k] = v;
       }
       PersistentStore.atomicSaveJson('invites.json', obj);
+
+      const histObj: Record<string, MemberJoinHistory> = {};
+      for (const [k, v] of this.memberHistory.entries()) {
+        histObj[k] = v;
+      }
+      PersistentStore.atomicSaveJson('invite_history.json', histObj);
     } catch (e: any) {
       console.warn('[InviteRewardManager] Veri kaydedilemedi:', e.message);
     }
@@ -99,6 +127,7 @@ export class InviteRewardManager {
         left: 0,
         fake: 0,
         bonus: 0,
+        rejoins: 0,
         claimedMilestones: [],
       };
       this.userInvites.set(userId, data);
@@ -138,7 +167,32 @@ export class InviteRewardManager {
   }
 
   /**
-   * Yeni üye katıldığında tetiklenir
+   * Özel #📋・davet-log Kanalını Otomatik Kurar / Bulur
+   */
+  public static async ensureLogChannel(guild: Guild): Promise<TextChannel | undefined> {
+    let logCh = guild.channels.cache.find(
+      (c) => c.type === ChannelType.GuildText && (c.name.includes('davet-log') || c.name.includes('invite-log'))
+    ) as TextChannel | undefined;
+
+    if (!logCh) {
+      const categories = guild.channels.cache.filter((c) => c.type === ChannelType.GuildCategory);
+      const modCat = categories.find((c) => c.name.toLowerCase().includes('yetkili') || c.name.toLowerCase().includes('özel'));
+
+      try {
+        logCh = await guild.channels.create({
+          name: '📋・davet-log',
+          type: ChannelType.GuildText,
+          parent: modCat?.id,
+          topic: '7/24 Canlı Sunucu Davet, Katılım, Ayrılma, Rejoin ve Sahte Hesap Denetim Kayıtları',
+        });
+      } catch {}
+    }
+
+    return logCh;
+  }
+
+  /**
+   * Yeni üye katıldığında tetiklenir (Rejoin & Fake & Abuse Koruması)
    */
   public static async onMemberJoin(
     member: GuildMember,
@@ -149,31 +203,116 @@ export class InviteRewardManager {
     coinsGiven?: number;
     inviterData?: UserInviteData;
     netInvites?: number;
+    isRejoin?: boolean;
+    isFake?: boolean;
   } | null> {
     this.load();
     const guild = member.guild;
+    const logCh = await this.ensureLogChannel(guild);
 
-    // Kendi verisini güncelle (kimin davet ettiği bilgisini tut)
+    // Kendi verisini güncelle
     const memberData = this.getUserData(member.id);
     if (inviterId) {
       memberData.inviterId = inviterId;
     }
+
+    // ═══════════════════════════════════════════════════════════
+    // 🛡️ REJOIN (TEKRAR GİRİŞ) & MÜKERRER PUAN KORUMASI
+    // ═══════════════════════════════════════════════════════════
+    const history = this.memberHistory.get(member.id);
+
+    if (history) {
+      history.joinCount++;
+      const wasLeft = history.hasLeft;
+      history.hasLeft = false;
+      this.save();
+
+      if (inviterId && inviterId !== member.id) {
+        const inviterData = this.getUserData(inviterId);
+        inviterData.rejoins = (inviterData.rejoins || 0) + 1;
+
+        // Eğer AYNI davetçi ise ve kişi daha önce ayrılmışsa, left sayısını telafi et
+        if (history.inviterId === inviterId && wasLeft && (inviterData.left || 0) > 0) {
+          inviterData.left--;
+          this.save();
+        }
+      }
+
+      // Rejoin Logu Gönder
+      if (logCh) {
+        const rejoinEmbed = new EmbedBuilder()
+          .setColor(0xe67e22)
+          .setTitle('⚠️ [REJOIN TESPİTİ] Tekrar Katılım Engellendi')
+          .setDescription(
+            `👤 **Üye:** <@${member.id}> (\`${member.user.tag}\`)\n` +
+            `📨 **Kullandığı Davet:** ${inviterId ? `<@${inviterId}>` : 'Bilinmiyor'}\n` +
+            `🔍 **Orijinal İlk Davetçisi:** ${history.inviterId ? `<@${history.inviterId}>` : 'Bilinmiyor'}\n` +
+            `🔢 **Giriş Sayısı:** ${history.joinCount}. kez katıldı\n\n` +
+            `🛡️ *Bu kullanıcı daha önce sunucuya katıldığı için davetçiye mükerrer puan verilmedi.*`
+          )
+          .setTimestamp();
+        logCh.send({ embeds: [rejoinEmbed] }).catch(() => {});
+      }
+
+      return {
+        rewardGiven: false,
+        isRejoin: true,
+        inviterData: inviterId ? this.getUserData(inviterId) : undefined,
+        netInvites: inviterId ? this.getNetInvites(this.getUserData(inviterId)) : 0,
+      };
+    }
+
+    // İlk kez katılan kullanıcı: Geçmişe kaydet
+    this.memberHistory.set(member.id, {
+      inviterId: inviterId || '',
+      firstJoinedAt: Date.now(),
+      hasLeft: false,
+      joinCount: 1,
+    });
     this.save();
 
-    if (!inviterId || inviterId === member.id) return null;
+    if (!inviterId || inviterId === member.id) {
+      if (logCh) {
+        const selfEmbed = new EmbedBuilder()
+          .setColor(0x95a5a6)
+          .setTitle('ℹ️ Doğrudan veya Kendi Linkiyle Katılım')
+          .setDescription(`👤 <@${member.id}> (\`${member.user.tag}\`) sunucuya katıldı. Davetçi: ${inviterId === member.id ? 'Kendi linki (Puan verilmedi)' : 'Özel URL / Doğrudan'}`)
+          .setTimestamp();
+        logCh.send({ embeds: [selfEmbed] }).catch(() => {});
+      }
+      return null;
+    }
 
     const inviterData = this.getUserData(inviterId);
 
-    // Sahte / Bot Hesap Kontrolü (3 günden genç hesaplar fake sayılır)
+    // ═══════════════════════════════════════════════════════════
+    // 🛡️ SAHTE HESAP / BOT KORUMASI (ANTI-FAKE)
+    // ═══════════════════════════════════════════════════════════
     const accountAgeDays = (Date.now() - member.user.createdTimestamp) / (1000 * 60 * 60 * 24);
-    const isFake = accountAgeDays < 3;
+    const isFake = accountAgeDays < 3; // 3 günden genç hesaplar fake sayılır
 
     if (isFake) {
       inviterData.fake = (inviterData.fake || 0) + 1;
       this.save();
-      return { rewardGiven: false, inviterData, netInvites: this.getNetInvites(inviterData) };
+
+      if (logCh) {
+        const fakeEmbed = new EmbedBuilder()
+          .setColor(0xe74c3c)
+          .setTitle('🚫 [SAHTE HESAP] Şüpheli Yeni Hesap')
+          .setDescription(
+            `👤 **Üye:** <@${member.id}> (\`${member.user.tag}\`)\n` +
+            `📨 **Davet Eden:** <@${inviterId}>\n` +
+            `⏱️ **Hesap Yaşı:** \`${Math.round(accountAgeDays * 24)} saat\` (3 günden genç!)\n\n` +
+            `⚠️ *Bu hesap bot veya sahte alt-hesap olabileceğinden <@${inviterId}> davet puanına eklenmedi.*`
+          )
+          .setTimestamp();
+        logCh.send({ embeds: [fakeEmbed] }).catch(() => {});
+      }
+
+      return { rewardGiven: false, isFake: true, inviterData, netInvites: this.getNetInvites(inviterData) };
     }
 
+    // Geçerli Gerçek Davet
     inviterData.regular = (inviterData.regular || 0) + 1;
     const net = this.getNetInvites(inviterData);
 
@@ -204,6 +343,22 @@ export class InviteRewardManager {
     }
 
     this.save();
+
+    // Log kanalına başarı raporu at
+    if (logCh) {
+      const joinEmbed = new EmbedBuilder()
+        .setColor(0x2ecc71)
+        .setTitle('✅ [GEÇERLİ DAVET] Yeni Üye Katıldı')
+        .setDescription(
+          `👤 **Yeni Üye:** <@${member.id}> (\`${member.user.tag}\`)\n` +
+          `📨 **Davet Eden:** <@${inviterId}>\n` +
+          `📊 **Davetçi Durumu:** \`${net}\` Net Davet (Toplam: ${inviterData.regular}, Ayrılan: ${inviterData.left}, Fake: ${inviterData.fake})\n` +
+          (rewardGiven ? `\n🎉 **YENİ ÖDÜL KAZANILDI:** \`${rewardRole}\` (+${coinsGiven} Coin) 🎁` : '')
+        )
+        .setTimestamp();
+      logCh.send({ embeds: [joinEmbed] }).catch(() => {});
+    }
+
     return {
       rewardGiven,
       rewardRole,
@@ -214,19 +369,63 @@ export class InviteRewardManager {
   }
 
   /**
-   * Üye sunucudan çıktığında tetiklenir (Left Invite)
+   * Üye sunucudan çıktığında tetiklenir (Left Invite & Rol Geri Alma)
    */
   public static async onMemberLeave(member: GuildMember): Promise<void> {
     this.load();
-    const memberData = this.userInvites.get(member.id);
-    if (!memberData || !memberData.inviterId) return;
+    const guild = member.guild;
+    const logCh = await this.ensureLogChannel(guild);
 
-    const inviterId = memberData.inviterId;
-    const inviterData = this.userInvites.get(inviterId);
-    if (inviterData) {
-      inviterData.left = (inviterData.left || 0) + 1;
+    const history = this.memberHistory.get(member.id);
+    const memberData = this.userInvites.get(member.id);
+    const inviterId = history?.inviterId || memberData?.inviterId;
+
+    if (history) {
+      history.hasLeft = true;
       this.save();
-      console.log(`[InviteTracker] 🚪 Üye ayrıldı (${member.user.tag}), <@${inviterId}> davet sayısı düşürüldü.`);
+    }
+
+    if (!inviterId) return;
+
+    const inviterData = this.userInvites.get(inviterId);
+    if (!inviterData) return;
+
+    inviterData.left = (inviterData.left || 0) + 1;
+    const net = this.getNetInvites(inviterData);
+
+    // ═══════════════════════════════════════════════════════════
+    // 📉 ROL GERİ ALMA (Eğer net davet ödül eşiğinin altına düşerse)
+    // ═══════════════════════════════════════════════════════════
+    const roleMap = await this.ensureRoles(guild);
+    const inviterMember = await guild.members.fetch(inviterId).catch(() => null);
+    const revokedRoles: string[] = [];
+
+    for (const milestone of INVITE_MILESTONES) {
+      if (net < milestone.required && inviterData.claimedMilestones.includes(milestone.required)) {
+        inviterData.claimedMilestones = inviterData.claimedMilestones.filter((r) => r !== milestone.required);
+        const role = roleMap.get(milestone.required);
+        if (role && inviterMember) {
+          await inviterMember.roles.remove(role).catch(() => {});
+          revokedRoles.push(milestone.roleName);
+        }
+      }
+    }
+
+    this.save();
+
+    // Log kanalına ayrılma ve rol düşüş raporu at
+    if (logCh) {
+      const leaveEmbed = new EmbedBuilder()
+        .setColor(0xe74c3c)
+        .setTitle('🚪 [AYRILMA] Üye Sunucudan Çıktı')
+        .setDescription(
+          `👤 **Ayrılan:** <@${member.id}> (\`${member.user.tag}\`)\n` +
+          `📨 **Davet Eden:** <@${inviterId}>\n` +
+          `📊 **Yeni Net Davet:** \`${net}\` (Ayrılan toplam: ${inviterData.left})\n` +
+          (revokedRoles.length > 0 ? `\n⚠️ **ÖDÜL GERİ ALINDI:** Davet sayısı düştüğü için **${revokedRoles.join(', ')}** rolü geri alındı!` : '')
+        )
+        .setTimestamp();
+      logCh.send({ embeds: [leaveEmbed] }).catch(() => {});
     }
   }
 
@@ -239,7 +438,6 @@ export class InviteRewardManager {
     ) as TextChannel | undefined;
 
     if (!channel) {
-      // 📢 ┃ BİLGİLENDİRME kategorisini bul
       const categories = guild.channels.cache.filter((c) => c.type === ChannelType.GuildCategory);
       const infoCat = categories.find(
         (c) => c.name.toLowerCase().includes('bilgi') || c.name.toLowerCase().includes('duyuru')
@@ -286,9 +484,10 @@ export class InviteRewardManager {
           `> • **5 Davet:** 🥈 \`Gümüş Davetçi\` Rolü + **2,500 Nights Coin** 🪙\n` +
           `> • **10 Davet:** 🥇 \`Altın Davetçi\` Rolü + **5,000 Nights Coin** 🪙\n` +
           `> • **20 Davet:** 💎 \`Elmas Davetçi (VIP)\` Rolü + **15,000 Nights Coin** 👑\n\n` +
-          `⚡ **Kurallar & Sistem:**\n` +
+          `⚡ **Gelişmiş Güvenlik & Anti-Abuse Kuralları:**\n` +
           `> • 🛡️ **Anti-Fake Koruması:** 3 günden genç veya bot hesaplar geçersiz sayılır.\n` +
-          `> • 🚪 **Ayrılan Takibi:** Sunucudan çıkan hesaplar net davetinden otomatik düşülür.\n` +
+          `> • 🚪 **Ayrılan Takibi:** Sunucudan çıkan hesaplar net davetinden düşülür; gerekiyorsa ödül rolün geri alınır!\n` +
+          `> • 🚫 **Rejoin Engeli:** Çıkıp tekrar giren üyelere mükerrer davet puanı verilmez!\n` +
           `> • 📊 **Anlık Takip:** \`/davetler\` komutu ile durumunu 7/24 izleyebilirsin.\n\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
           `👇 *Hemen davet linkini almak veya sıralamaya bakmak için butona tıkla:*`
@@ -395,7 +594,6 @@ export class InviteRewardManager {
     const data = this.getUserData(targetMember.id);
     const net = this.getNetInvites(data);
 
-    // Bir sonraki ödül kademesini hesapla
     const nextMilestone = INVITE_MILESTONES.find((m) => net < m.required);
     let nextStr = '👑 **Tüm davet ödülleri tamamlandı! Sen tam bir efsanesin!**';
 
@@ -422,6 +620,7 @@ export class InviteRewardManager {
         `🟢 **Başarılı Davetler:** \`${data.regular || 0} Kişi\`\n` +
         `🔴 **Ayrılanlar (Left):** \`${data.left || 0} Kişi\`\n` +
         `⚠️ **Sahte / Fake Hesaplar:** \`${data.fake || 0} Kişi\`\n` +
+        `🔁 **Engellenen Rejoinler:** \`${data.rejoins || 0} Kez\`\n` +
         `⭐ **Bonus Davetler:** \`+${data.bonus || 0}\`\n\n` +
         `✨ **NET GEÇERLİ DAVET SAYIN:** **\`${net}\` Adet**\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +

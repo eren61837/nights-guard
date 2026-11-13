@@ -38,6 +38,7 @@ import { EmojiPackManager } from '../services/features/emojiPackManager';
 import { LanguageGateManager } from '../services/features/languageGateManager';
 import { GamerHubManager } from '../services/features/gamerHubManager';
 import { InviteRewardManager } from '../services/features/inviteRewardManager';
+import { ServerStatsManager } from '../services/features/serverStatsManager';
 
 export async function onReady(client: Client): Promise<void> {
   console.log(`\n======================================================`);
@@ -92,6 +93,16 @@ export async function onReady(client: Client): Promise<void> {
 
   // 🎁 Davet Ödülleri & Viral Büyüme Sistemini Başlat / Doğrula
   InviteRewardManager.init(client);
+
+  // 📊 Canlı Kilitli Sunucu İstatistik Kanallarını Kur / Güncelle
+  for (const guild of client.guilds.cache.values()) {
+    ServerStatsManager.updateStats(guild, true).catch(() => {});
+  }
+  setInterval(() => {
+    for (const guild of client.guilds.cache.values()) {
+      ServerStatsManager.updateStats(guild).catch(() => {});
+    }
+  }, 600000);
 
   // Sahipsiz & Boşta Kalan Geçici Ses Odalarını Sürekli Süpür (15 saniyede bir)
   VoiceLobbyManager.sweepEmptyChannels(client);
