@@ -24,7 +24,6 @@ import { AIChatManager } from './services/features/aiChatManager';
 import { SocialManager } from './services/features/socialManager';
 import { InviteTracker } from './services/features/inviteTracker';
 import { MusicPlayer } from './services/features/musicPlayer';
-import { ErenModManager } from './services/features/erenModManager';
 import { BoostManager } from './services/features/boostManager';
 import { ServerBackupManager } from './services/features/serverBackupManager';
 import { PersistentStore } from './services/storage/persistentStore';
@@ -166,12 +165,7 @@ async function bootstrap() {
     const cmd = args[0]?.toLowerCase();
 
 
-    // 5. Müzik Komutları (!cal, !play, !erenmod, !durdur, !devam, !gec, !kuyruk, !ayril, !ses)
-    if (cmd === '!erenmod' || cmd === '!eren') {
-      await ErenModManager.playErenMod({ message }, client);
-      return;
-    }
-
+    // 5. Müzik Komutları (!cal, !play, !durdur, !devam, !gec, !kuyruk, !ayril, !ses)
     if (cmd === '!cal' || cmd === '!play') {
       const query = args.slice(1).join(' ').trim();
       if (!query) {

@@ -25,7 +25,6 @@ import * as lobiCmd from '../commands/lobi';
 import * as oyuncuCmd from '../commands/oyuncu';
 import * as roastCmd from '../commands/roast';
 import * as lakapCmd from '../commands/lakap';
-import * as erenmodCmd from '../commands/erenmod';
 import { rankData, topData, seviyeAyarlaData } from '../commands/seviye';
 import { LevelManager } from '../services/features/levelManager';
 import { VoiceLobbyManager } from '../services/features/voiceLobbyManager';
@@ -112,7 +111,6 @@ export async function onReady(client: Client): Promise<void> {
       lakapCmd.data,
 
       // Müzik Komutları (Tüm Üyelere Açık)
-      erenmodCmd.data,
       muzikCmd.calData,
       muzikCmd.durdurData,
       muzikCmd.devamData,
