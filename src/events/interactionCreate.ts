@@ -54,8 +54,12 @@ import * as lobiCmd from '../commands/lobi';
 import * as oyuncuCmd from '../commands/oyuncu';
 import * as roastCmd from '../commands/roast';
 import * as lakapCmd from '../commands/lakap';
+import * as davetlerCmd from '../commands/davetler';
+import * as davetTopCmd from '../commands/davetTop';
+import * as tanitCmd from '../commands/tanit';
 import { GamerHubManager } from '../services/features/gamerHubManager';
 import { RoastManager } from '../services/features/roastManager';
+import { InviteRewardManager } from '../services/features/inviteRewardManager';
 import { SocialManager } from '../services/features/socialManager';
 import { ConfessionManager } from '../services/features/confessionManager';
 import { MusicPlayer } from '../services/features/musicPlayer';
@@ -95,6 +99,7 @@ export class InteractionHandler {
           interaction.customId.startsWith('lobby_') ||
           interaction.customId.startsWith('btn_roast_') ||
           interaction.customId.startsWith('btn_lakap_') ||
+          interaction.customId.startsWith('btn_invite_') ||
           interaction.customId === 'ticket_open' ||
           interaction.customId === 'ticket_close'
         )) ||
@@ -106,7 +111,7 @@ export class InteractionHandler {
         (interaction.isChatInputCommand() && [
           'rank', 'seviye', 'top', 'liderlik', 'yardim', 'avatar', 'sunucu', 'afk', 'sil',
           'istatistik', 'kullanici', 'gonder', 'itiraf', 'cal', 'durdur', 'devam', 'gec', 'kuyruk', 'ayril', 'ses',
-          'lobi-bul', 'oyuncu', 'roast', 'lakap'
+          'lobi-bul', 'oyuncu', 'roast', 'lakap', 'davetler', 'davet-top', 'tanit'
         ].includes(interaction.commandName));
 
       if (!isPublicInteraction) {
@@ -272,6 +277,15 @@ export class InteractionHandler {
       case 'lakap':
         await lakapCmd.execute(interaction);
         break;
+      case 'davetler':
+        await davetlerCmd.execute(interaction);
+        break;
+      case 'davet-top':
+        await davetTopCmd.execute(interaction);
+        break;
+      case 'tanit':
+        await tanitCmd.execute(interaction);
+        break;
       default:
         await interaction.reply({ content: 'Bilinmeyen komut.', flags: MessageFlags.Ephemeral });
         break;
@@ -395,6 +409,12 @@ export class InteractionHandler {
         console.warn('[LakapReroll] Hata:', e.message);
       }
       return;
+    }
+
+    // 1.10. Invite Reward Buttons
+    if (customId.startsWith('btn_invite_')) {
+      const handled = await InviteRewardManager.handleButton(interaction);
+      if (handled) return;
     }
 
     // 2. Build Confirm

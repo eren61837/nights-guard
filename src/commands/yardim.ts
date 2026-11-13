@@ -19,6 +19,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       {
         name: '👥 Genel & Kullanıcı Komutları (Herkese Açık)',
         value:
+          '• `/davetler [kullanıcı]` — Sunucudaki net davet sayınızı, ödül ilerlemenizi ve linkinizi görüntüler. 🎁\n' +
+          '• `/davet-top` — Sunucuya en çok üye davet edenlerin canlı liderlik sıralaması. 🏆\n' +
+          '• `/tanit` — Arkadaşlarını çağırmak veya paylaşmak için hazır sunucu reklam metni üretir. 📢\n' +
           '• `/roast [kullanıcı]` — Kişinin sunucudaki tüm mesajlarını okuyup onu acımasızca ve komikçe roast eder! 🔥\n' +
           '• `/lakap [kullanıcı]` — Mesaj geçmişine ve tarzına göre kişiye özel komik gece/mafya lakabı takar! 🎭\n' +
           '• `/lobi-bul` — Valorant, CS2, LoL veya istediğin oyunda anında takım arkadaşı arama lobisi açar! 🎮\n' +

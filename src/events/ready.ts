@@ -25,6 +25,9 @@ import * as lobiCmd from '../commands/lobi';
 import * as oyuncuCmd from '../commands/oyuncu';
 import * as roastCmd from '../commands/roast';
 import * as lakapCmd from '../commands/lakap';
+import * as davetlerCmd from '../commands/davetler';
+import * as davetTopCmd from '../commands/davetTop';
+import * as tanitCmd from '../commands/tanit';
 import { rankData, topData, seviyeAyarlaData } from '../commands/seviye';
 import { LevelManager } from '../services/features/levelManager';
 import { VoiceLobbyManager } from '../services/features/voiceLobbyManager';
@@ -34,6 +37,7 @@ import { AIChatManager } from '../services/features/aiChatManager';
 import { EmojiPackManager } from '../services/features/emojiPackManager';
 import { LanguageGateManager } from '../services/features/languageGateManager';
 import { GamerHubManager } from '../services/features/gamerHubManager';
+import { InviteRewardManager } from '../services/features/inviteRewardManager';
 
 export async function onReady(client: Client): Promise<void> {
   console.log(`\n======================================================`);
@@ -86,6 +90,9 @@ export async function onReady(client: Client): Promise<void> {
   // 🎮 Gamer Hub (Lobi & Takım Arkadaşı Arama) Sistemini Otomatik Kur/Doğrula
   GamerHubManager.init(client);
 
+  // 🎁 Davet Ödülleri & Viral Büyüme Sistemini Başlat / Doğrula
+  InviteRewardManager.init(client);
+
   // Sahipsiz & Boşta Kalan Geçici Ses Odalarını Sürekli Süpür (15 saniyede bir)
   VoiceLobbyManager.sweepEmptyChannels(client);
   setInterval(() => {
@@ -109,6 +116,9 @@ export async function onReady(client: Client): Promise<void> {
       oyuncuCmd.data,
       roastCmd.data,
       lakapCmd.data,
+      davetlerCmd.data,
+      davetTopCmd.data,
+      tanitCmd.data,
 
       // Müzik Komutları (Tüm Üyelere Açık)
       muzikCmd.calData,

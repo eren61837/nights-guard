@@ -23,6 +23,7 @@ import { AuditLogManager } from './services/features/auditLogManager';
 import { AIChatManager } from './services/features/aiChatManager';
 import { SocialManager } from './services/features/socialManager';
 import { InviteTracker } from './services/features/inviteTracker';
+import { InviteRewardManager } from './services/features/inviteRewardManager';
 import { MusicPlayer } from './services/features/musicPlayer';
 import { BoostManager } from './services/features/boostManager';
 import { ServerBackupManager } from './services/features/serverBackupManager';
@@ -113,6 +114,7 @@ async function bootstrap() {
   client.on(Events.GuildMemberRemove, async (member) => {
     await AuditLogManager.logMemberLeave(member);
     await AutoSecurityGuard.handleKickSecurity(member.guild, member);
+    await InviteRewardManager.onMemberLeave(member as any);
   });
 
   client.on(Events.GuildBanAdd, async (ban) => {
@@ -682,11 +684,14 @@ async function bootstrap() {
 
         if (welcomeCh) {
           const inviteInfo = await InviteTracker.findInviter(member);
+          const rewardResult = await InviteRewardManager.onMemberJoin(member, inviteInfo.inviter?.id);
+
           let inviterStr = 'Bilinmiyor / Doğrudan Katılım 🌐';
           let welcomeContent = `🎉 Aramıza yeni bir üye katıldı! Hoş geldin <@${member.id}> 👋`;
 
           if (inviteInfo.inviter) {
-            inviterStr = `<@${inviteInfo.inviter.id}> (\`${inviteInfo.inviter.tag}\`) • **${inviteInfo.uses}.** Daveti 🎯`;
+            const netCount = rewardResult?.netInvites || inviteInfo.uses || 1;
+            inviterStr = `<@${inviteInfo.inviter.id}> (\`${inviteInfo.inviter.tag}\`) • **${netCount}.** Geçerli Daveti 🎯`;
             welcomeContent = `🎉 Aramıza yeni bir üye katıldı! Hoş geldin <@${member.id}> 👋 (Davet eden: <@${inviteInfo.inviter.id}>)`;
           } else if (inviteInfo.isVanity) {
             inviterStr = `Özel Sunucu Linki (\`${inviteInfo.code}\`) 🔗`;
@@ -709,6 +714,14 @@ async function bootstrap() {
             .setImage('https://media.giphy.com/media/26tn3334mvoVClhos/giphy.gif')
             .setFooter({ text: 'Nights Community • Made by erencix' })
             .setTimestamp();
+
+          if (rewardResult?.rewardGiven && inviteInfo.inviter) {
+            welcomeEmbed.addFields({
+              name: '🏆 YENİ DAVET ÖDÜLÜ KAZANILDI!',
+              value: `Tebrikler <@${inviteInfo.inviter.id}>! **${rewardResult.rewardRole}** rolü ve **+${rewardResult.coinsGiven} Nights Coin** kazandın! 🎁✨`,
+              inline: false,
+            });
+          }
 
           await welcomeCh.send({
             content: welcomeContent,
