@@ -134,5 +134,50 @@ export class ServerStatsManager {
       this.updatingGuilds.delete(guild.id);
     }
   }
+
+  /**
+   * Sunucu istatistik kanallarını ve kategorisini Discord'dan tamamen siler.
+   */
+  public static async deleteStatsChannels(guild: Guild): Promise<void> {
+    try {
+      await guild.channels.fetch().catch(() => {});
+      const category = guild.channels.cache.find(
+        (c) => c && c.type === ChannelType.GuildCategory && c.name.includes('SUNUCU İSTATİSTİKLERİ')
+      );
+
+      // Kategori altındaki veya eşleşen kanalları sil
+      const statChannels = guild.channels.cache.filter((c) => {
+        if (!c) return false;
+        if (category && c.parentId === category.id) return true;
+        return (
+          c.name.includes('Toplam Üye') ||
+          c.name.includes('Aktif Üye') ||
+          c.name.includes('Sesteki Üyeler') ||
+          c.name.includes('Güvenlik: %100')
+        );
+      });
+
+      for (const ch of statChannels.values()) {
+        try {
+          await ch.delete('Sunucu sahibi isteğiyle istatistik kanalları silindi.');
+          console.log(`[ServerStatsManager] 🗑️ İstatistik kanalı silindi: ${ch.name}`);
+        } catch (e: any) {
+          console.warn(`[ServerStatsManager] Kanal silinemedi (${ch.name}):`, e.message);
+        }
+      }
+
+      // Kategoriyi sil
+      if (category) {
+        try {
+          await category.delete('Sunucu sahibi isteğiyle istatistik kategorisi silindi.');
+          console.log(`[ServerStatsManager] 🗑️ İstatistik kategorisi silindi: ${category.name}`);
+        } catch (e: any) {
+          console.warn(`[ServerStatsManager] Kategori silinemedi:`, e.message);
+        }
+      }
+    } catch (err: any) {
+      console.warn('[ServerStatsManager] İstatistik kanalları silinirken hata:', err.message);
+    }
+  }
 }
 

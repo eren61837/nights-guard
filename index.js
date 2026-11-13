@@ -10557,6 +10557,41 @@ var ServerStatsManager = class {
       this.updatingGuilds.delete(guild.id);
     }
   }
+  /**
+   * Sunucu istatistik kanallarını ve kategorisini Discord'dan tamamen siler.
+   */
+  static async deleteStatsChannels(guild) {
+    try {
+      await guild.channels.fetch().catch(() => {
+      });
+      const category = guild.channels.cache.find(
+        (c) => c && c.type === import_discord53.ChannelType.GuildCategory && c.name.includes("SUNUCU \u0130STAT\u0130ST\u0130KLER\u0130")
+      );
+      const statChannels = guild.channels.cache.filter((c) => {
+        if (!c) return false;
+        if (category && c.parentId === category.id) return true;
+        return c.name.includes("Toplam \xDCye") || c.name.includes("Aktif \xDCye") || c.name.includes("Sesteki \xDCyeler") || c.name.includes("G\xFCvenlik: %100");
+      });
+      for (const ch of statChannels.values()) {
+        try {
+          await ch.delete("Sunucu sahibi iste\u011Fiyle istatistik kanallar\u0131 silindi.");
+          console.log(`[ServerStatsManager] \u{1F5D1}\uFE0F \u0130statistik kanal\u0131 silindi: ${ch.name}`);
+        } catch (e) {
+          console.warn(`[ServerStatsManager] Kanal silinemedi (${ch.name}):`, e.message);
+        }
+      }
+      if (category) {
+        try {
+          await category.delete("Sunucu sahibi iste\u011Fiyle istatistik kategorisi silindi.");
+          console.log(`[ServerStatsManager] \u{1F5D1}\uFE0F \u0130statistik kategorisi silindi: ${category.name}`);
+        } catch (e) {
+          console.warn(`[ServerStatsManager] Kategori silinemedi:`, e.message);
+        }
+      }
+    } catch (err) {
+      console.warn("[ServerStatsManager] \u0130statistik kanallar\u0131 silinirken hata:", err.message);
+    }
+  }
 };
 
 // src/events/ready.ts
@@ -10596,15 +10631,9 @@ async function onReady(client) {
   GamerHubManager.init(client);
   InviteRewardManager.init(client);
   for (const guild of client.guilds.cache.values()) {
-    ServerStatsManager.updateStats(guild, true).catch(() => {
+    ServerStatsManager.deleteStatsChannels(guild).catch(() => {
     });
   }
-  setInterval(() => {
-    for (const guild of client.guilds.cache.values()) {
-      ServerStatsManager.updateStats(guild).catch(() => {
-      });
-    }
-  }, 6e5);
   VoiceLobbyManager.sweepEmptyChannels(client);
   setInterval(() => {
     VoiceLobbyManager.sweepEmptyChannels(client);
@@ -11480,8 +11509,6 @@ async function bootstrap() {
     await AuditLogManager.logMemberLeave(member);
     await AutoSecurityGuard.handleKickSecurity(member.guild, member);
     await InviteRewardManager.onMemberLeave(member);
-    ServerStatsManager.updateStats(member.guild).catch(() => {
-    });
   });
   client.on(import_discord58.Events.GuildBanAdd, async (ban) => {
     await AutoSecurityGuard.handleBanSecurity(ban.guild, ban.user);
@@ -12007,8 +12034,6 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
           console.warn("[GuildMemberAdd] #hos-geldin kanal\u0131 bulunamad\u0131!");
         }
       }
-      ServerStatsManager.updateStats(member.guild).catch(() => {
-      });
     } catch (err) {
       console.warn("[GuildMemberAdd] Hata:", err.message);
     }

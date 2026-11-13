@@ -24,7 +24,6 @@ import { AIChatManager } from './services/features/aiChatManager';
 import { SocialManager } from './services/features/socialManager';
 import { InviteTracker } from './services/features/inviteTracker';
 import { InviteRewardManager } from './services/features/inviteRewardManager';
-import { ServerStatsManager } from './services/features/serverStatsManager';
 import { MusicPlayer } from './services/features/musicPlayer';
 import { BoostManager } from './services/features/boostManager';
 import { ServerBackupManager } from './services/features/serverBackupManager';
@@ -118,7 +117,6 @@ async function bootstrap() {
     await AuditLogManager.logMemberLeave(member);
     await AutoSecurityGuard.handleKickSecurity(member.guild, member);
     await InviteRewardManager.onMemberLeave(member as any);
-    ServerStatsManager.updateStats(member.guild).catch(() => {});
   });
 
   client.on(Events.GuildBanAdd, async (ban) => {
@@ -737,9 +735,6 @@ async function bootstrap() {
           console.warn('[GuildMemberAdd] #hos-geldin kanalı bulunamadı!');
         }
       }
-
-      // Canlı istatistik sayaçlarını güncelle
-      ServerStatsManager.updateStats(member.guild).catch(() => {});
     } catch (err: any) {
       console.warn('[GuildMemberAdd] Hata:', err.message);
     }

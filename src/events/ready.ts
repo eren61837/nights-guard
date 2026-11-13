@@ -94,15 +94,10 @@ export async function onReady(client: Client): Promise<void> {
   // 🎁 Davet Ödülleri & Viral Büyüme Sistemini Başlat / Doğrula
   InviteRewardManager.init(client);
 
-  // 📊 Canlı Kilitli Sunucu İstatistik Kanallarını Kur / Güncelle
+  // 📊 Sunucu istatistik kanallarını temizle (kullanıcı isteğiyle kapatıldı)
   for (const guild of client.guilds.cache.values()) {
-    ServerStatsManager.updateStats(guild, true).catch(() => {});
+    ServerStatsManager.deleteStatsChannels(guild).catch(() => {});
   }
-  setInterval(() => {
-    for (const guild of client.guilds.cache.values()) {
-      ServerStatsManager.updateStats(guild).catch(() => {});
-    }
-  }, 600000);
 
   // Sahipsiz & Boşta Kalan Geçici Ses Odalarını Sürekli Süpür (15 saniyede bir)
   VoiceLobbyManager.sweepEmptyChannels(client);
