@@ -8240,8 +8240,6 @@ var import_discord46 = require("discord.js");
 
 // src/services/features/inviteRewardManager.ts
 var import_discord45 = require("discord.js");
-var import_path8 = __toESM(require("path"));
-var import_fs8 = __toESM(require("fs"));
 var INVITE_MILESTONES = [
   { required: 3, roleName: "\u{1F949}\u30FBBronz Davet\xE7i", roleColor: "#CD7F32", coins: 1e3 },
   { required: 5, roleName: "\u{1F948}\u30FBG\xFCm\xFC\u015F Davet\xE7i", roleColor: "#C0C0C0", coins: 2500 },
@@ -8257,6 +8255,9 @@ var InviteRewardManager = class {
     if (this.initialized) return;
     this.initialized = true;
     this.load();
+    PersistentStore.registerFlushHandler("InviteRewardManager", () => {
+      this.save();
+    });
     for (const guild of client.guilds.cache.values()) {
       this.ensureRoles(guild).catch(() => {
       });
@@ -8270,28 +8271,21 @@ var InviteRewardManager = class {
     if (this.loaded) return;
     this.loaded = true;
     try {
-      const dataPath = import_path8.default.resolve(process.cwd(), "data/invites.json");
-      if (import_fs8.default.existsSync(dataPath)) {
-        const raw = import_fs8.default.readFileSync(dataPath, "utf-8");
-        const parsed = JSON.parse(raw);
-        if (typeof parsed === "object" && parsed !== null) {
-          this.userInvites.clear();
-          for (const [k, v] of Object.entries(parsed)) {
-            this.userInvites.set(k, v);
-          }
+      const parsedInvites = PersistentStore.safeReadJson("invites.json", [], {});
+      if (typeof parsedInvites === "object" && parsedInvites !== null) {
+        this.userInvites.clear();
+        for (const [k, v] of Object.entries(parsedInvites)) {
+          this.userInvites.set(k, v);
         }
       }
-      const historyPath = import_path8.default.resolve(process.cwd(), "data/invite_history.json");
-      if (import_fs8.default.existsSync(historyPath)) {
-        const rawH = import_fs8.default.readFileSync(historyPath, "utf-8");
-        const parsedH = JSON.parse(rawH);
-        if (typeof parsedH === "object" && parsedH !== null) {
-          this.memberHistory.clear();
-          for (const [k, v] of Object.entries(parsedH)) {
-            this.memberHistory.set(k, v);
-          }
+      const parsedHistory = PersistentStore.safeReadJson("invite_history.json", [], {});
+      if (typeof parsedHistory === "object" && parsedHistory !== null) {
+        this.memberHistory.clear();
+        for (const [k, v] of Object.entries(parsedHistory)) {
+          this.memberHistory.set(k, v);
         }
       }
+      console.log(`[InviteRewardManager] \u{1F4C2} Davet verileri y\xFCklendi: ${this.userInvites.size} kullan\u0131c\u0131, ${this.memberHistory.size} ge\xE7mi\u015F kay\u0131t.`);
     } catch (e) {
       console.warn("[InviteRewardManager] Veri y\xFCklenemedi:", e.message);
     }
@@ -8569,11 +8563,30 @@ var InviteRewardManager = class {
       }
     }
     try {
-      const messages = await channel.messages.fetch({ limit: 15 });
-      const hasPanel = messages.some(
-        (m) => m.author.id === client.user?.id && m.embeds.length > 0 && m.embeds[0].title?.includes("DAVET \xD6D\xDCLLER\u0130")
-      );
-      if (hasPanel) return;
+      const messages = await channel.messages.fetch({ limit: 50 }).catch(() => null);
+      if (messages) {
+        const botPanels = Array.from(messages.values()).filter((m) => {
+          if (m.author.id !== client.user?.id) return false;
+          const hasEmbedMatch = m.embeds.some(
+            (e) => e.title?.includes("ARKADA\u015EINI DAVET ET") || e.title?.includes("DAVET") || e.title?.includes("\xD6D\xDCLLER\u0130 KAP") || e.author?.name?.includes("V\u0130RAL B\xDCY\xDCME") || e.footer?.text?.includes("Nights Growth")
+          );
+          const hasButtonMatch = m.components.some(
+            (row2) => row2.components?.some((b) => b.customId?.startsWith("btn_invite_"))
+          );
+          return hasEmbedMatch || hasButtonMatch;
+        });
+        if (botPanels.length > 0) {
+          if (botPanels.length > 1) {
+            console.log(`[InviteRewardManager] #${channel.name} kanal\u0131nda ${botPanels.length} adet kopya vitrin bulundu. Fazlal\u0131klar siliniyor...`);
+            for (let i = 1; i < botPanels.length; i++) {
+              await botPanels[i].delete().catch(() => {
+              });
+            }
+          }
+          console.log(`[InviteRewardManager] \u2139\uFE0F #${channel.name} kanal\u0131nda vitrin paneli zaten mevcut. Yeniden mesaj at\u0131lmad\u0131.`);
+          return;
+        }
+      }
       const embed = new import_discord45.EmbedBuilder().setColor(9133302).setAuthor({
         name: `${guild.name.toUpperCase()} \u2022 V\u0130RAL B\xDCY\xDCME MERKEZ\u0130`,
         iconURL: guild.iconURL() || void 0
@@ -10116,8 +10129,8 @@ var VoiceSetupManager = class {
 
 // src/services/features/boostManager.ts
 var import_discord52 = require("discord.js");
-var import_path9 = __toESM(require("path"));
-var import_fs9 = __toESM(require("fs"));
+var import_path8 = __toESM(require("path"));
+var import_fs8 = __toESM(require("fs"));
 var BoostManager = class {
   static ran = false;
   static async init(client) {
@@ -10202,8 +10215,8 @@ var BoostManager = class {
         }
         return;
       }
-      const bannerPath = import_path9.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
-      const hasBanner = import_fs9.default.existsSync(bannerPath);
+      const bannerPath = import_path8.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
+      const hasBanner = import_fs8.default.existsSync(bannerPath);
       const embed = new import_discord52.EmbedBuilder().setTitle("\u{1F52E} NIGHTS SERVER BOOSTER VIP AYRICALIKLARI & \xD6D\xDCLLER\u0130 \u{1F680}").setDescription(
         `Sunucumuza **Nitro Boost** basarak Nights toplulu\u011Funa g\xFC\xE7 katan ve seviyemizi y\xFCkselten de\u011Ferli \xFCyelerimiz i\xE7in haz\u0131rlanan **\xF6zel ayr\u0131cal\u0131klar, roller ve hediyeler** listesidir!
 
@@ -10261,8 +10274,8 @@ var BoostManager = class {
       (c) => c.type === import_discord52.ChannelType.GuildText && (c.name.includes("server-boost") || c.name.includes("boost"))
     );
     if (!boostChannel) return;
-    const bannerPath = import_path9.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
-    const hasBanner = import_fs9.default.existsSync(bannerPath);
+    const bannerPath = import_path8.default.resolve(process.cwd(), "assets/nights_boost_banner.png");
+    const hasBanner = import_fs8.default.existsSync(bannerPath);
     const boostCount = guild.premiumSubscriptionCount || 1;
     const boostTier = guild.premiumTier;
     const celebrationEmbed = new import_discord52.EmbedBuilder().setTitle("\u{1F680} B\xDCY\xDCK TE\u015EEKK\xDCRLER! YEN\u0130 SUNUCU BOOSTU! \u{1F52E}").setDescription(
@@ -10671,8 +10684,8 @@ async function onVoiceStateUpdate(oldState, newState) {
 
 // src/services/features/kelimeOyunu.ts
 var import_discord55 = require("discord.js");
-var import_fs10 = __toESM(require("fs"));
-var import_path10 = __toESM(require("path"));
+var import_fs9 = __toESM(require("fs"));
+var import_path9 = __toESM(require("path"));
 var KelimeOyunuManager = class {
   static state = {
     lastWord: "ELMA",
@@ -10788,13 +10801,13 @@ var KelimeOyunuManager = class {
     if (this.dictionaryLoaded) return;
     try {
       const candidates = [
-        import_path10.default.resolve(process.cwd(), "assets/clean_turkish_words.json"),
-        import_path10.default.resolve(__dirname, "../../../assets/clean_turkish_words.json"),
-        import_path10.default.resolve(__dirname, "../../assets/clean_turkish_words.json")
+        import_path9.default.resolve(process.cwd(), "assets/clean_turkish_words.json"),
+        import_path9.default.resolve(__dirname, "../../../assets/clean_turkish_words.json"),
+        import_path9.default.resolve(__dirname, "../../assets/clean_turkish_words.json")
       ];
       for (const p of candidates) {
-        if (import_fs10.default.existsSync(p)) {
-          const raw = import_fs10.default.readFileSync(p, "utf8");
+        if (import_fs9.default.existsSync(p)) {
+          const raw = import_fs9.default.readFileSync(p, "utf8");
           const arr = JSON.parse(raw);
           this.dictionary = new Set(arr.map((w) => w.toLocaleLowerCase("tr-TR")));
           this.dictionaryLoaded = true;
@@ -11234,11 +11247,65 @@ var InviteTracker = class {
   static invitesCache = /* @__PURE__ */ new Map();
   // guildId -> vanity uses
   static vanityCache = /* @__PURE__ */ new Map();
+  static loaded = false;
+  static load() {
+    if (this.loaded) return;
+    this.loaded = true;
+    try {
+      const data28 = PersistentStore.safeReadJson(
+        "invite_tracker_cache.json",
+        [],
+        { invites: {}, vanity: {} }
+      );
+      this.invitesCache.clear();
+      for (const [guildId, codeMap] of Object.entries(data28.invites || {})) {
+        const m = /* @__PURE__ */ new Map();
+        for (const [code, uses] of Object.entries(codeMap)) {
+          m.set(code, uses);
+        }
+        this.invitesCache.set(guildId, m);
+      }
+      this.vanityCache.clear();
+      for (const [guildId, uses] of Object.entries(data28.vanity || {})) {
+        this.vanityCache.set(guildId, uses);
+      }
+      PersistentStore.registerFlushHandler("InviteTracker", () => {
+        this.save();
+      });
+      console.log(`[InviteTracker] \u{1F4C2} Davet kodlar\u0131 \xF6nbelle\u011Fi diskten y\xFCklendi (${this.invitesCache.size} sunucu).`);
+    } catch (e) {
+      console.warn("[InviteTracker] \xD6nbellek y\xFCklenemedi:", e.message);
+    }
+  }
+  static save() {
+    try {
+      const invitesObj = {};
+      for (const [guildId, map] of this.invitesCache.entries()) {
+        const codeObj = {};
+        for (const [code, uses] of map.entries()) {
+          codeObj[code] = uses;
+        }
+        invitesObj[guildId] = codeObj;
+      }
+      const vanityObj = {};
+      for (const [guildId, uses] of this.vanityCache.entries()) {
+        vanityObj[guildId] = uses;
+      }
+      PersistentStore.atomicSaveJson("invite_tracker_cache.json", {
+        invites: invitesObj,
+        vanity: vanityObj
+      });
+    } catch (e) {
+      console.warn("[InviteTracker] \xD6nbellek kaydedilemedi:", e.message);
+    }
+  }
   static async init(client) {
+    this.load();
     for (const guild of client.guilds.cache.values()) {
       await this.cacheGuildInvites(guild);
     }
-    console.log("[InviteTracker] Sunucu davetleri ba\u015Far\u0131yla \xF6nbelleklendi.");
+    this.save();
+    console.log("[InviteTracker] Sunucu davetleri ba\u015Far\u0131yla \xF6nbelleklendi ve diske kaydedildi.");
   }
   static async cacheGuildInvites(guild) {
     try {
@@ -11256,6 +11323,7 @@ var InviteTracker = class {
           this.vanityCache.set(guild.id, vanityData.uses);
         }
       }
+      this.save();
     } catch (err) {
       console.warn(`[InviteTracker] ${guild.name} davetleri \xF6nbelle\u011Fe al\u0131namad\u0131:`, err.message);
     }
@@ -11269,15 +11337,18 @@ var InviteTracker = class {
       this.invitesCache.set(guildId, guildMap);
     }
     guildMap.set(invite.code, invite.uses || 0);
+    this.save();
   }
   static onInviteDelete(invite) {
     if (!invite.guild) return;
     const guildMap = this.invitesCache.get(invite.guild.id);
     if (guildMap) {
       guildMap.delete(invite.code);
+      this.save();
     }
   }
   static async findInviter(member) {
+    this.load();
     const guild = member.guild;
     const cachedInvites = this.invitesCache.get(guild.id);
     try {
@@ -11292,6 +11363,7 @@ var InviteTracker = class {
           updatedMap.set(inv.code, inv.uses || 0);
         });
         this.invitesCache.set(guild.id, updatedMap);
+        this.save();
         if (usedInvite && usedInvite.inviter) {
           return {
             inviter: usedInvite.inviter,
@@ -11306,12 +11378,14 @@ var InviteTracker = class {
           updatedMap.set(inv.code, inv.uses || 0);
         });
         this.invitesCache.set(guild.id, updatedMap);
+        this.save();
       }
       if (guild.vanityURLCode) {
         const currentVanity = await guild.fetchVanityData().catch(() => null);
         const oldVanityUses = this.vanityCache.get(guild.id) || 0;
         if (currentVanity) {
           this.vanityCache.set(guild.id, currentVanity.uses);
+          this.save();
           if (currentVanity.uses > oldVanityUses) {
             return {
               inviter: null,
@@ -11344,6 +11418,8 @@ async function bootstrap() {
   EconomyManager.load();
   SocialManager.load();
   KelimeOyunuManager.loadState();
+  InviteRewardManager.load();
+  InviteTracker.load();
   const validation = validateConfig();
   if (validation.warnings.length > 0) {
     validation.warnings.forEach((w) => console.warn(`\u26A0\uFE0F [UYARI]: ${w}`));

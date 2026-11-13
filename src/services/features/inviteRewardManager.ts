@@ -60,6 +60,10 @@ export class InviteRewardManager {
 
     this.load();
 
+    PersistentStore.registerFlushHandler('InviteRewardManager', () => {
+      this.save();
+    });
+
     for (const guild of client.guilds.cache.values()) {
       this.ensureRoles(guild).catch(() => {});
       this.ensureShowcasePanel(guild, client).catch(() => {});
@@ -72,29 +76,23 @@ export class InviteRewardManager {
     this.loaded = true;
 
     try {
-      const dataPath = path.resolve(process.cwd(), 'data/invites.json');
-      if (fs.existsSync(dataPath)) {
-        const raw = fs.readFileSync(dataPath, 'utf-8');
-        const parsed = JSON.parse(raw);
-        if (typeof parsed === 'object' && parsed !== null) {
-          this.userInvites.clear();
-          for (const [k, v] of Object.entries(parsed)) {
-            this.userInvites.set(k, v as UserInviteData);
-          }
+      const parsedInvites = PersistentStore.safeReadJson<Record<string, UserInviteData>>('invites.json', [], {});
+      if (typeof parsedInvites === 'object' && parsedInvites !== null) {
+        this.userInvites.clear();
+        for (const [k, v] of Object.entries(parsedInvites)) {
+          this.userInvites.set(k, v as UserInviteData);
         }
       }
 
-      const historyPath = path.resolve(process.cwd(), 'data/invite_history.json');
-      if (fs.existsSync(historyPath)) {
-        const rawH = fs.readFileSync(historyPath, 'utf-8');
-        const parsedH = JSON.parse(rawH);
-        if (typeof parsedH === 'object' && parsedH !== null) {
-          this.memberHistory.clear();
-          for (const [k, v] of Object.entries(parsedH)) {
-            this.memberHistory.set(k, v as MemberJoinHistory);
-          }
+      const parsedHistory = PersistentStore.safeReadJson<Record<string, MemberJoinHistory>>('invite_history.json', [], {});
+      if (typeof parsedHistory === 'object' && parsedHistory !== null) {
+        this.memberHistory.clear();
+        for (const [k, v] of Object.entries(parsedHistory)) {
+          this.memberHistory.set(k, v as MemberJoinHistory);
         }
       }
+
+      console.log(`[InviteRewardManager] 📂 Davet verileri yüklendi: ${this.userInvites.size} kullanıcı, ${this.memberHistory.size} geçmiş kayıt.`);
     } catch (e: any) {
       console.warn('[InviteRewardManager] Veri yüklenemedi:', e.message);
     }
@@ -458,15 +456,37 @@ export class InviteRewardManager {
     }
 
     try {
-      const messages = await channel.messages.fetch({ limit: 15 });
-      const hasPanel = messages.some(
-        (m) =>
-          m.author.id === client.user?.id &&
-          m.embeds.length > 0 &&
-          m.embeds[0].title?.includes('DAVET ÖDÜLLERİ')
-      );
+      const messages = await channel.messages.fetch({ limit: 50 }).catch(() => null);
+      if (messages) {
+        // Botun bu kanala daha önce attığı tüm vitrin panellerini tespit et
+        const botPanels = Array.from(messages.values()).filter((m) => {
+          if (m.author.id !== client.user?.id) return false;
+          const hasEmbedMatch = m.embeds.some(
+            (e) =>
+              e.title?.includes('ARKADAŞINI DAVET ET') ||
+              e.title?.includes('DAVET') ||
+              e.title?.includes('ÖDÜLLERİ KAP') ||
+              e.author?.name?.includes('VİRAL BÜYÜME') ||
+              e.footer?.text?.includes('Nights Growth')
+          );
+          const hasButtonMatch = m.components.some((row: any) =>
+            row.components?.some((b: any) => b.customId?.startsWith('btn_invite_'))
+          );
+          return hasEmbedMatch || hasButtonMatch;
+        });
 
-      if (hasPanel) return;
+        if (botPanels.length > 0) {
+          // Birden fazla kopya varsa en günceli dışındakileri sil, tek panel kalsın
+          if (botPanels.length > 1) {
+            console.log(`[InviteRewardManager] #${channel.name} kanalında ${botPanels.length} adet kopya vitrin bulundu. Fazlalıklar siliniyor...`);
+            for (let i = 1; i < botPanels.length; i++) {
+              await botPanels[i].delete().catch(() => {});
+            }
+          }
+          console.log(`[InviteRewardManager] ℹ️ #${channel.name} kanalında vitrin paneli zaten mevcut. Yeniden mesaj atılmadı.`);
+          return;
+        }
+      }
 
       const embed = new EmbedBuilder()
         .setColor(0x8b5cf6)

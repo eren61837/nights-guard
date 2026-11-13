@@ -40,6 +40,8 @@ async function bootstrap() {
   EconomyManager.load();
   SocialManager.load();
   KelimeOyunuManager.loadState();
+  InviteRewardManager.load();
+  InviteTracker.load();
 
   const validation = validateConfig();
   if (validation.warnings.length > 0) {
