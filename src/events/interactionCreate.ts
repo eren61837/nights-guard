@@ -52,7 +52,10 @@ import * as yedekCmd from '../commands/yedek';
 import * as aiAnahtarCmd from '../commands/aiAnahtar';
 import * as lobiCmd from '../commands/lobi';
 import * as oyuncuCmd from '../commands/oyuncu';
+import * as roastCmd from '../commands/roast';
+import * as lakapCmd from '../commands/lakap';
 import { GamerHubManager } from '../services/features/gamerHubManager';
+import { RoastManager } from '../services/features/roastManager';
 import { SocialManager } from '../services/features/socialManager';
 import { ConfessionManager } from '../services/features/confessionManager';
 import { MusicPlayer } from '../services/features/musicPlayer';
@@ -90,6 +93,8 @@ export class InteractionHandler {
           interaction.customId === 'btn_open_lobby_modal' ||
           interaction.customId === 'btn_how_it_works' ||
           interaction.customId.startsWith('lobby_') ||
+          interaction.customId.startsWith('btn_roast_') ||
+          interaction.customId.startsWith('btn_lakap_') ||
           interaction.customId === 'ticket_open' ||
           interaction.customId === 'ticket_close'
         )) ||
@@ -101,7 +106,7 @@ export class InteractionHandler {
         (interaction.isChatInputCommand() && [
           'rank', 'seviye', 'top', 'liderlik', 'yardim', 'avatar', 'sunucu', 'afk', 'sil',
           'istatistik', 'kullanici', 'gonder', 'itiraf', 'cal', 'durdur', 'devam', 'gec', 'kuyruk', 'ayril', 'ses',
-          'lobi-bul', 'oyuncu'
+          'lobi-bul', 'oyuncu', 'roast', 'lakap'
         ].includes(interaction.commandName));
 
       if (!isPublicInteraction) {
@@ -261,6 +266,12 @@ export class InteractionHandler {
       case 'oyuncu':
         await oyuncuCmd.execute(interaction);
         break;
+      case 'roast':
+        await roastCmd.execute(interaction);
+        break;
+      case 'lakap':
+        await lakapCmd.execute(interaction);
+        break;
       default:
         await interaction.reply({ content: 'Bilinmeyen komut.', flags: MessageFlags.Ephemeral });
         break;
@@ -350,6 +361,40 @@ export class InteractionHandler {
     if (customId === 'btn_how_it_works' || customId.startsWith('lobby_')) {
       const handled = await GamerHubManager.handleButton(interaction);
       if (handled) return;
+    }
+
+    // 1.9. Roast & Lakap Buttons
+    if (customId === 'btn_roast_self') {
+      await interaction.reply({
+        content: '🔥 Kendini veya bir başkasını fena roastlatmak için </roast:0> komutunu kullanabilirsin!',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    if (customId.startsWith('btn_lakap_reroll_')) {
+      const targetUserId = customId.replace('btn_lakap_reroll_', '');
+      const guild = interaction.guild;
+      if (!guild) return;
+      const targetMember = await guild.members.fetch(targetUserId).catch(() => null);
+      if (!targetMember) return;
+
+      await interaction.deferUpdate();
+      try {
+        const card = await RoastManager.generateNickname(guild, targetMember);
+        const embed = RoastManager.buildNicknameEmbed(targetMember, card);
+        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`btn_lakap_reroll_${targetMember.id}`)
+            .setLabel('🎲 Başka Lakap Üret')
+            .setEmoji('🔄')
+            .setStyle(ButtonStyle.Primary)
+        );
+        await interaction.editReply({ embeds: [embed], components: [row] });
+      } catch (e: any) {
+        console.warn('[LakapReroll] Hata:', e.message);
+      }
+      return;
     }
 
     // 2. Build Confirm

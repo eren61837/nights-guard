@@ -23,6 +23,8 @@ import * as yedekCmd from '../commands/yedek';
 import * as aiAnahtarCmd from '../commands/aiAnahtar';
 import * as lobiCmd from '../commands/lobi';
 import * as oyuncuCmd from '../commands/oyuncu';
+import * as roastCmd from '../commands/roast';
+import * as lakapCmd from '../commands/lakap';
 import { rankData, topData, seviyeAyarlaData } from '../commands/seviye';
 import { LevelManager } from '../services/features/levelManager';
 import { VoiceLobbyManager } from '../services/features/voiceLobbyManager';
@@ -105,6 +107,8 @@ export async function onReady(client: Client): Promise<void> {
       itirafCmd.data,
       lobiCmd.data,
       oyuncuCmd.data,
+      roastCmd.data,
+      lakapCmd.data,
 
       // Müzik Komutları (Tüm Üyelere Açık)
       muzikCmd.calData,

@@ -19,6 +19,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       {
         name: '👥 Genel & Kullanıcı Komutları (Herkese Açık)',
         value:
+          '• `/roast [kullanıcı]` — Kişinin sunucudaki tüm mesajlarını okuyup onu acımasızca ve komikçe roast eder! 🔥\n' +
+          '• `/lakap [kullanıcı]` — Mesaj geçmişine ve tarzına göre kişiye özel komik gece/mafya lakabı takar! 🎭\n' +
           '• `/lobi-bul` — Valorant, CS2, LoL veya istediğin oyunda anında takım arkadaşı arama lobisi açar! 🎮\n' +
           '• `/oyuncu` — Valorant, CS2 veya LoL oyuncu istatistiklerini ve canlı Tracker kartını görüntüler.\n' +
           '• `/itiraf <mesaj>` — Sunucuya tamamen anonim ve gizli itirafta bulunur (Kimliğiniz %100 saklıdır).\n' +
