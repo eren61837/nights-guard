@@ -34,6 +34,7 @@ __export(index_exports, {
 });
 module.exports = __toCommonJS(index_exports);
 var import_discord50 = require("discord.js");
+var import_events = require("events");
 
 // src/config.ts
 var import_dotenv = __toESM(require("dotenv"));
@@ -10152,6 +10153,7 @@ var InviteTracker = class {
 
 // src/index.ts
 var import_discord51 = require("discord.js");
+import_events.EventEmitter.defaultMaxListeners = 100;
 async function bootstrap() {
   console.log("\u{1F680} Nights Guard \u2022 Made by erencix ba\u015Flat\u0131l\u0131yor...");
   PersistentStore.init();
@@ -10193,6 +10195,7 @@ async function bootstrap() {
     ],
     partials: [import_discord50.Partials.Channel, import_discord50.Partials.GuildMember, import_discord50.Partials.Message, import_discord50.Partials.User]
   });
+  client.setMaxListeners(100);
   const aiManager = new AIManager();
   const interactionHandler = new InteractionHandler(aiManager);
   client.once(import_discord50.Events.ClientReady, async () => {
@@ -10749,19 +10752,11 @@ Geri y\xFCklemek i\xE7in istedi\u011Finiz zaman \`!yedekgetir\` veya \`/yedekget
       }
     }
   });
-  process.on("unhandledRejection", (reason, promise) => {
-    if (reason && (reason.message?.includes("Cannot perform IP discovery") || reason.message?.includes("socket closed") || reason.code === 10062 || reason.code === 40060 || reason.message?.includes("Unknown interaction") || reason.message?.includes("already been acknowledged"))) {
-      console.warn("[Process] A\u011F / Discord etkile\u015Fim uyar\u0131s\u0131 otomatik kar\u015F\u0131land\u0131.");
-      return;
-    }
-    console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  process.on("unhandledRejection", (reason) => {
+    console.error("\u{1F6E1}\uFE0F [AutoRecovery] Beklenmeyen Promise Reddi (Bot \xE7al\u0131\u015Fmaya devam ediyor):", reason?.message || reason);
   });
   process.on("uncaughtException", (err) => {
-    if (err && (err.message?.includes("Cannot perform IP discovery") || err.message?.includes("socket closed") || err.code === 10062 || err.code === 40060 || err.message?.includes("Unknown interaction") || err.message?.includes("already been acknowledged"))) {
-      console.warn("[Process] \xD6nemsiz Discord etkile\u015Fim istisnas\u0131 toparland\u0131.");
-      return;
-    }
-    console.error("Uncaught Exception:", err);
+    console.error("\u{1F6E1}\uFE0F [AutoRecovery] Beklenmeyen hata yakaland\u0131 (Bot \xE7al\u0131\u015Fmaya devam ediyor):", err?.message || err);
   });
   process.on("SIGINT", () => {
     console.log("\nBot kapat\u0131l\u0131yor...");

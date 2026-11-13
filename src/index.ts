@@ -5,6 +5,8 @@ import {
   Events,
   PermissionFlagsBits,
 } from 'discord.js';
+import { EventEmitter } from 'events';
+EventEmitter.defaultMaxListeners = 100;
 import { config, validateConfig } from './config';
 import { AIManager } from './services/ai/aiManager';
 import { InteractionHandler } from './events/interactionCreate';
@@ -77,6 +79,7 @@ async function bootstrap() {
     ],
     partials: [Partials.Channel, Partials.GuildMember, Partials.Message, Partials.User],
   });
+  client.setMaxListeners(100);
 
   const aiManager = new AIManager();
   const interactionHandler = new InteractionHandler(aiManager);
@@ -736,35 +739,13 @@ async function bootstrap() {
     }
   });
 
-  // Process error handlers
-  process.on('unhandledRejection', (reason: any, promise) => {
-    if (reason && (
-      reason.message?.includes('Cannot perform IP discovery') ||
-      reason.message?.includes('socket closed') ||
-      reason.code === 10062 ||
-      reason.code === 40060 ||
-      reason.message?.includes('Unknown interaction') ||
-      reason.message?.includes('already been acknowledged')
-    )) {
-      console.warn('[Process] Ağ / Discord etkileşim uyarısı otomatik karşılandı.');
-      return;
-    }
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Process error handlers - 7/24 Crash Koruması
+  process.on('unhandledRejection', (reason: any) => {
+    console.error('🛡️ [AutoRecovery] Beklenmeyen Promise Reddi (Bot çalışmaya devam ediyor):', reason?.message || reason);
   });
 
   process.on('uncaughtException', (err: any) => {
-    if (err && (
-      err.message?.includes('Cannot perform IP discovery') ||
-      err.message?.includes('socket closed') ||
-      err.code === 10062 ||
-      err.code === 40060 ||
-      err.message?.includes('Unknown interaction') ||
-      err.message?.includes('already been acknowledged')
-    )) {
-      console.warn('[Process] Önemsiz Discord etkileşim istisnası toparlandı.');
-      return;
-    }
-    console.error('Uncaught Exception:', err);
+    console.error('🛡️ [AutoRecovery] Beklenmeyen hata yakalandı (Bot çalışmaya devam ediyor):', err?.message || err);
   });
 
   process.on('SIGINT', () => {
