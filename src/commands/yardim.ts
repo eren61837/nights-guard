@@ -44,6 +44,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       {
         name: '🎵 384kbps Hi-Fi Müzik Sistemi (YouTube & SoundCloud)',
         value:
+          '• `/erenmod` veya `!erenmod` — Erencix\'in favori VIP parçalarını anında ses odasında başlatır! 👑🔥\n' +
           '• `/cal <şarkı>` veya `!cal <şarkı>` — YouTube veya SoundCloud parçalarını ses odasında çalar.\n' +
           '• `/durdur` & `/devam` — Müziği duraklatır veya sürdürür.\n' +
           '• `/gec` — Sıradaki parçaya atlar.\n' +
